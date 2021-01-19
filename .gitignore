@@ -1,0 +1,26 @@
+# ignore data folder
+data/**
+data.lnk
+
+# ignore figures unless added specifically
+figures
+
+# ignore notebook checkpoints
+.ipynb*
+iframe_figures
+
+# ignore pycache
+**__pycache__
+
+# ignore documents for now (not sure which are not to be disclosed
+documents
+
+
+# ignore latex trash
+**.aux
+**.bbl
+**.blg
+**.gz
+**.toc
+**.log
+**.xml
