@@ -23,7 +23,6 @@ cloud_threshold = 0.01 # g/kg cloud boundary of liquid + ice /kg air
 latlons, extents={},{}
 
 ####### Kangaroo Island extents##########
-# local (first day of burn, escarp covered)
 # main area
 extents['KI'] = [136.56,137,-36,-35.66]
 # zoomed area
@@ -34,6 +33,10 @@ latlons['Cape Torrens'] = -35.74,136.75
 # show ignition area (roughly)
 latlons['fire_KI'] = -35.72, 136.92
 
+####### Badja extents ###############
+extents['badja'] = [149.34, 150.03, -36.49, -35.99]
+latlons['fire_badja'] = -36.17, 149.506
+latlons['wandella'] = -36.3115, 149.8562
 
 
 ## Extra locs

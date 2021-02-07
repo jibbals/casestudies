@@ -35,6 +35,11 @@ __DATADIR__=constants.__DATADIR__
 ## Info that is the same for most runs
 #
 sim_info={
+    'badja':{
+        'topog':'umnsaa_2019123003_slv.nc',
+        'filedates':np.array([datetime(2019,12,30,3) + timedelta(hours=x) for x in range(24)]), # in UTC
+        'UTC_offset':11, # UTC + 11 hours AEDT (daylight savings)
+        },
     'KI':{
         'topog':'umnsaa_2020010215_slv.nc',
         'filedates':np.array([datetime(2020,1,2,15) + timedelta(hours=x) for x in range(24)]),
@@ -45,6 +50,13 @@ sim_info={
 
 ## Where are model outputs located, and run specific info
 run_info = {
+    'badja_run1':{
+        'dir':__DATADIR__+'badja_run1/',
+        'WESN':[149.26,150.075,-36.52,-35.914],
+        'desc':{ # any description stuff in here
+            "fuel":"constant = 2 everywhere",
+            },
+        },
     'KI_run1':{ # run1 uses approximately correct fire polygon start
         'dir':__DATADIR__+'KI_run1/',
         'WESN':[136.1922,137.8036,-36.1774,-35.5054],
@@ -595,6 +607,8 @@ def standard_fig_name(model_run, plot_name, plot_time,
                       ext='.png'):
     if isinstance(plot_time,datetime):
         dstamp=plot_time.strftime('%dT%H%M')
+    else:
+        dstamp=plot_time
 
     if extent_name is None:
         extent_name = "unspecified_extent"

@@ -210,6 +210,10 @@ def map_add_locations_extent(extentname,
                   'KIz':['Cape Torrens',],
                   'KI':['Cape Torrens',],
                   }
+    if extentname not in locstrings.keys():
+        print("WARNING: map_add_locations_extent called without matching locations")
+        return
+
     dx=.025
     dxfire = .025
     dy=.015

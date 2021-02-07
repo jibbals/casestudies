@@ -121,14 +121,14 @@ def fireplan(ff, fire_contour_map = 'autumn',
         #                        colors=color, linewidths=linewidth,
         #                        )
         print("INFO:Contour for ",LT,"(local time) plotted")
-    if (color is not None) and (last_hour is None):
-        # final contour gets bonus blue line
-        final_line=plt.contour(lon,lat,ff_f[-1].data.data, np.array([0]), 
-                               linestyles='dotted',
-                               colors='cyan', linewidths=1)
-        clbls = plt.clabel(final_line,[0],fmt=LT.strftime('%H:%M'), 
-                           inline=True, colors='wheat')
-        plt.setp(clbls, path_effects=[patheffects.withStroke(linewidth=3, foreground="k")])
+    #if (color is not None) and (last_hour is None):
+    #    # final contour gets bonus blue line
+    #    final_line=plt.contour(lon,lat,ff_f[-1].data.data, np.array([0]), 
+    #                           linestyles='dotted',
+    #                           colors='cyan', linewidths=1)
+    #    clbls = plt.clabel(final_line,[0],fmt=LT.strftime('%H:%M'), 
+    #                       inline=True, colors='wheat')
+    #    plt.setp(clbls, path_effects=[patheffects.withStroke(linewidth=3, foreground="k")])
 
     ## Add tiny colour bar showing overall time of fire
     if show_cbar:
@@ -282,13 +282,16 @@ def fire_spread_hourly(mr,
     
     fig,ax = fireplan(ff, **fireplankwargs)
     
-    fio.save_fig_to_path("check.png",plt)
+    #fio.save_fig_to_path("check.png",plt)
+    return fig,ax
 
 if __name__=='__main__':
     
     ## Check KI output
-    fig,ax = fire_spread_hourly('KI_run1',hours=range(5,10))
+    mr='badja_run1'
+    fig,ax = fire_spread_hourly('badja_run1',hours=range(5,10))
     #fio.save_fig_to_path('check.png',plt)
+    fio.save_fig(
     
     
     
