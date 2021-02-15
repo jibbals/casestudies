@@ -208,7 +208,7 @@ def map_add_locations_extent(extentname,
                   'sirivans':['dunedoo','cassillis','uarbry'],
                   'sirivan_pcb':['cassillis','uarbry'],
                   'KIz':['Cape Torrens',],
-                  'KI':['Cape Torrens',],
+                  'KI':['Cape Torrens','parndana'],
                   }
     if extentname not in locstrings.keys():
         print("WARNING: map_add_locations_extent called without matching locations")

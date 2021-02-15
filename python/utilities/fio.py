@@ -259,6 +259,7 @@ def read_fire(model_run,
         model_run: name of model run to read
         dtimes:list of datetimes to read (default is all)
         extent: [WESN]
+        filename: string matching one of {'firefront', 'sensible_heat','fire_speed','10m_uwind','10m_vwind','fuel_burning','relative_humidity','water_vapor','surface_temp'}
     '''
     ## If no fire exists for model run, return None
     fdir = run_info[model_run]['dir']+'fire/'
@@ -314,6 +315,46 @@ def read_fire(model_run,
                 cube.transpose([0, 2, 1])
         
     return cubelist
+
+def model_run_filepaths(run_name, 
+        hours=None, suffix=None):
+    """
+    return list of file paths with data from model run <run_name>.
+    Optionally subset to a list of specific hours
+
+    INPUTS:
+        hours (optional): list of datetimes
+        suffix (optional): only return files with *suffix* in the name 
+    """
+
+    ddir = __DATADIR__ + run_name + '/atmos/'
+    # return list of fpaths
+    fpaths=[]
+    
+    ## no suffix? set it to empty
+    if suffix is None: 
+        suffix=""
+
+    ## No ftimes? return all available data paths
+    if hours is None:
+        fpaths=glob(ddir+"*%s.nc"%suffix)
+            
+    else: 
+        # make sure it's iterable
+        if not hasattr(hours,'__iter__'):
+            hours = [hours]
+        hours = np.array(hours)
+    
+        for hour in hours:
+            dstamp=hour.strftime('%Y%m%d%H')
+            fpaths0 = glob(ddir+"*%s*%s.nc"%(dstamp,suffix))
+            fpaths.extend(fpaths0)
+    if len(fpaths) < 1:
+        print("WARNING: No files found (after any constraints applied) in %s "%ddir)
+    fpaths.sort()
+    return fpaths
+    
+
 
 def read_model_run(run_name,
                    hours=None, extent=None, constraints=None, HSkip=None):

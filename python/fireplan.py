@@ -25,7 +25,7 @@ from utilities import plotting, utils, fio, constants
 ###
 ## GLOBALS
 ###
-
+_sn_='fireplan'
 
 def fireplan(ff, fire_contour_map = 'autumn',
              show_cbar=True, cbar_XYWH= [0.65, 0.63, .2, .02],
@@ -288,10 +288,15 @@ def fire_spread_hourly(mr,
 if __name__=='__main__':
     
     ## Check KI output
-    mr='badja_run1'
-    fig,ax = fire_spread_hourly('badja_run1',hours=range(5,10))
+    #mr='badja_run1'
+    mr='KI_run1'
+    
+    # can just choose a subset
+    hours=range(5,10)
+    hours=None
+    fig,ax = fire_spread_hourly(mr,hours=hours)
     #fio.save_fig_to_path('check.png',plt)
-    fio.save_fig(
+    fio.save_fig(mr,_sn_,"FF_hourly",plt)
     
     
     

@@ -31,7 +31,7 @@ extents['KIz'] = [136.6,136.9,-35.9,-35.7]
 latlons['parndana'] = -35.79, 137.262
 latlons['Cape Torrens'] = -35.74,136.75
 # show ignition area (roughly)
-latlons['fire_KI'] = -35.72, 136.92
+latlons['fire_KI'] = -35.78, 136.76
 
 ####### Badja extents ###############
 extents['badja'] = [149.34, 150.03, -36.49, -35.99]

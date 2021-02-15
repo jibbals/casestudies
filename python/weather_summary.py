@@ -616,61 +616,10 @@ def weather_series(model_run='waroona_run3',
 if __name__=='__main__':
     
 
-    mr='badja_run1'
+    mr='sirivan_run1'
     hours = fio.run_info[mr]['filedates']
     hwind_minmax = [5, 25]
     weather_summary_model(mr,HSkip=None,fdtimes=hours, hwind_limits=hwind_minmax)
-    
-
-    ## Run timeseries
-    if False:
-        # day1 waroona:
-        #weather_series('waroona_run3',showmap=True)
-        # day2 waroona:
-        weather_series('waroona_run3', day2=True, showPFT=False, extent=waroona_day2zoom,
-                showQC=True, HSkip=None,
-                showfirelinehour=datetime(2016,1,7,16),
-                showmap=True, mapname='Waroona_day2.tiff')
-        #weather_series('sirivan_run6_hr',showFP=True,showPFT=True,showmap=True,
-        #        HSkip=10, 
-        #        test=False)
-    
-    ## Run weather summary
-    if False:
-            
-        fdt = fio.run_info[mr]['filedates']
-        zoom_in = constants.extents[exname]
-
-        weather_summary_model(mr, 
-                              zoom_in=zoom_in,
-                              subdir=exname,
-                              HSkip=None,
-                              fdtimes=fdt,
-                              hwind_limits=[0,30],
-                              )
-    
-    ## Plot tiff to show where summary is taking place
-    if False:
-        # Make a helper figure to show where the summary is located
-        for name,zoom in zip(["day1_extent.png","day2_extent.png"],
-                             [constants.extents['waroona'],constants.extents['waroonaf']]):
-            
-            f,ax = plotting.map_tiff_qgis("waroonas.tiff",)
-            ## Add box around zoomed in area
-            xy = [zoom[0], zoom[2]]
-            width = zoom[1]-zoom[0]
-            height = zoom[3]-zoom[2]
-            ax.add_patch(patches.Rectangle(xy=xy,
-                                           width=width,
-                                           height=height,
-                                           #facecolor=None,
-                                           fill=False,
-                                           edgecolor='blue',
-                                           linewidth=2,
-                                           #linestyle='-',
-                                           alpha=.7, 
-                                           ))
-            fio.save_fig("waroona_run3e",_sn_,name,plt=plt)
     
     print("INFO: weather_summary.py done")
 

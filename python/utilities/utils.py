@@ -615,10 +615,46 @@ def destagger_winds(u1,v1):
     #v1 = [time,levs,lat1,lons]
     
     '''
+    N_DIMS=len(np.shape(u1))
     u = np.tile(np.nan,u1.shape) # tile repeats the nan accross nz,ny,nx dimensions
-    u[:,:,:,1:] = 0.5*(u1[:,:,:,1:] + u1[:,:,:,:-1]) # interpolation of edges
-    v = 0.5*(v1[:,:,1:,:] + v1[:,:,:-1,:]) # interpolation of edges
+    if N_DIMS == 4:
+        # interpolation of edges
+        u[:,:,:,1:] = 0.5*(u1[:,:,:,1:] + u1[:,:,:,:-1]) 
+        v = 0.5*(v1[:,:,1:,:] + v1[:,:,:-1,:])
+    elif N_DIMS == 3:
+        u[:,:,1:] = 0.5*(u1[:,:,1:] + u1[:,:,:-1])
+        v = 0.5*(v1[:,1:,:] + v1[:,:-1,:])
+    elif N_DIMS == 2:
+        u[:,1:] = 0.5*(u1[:,1:] + u1[:,:-1])
+        v = 0.5*(v1[1:,:] + v1[:-1,:])
     
+    return u,v
+
+def destagger_wind_cubes(cubes):
+    """
+    """
+    ## Staggered grid:
+    ## u[latitude,longitude_edges]
+    ## v[latitude_edges,longitude]
+    ## fix by interpolation
+
+    # assume length 2 input lists are just [x_wind,y_wind]
+    if len(cubes) == 2:
+        u1, v1 = cubes
+    else:
+        u1, v1 = cubes.extract(['x_wind','y_wind'])
+    
+    # interpolate xwind longitudes onto vwind longitude dim
+    u = u1.interpolate([('longitude',v1.coord('longitude').points)],
+                       iris.analysis.Linear())
+    v = v1.interpolate([('latitude',u1.coord('latitude').points)],
+                       iris.analysis.Linear())
+        
+    # add standard names for these altered variables:
+    iris.std_names.STD_NAMES['u'] = {'canonical_units': 'm s-1'}
+    iris.std_names.STD_NAMES['v'] = {'canonical_units': 'm s-1'}
+    u.standard_name='u'
+    v.standard_name='v'
     return u,v
 
 def uv_from_wind_degrees(wd,met_convention=True):
