@@ -786,9 +786,8 @@ def wind_dir_from_uv(u,v):
     #wind_dir_rads = iris.analysis.maths.apply_ufunc(np.arctan2,v,u)
     wind_dir_rads = np.arctan2(v,u)
     # this is anticlockwise from directly east
-    # meteorologicaly wind dir: 0 is due north, + is clockwise
-    ## this points to the direction which the wind is GOING
-    # wind_dir = (-1*wind_dir_rads.data*180/np.pi+90)%360
+    # meteorological wind dir: 0 is due north, + is clockwise
+    # -WIND-IS-GOING-DIRECTION = (-1*wind_dir_rads.data*180/np.pi+90)%360
     # met standard points to where the wind is coming from
     wind_dir = (-1*wind_dir_rads*180/np.pi - 90) % 360
     return wind_dir
