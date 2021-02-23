@@ -250,7 +250,7 @@ def read_fire(model_run,
               dtimes=None, 
               constraints=None, 
               extent=None,
-              filename='firefront',
+              filenames='firefront',
               HSkip=None):
     '''
     Read fire output file
@@ -268,35 +268,37 @@ def read_fire(model_run,
         # needs to be iterable to match cubelist return type (with wind counted twice) 
         return None
     
-    
-    ## otherwise read fire paths and return fire cubes
-    #sensible_heat.[affix.]YYYYMMDDTHHmmZ.nc',
-    #fire_speed, 10m_uwind, 10m_vwind
-    paths = fire_path(model_run,filename)
-    
+    if isinstance(filenames, str):
+        filenames=[filenames]
+
     if extent is not None:
         constraints = _constraints_from_extent_(extent,constraints)
 
     # Build up cubelist based on which files you want to read
     cubelist = iris.cube.CubeList()
-    #flags = [firefront, sensibleheat, firespeed, wind, wind]
-    units = {"firefront":None,
-            "sensible_heat":'Watts/m2', 
-            "fire_speed":'m/s', 
-            "10m_vwind":'m/s', 
-            "10m_uwind":'m/s',
-            }
-    unit = units[filename]
 
-    #print("DEBUG: flag, paths, unit",flag,paths,unit)
-    if len(paths) < 1:
-        print("ERROR: missing files")
-        print("     :", paths)
-    cube, = read_nc_iris(paths, constraints=constraints, HSkip=HSkip)
-    if unit is not None:
-        cube.units=unit
-    cubelist.append(cube)
+    for fname in filenames:
+        paths = fire_path(model_run,fname)
+        
+        #flags = [firefront, sensibleheat, firespeed, wind, wind]
+        units = {"firefront":None,
+                "sensible_heat":'Watts/m2', 
+                "fire_speed":'m/s', 
+                "10m_vwind":'m/s', 
+                "10m_uwind":'m/s',
+                }
+        unit = units[fname]
     
+        #print("DEBUG: flag, paths, unit",flag,paths,unit)
+        
+        if len(paths) < 1:
+            print("ERROR: missing files")
+            print("     :", paths)
+        cube, = read_nc_iris(paths, constraints=constraints, HSkip=HSkip)
+        if unit is not None:
+            cube.units=unit
+        cubelist.append(cube)
+
     # Subset by time if argument exists
     if dtimes is not None:
         for i in range(len(cubelist)):

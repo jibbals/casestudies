@@ -192,61 +192,27 @@ def map_add_grid(ax, **gridargs):
     #gl.ylabels_left = False
     #gl.xlines = False
 
-def map_add_locations_extent(extentname, 
+def map_add_locations_extent(extent, 
                              hide_text=False,
-                             color='grey', nice=False):
+                             color='grey', 
+                             nice=True,
+                             dx=.025,
+                             dy=.015,
+                             ):
     '''
     wrapper for map_add_locations that adds all the points for that extent
+    dx,dy are distance between text and location (in degrees)
     '''
-    
-    locstrings = {'waroona':['waroona','yarloop'],
-                  'waroonaz':['waroona','hamel'],
-                  'waroonaf':['waroona','yarloop'],
-                  'waroona_day2':['waroona','hamel','yarloop'],
-                  'sirivan':['dunedoo','cassillis','leadville','merotherie','turill',],
-                  'sirivanz':['cassillis','leadville','merotherie','turill'],
-                  'sirivans':['dunedoo','cassillis','uarbry'],
-                  'sirivan_pcb':['cassillis','uarbry'],
-                  'KIz':['Cape Torrens',],
-                  'KI':['Cape Torrens','parndana'],
-                  }
-    if extentname not in locstrings.keys():
-        print("WARNING: map_add_locations_extent called without matching locations")
-        return
+    names,latlons = utils.locations_from_extent(extent)
 
-    dx=.025
-    dxfire = .025
-    dy=.015
-    dyfire = .015
-    if 'sirivan' in extentname:
-        dxfire=.05
-        dyfire=-.06
-
-    # Where is fire ignition
-    firename = "fire_"+extentname
-    if extentname[-1] in ["s","z","f","b"]:
-        if 'waroona' in extentname:
-            firename = "fire_waroona"
-        else:
-            firename = "fire_sirivan"
-
-    locs = locstrings[extentname]
-    text = [name.capitalize() for name in locs]
+    Names = [name.capitalize() for name in names]
     if hide_text:
-        text = ['']*len(locs)
+        Names = ['']*len(names)
     
     if nice:
-        latlons=[ _latlons_[loc] for loc in locs ]
-        map_add_nice_text(plt.gca(),latlons=latlons,texts=text)
+        map_add_nice_text(plt.gca(),latlons=latlons,texts=Names)
     else:
-        map_add_locations(locs, text=text, color=color, textcolor='k', dx=dx,dy=dy)
-        # add fire ignition
-        map_add_locations([firename], text=[['Ignition',''][hide_text]], 
-                          color='r', marker='*', dx=dxfire, dy=dyfire, textcolor='k')
-        # add weather stations
-        if 'waroona' in extentname:
-            map_add_locations(['wagerup'],[['AWS',''][hide_text]],
-                              color='b', marker='*', dx=-.025,dy=.01)
+        map_add_locations(latlons, text=Names, color=color, textcolor='k', dx=dx,dy=dy)
 
 def map_add_locations(namelist, text=None, proj=None,
                       marker='o', color='grey', markersize=None, 

@@ -13,6 +13,7 @@ from datetime import datetime,timedelta
 from scipy import interpolate
 
 import iris
+from utilities import constants
 
 # more print statements for testing
 __VERBOSE__=False
@@ -706,6 +707,20 @@ def find_max_index_2d(field):
     # find max windspeed, put into same shape as winds [y,x]
     mloc = np.unravel_index(np.argmax(field,axis=None),field.shape)
     return mloc
+
+def locations_from_extent(extent):
+    """
+    find matching location names and latlons from constants.latlons using an extent
+    """
+    W,E,S,N = extent
+    names,latlons=[],[]
+    for k,v in constants.latlons.items():
+        lat,lon = v
+        if lat > S and lat < N and lon > W and lon < E:
+            names.append(k)
+            latlons.append(v)
+    return names,latlons
+
 
 def vorticity(u,v,lats,lons,nans_to_zeros=False):
     """

@@ -28,15 +28,18 @@ extents['KI'] = [136.56,137,-36,-35.66]
 # zoomed area
 extents['KIz'] = [136.6,136.9,-35.9,-35.7]
 # towns...
-latlons['parndana'] = -35.79, 137.262
+latlons['Parndana'] = -35.79, 137.262
 latlons['Cape Torrens'] = -35.74,136.75
+latlons['Emu Bay'] = -35.5941, 137.5447
 # show ignition area (roughly)
-latlons['fire_KI'] = -35.78, 136.76
 
 ####### Badja extents ###############
 extents['badja'] = [149.34, 150.03, -36.49, -35.99]
-latlons['fire_badja'] = -36.17, 149.506
-latlons['wandella'] = -36.3115, 149.8562
+#latlons['fire_badja'] = -36.17, 149.506
+latlons['Wandella'] = -36.3115, 149.8562
+latlons['Tuross Falls'] = -36.2228, 149.5358
+latlons['Belowra'] = -36.1890, 149.6871
+latlons['Yowrie'] = -36.3451, 149.7531
 
 
 ## Extra locs

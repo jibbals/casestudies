@@ -81,7 +81,7 @@ def fireplan(ff, fire_contour_map = 'autumn',
             extent=extent, 
             **kwtiffargs,
             )
-        plotting.map_add_locations_extent(extentname, hide_text=False, nice=True)
+        plotting.map_add_locations_extent(extent, hide_text=False, nice=True)
     else:
         # can just use default coastlines
         fig,ax = plotting.map_cartopy(extent)
@@ -191,12 +191,7 @@ def fireplan_comparison(model_runs,
                     )
         legend.append(Line2D([0],[0],color=color,lw=2))
     
-    if 'waroona' in model_runs[0]:
-        plotting.map_add_nice_text(ax,
-                                   [constants.latlons['waroona'],constants.latlons['yarloop']],
-                                   texts=['Waroona','Yarloop'], fontsizes=14)
-    else:
-        plotting.map_add_locations_extent('sirivan',nice=True)
+    plotting.map_add_locations_extent(extent,nice=True)
     
     # Make/Add legend
     ax.legend(legend, model_runs)
@@ -231,7 +226,7 @@ def heatmap(mr,extentname=None,winds=False):
         # satellite view
         f,ax = plotting.map_tiff_qgis(fname=extentname+".tiff", extent=extent)
         # add locations
-        plotting.map_add_locations_extent(extentname,nice=True)
+        plotting.map_add_locations_extent(extent,nice=True)
         # add heatflux
         plotting.map_sensibleheat(shsubset[dti].data,lats,lons,alpha=0.9)
         # add winds
@@ -288,8 +283,8 @@ def fire_spread_hourly(mr,
 if __name__=='__main__':
     
     ## Check KI output
-    #mr='badja_run1'
-    mr='KI_run1'
+    mr='badja_run1'
+    #mr='KI_run1'
     
     # can just choose a subset
     hours=range(5,10)
