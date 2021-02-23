@@ -52,6 +52,8 @@ def plot_weather_summary(U,V,W, height, lat, lon,
         print("WARNING: lons adjusted in plot_weather_summary")
         lon = np.linspace(lon[0],lon[-1],len(lon))
 
+    extent = [lon[0],lon[-1],lat[0],lat[-1]]
+
     ## Use height array (level height averages) to subset data into plots
     # first row is for levels between 100 and 500 metres altitude
     row1 = (100<=height) * (height<500)
@@ -61,7 +63,7 @@ def plot_weather_summary(U,V,W, height, lat, lon,
     row4 = (3000<=height) * (height<5000)
     # todo row 5
     row5 = (5000<height) * (height<10000)
-    
+
     # vertical wind colourbar is constant
     wcmap=plotting._cmaps_['verticalvelocity']
     wnorm=colors.SymLogNorm(0.25,base=2.) # linear to +- 0.25, then log scale
@@ -114,8 +116,7 @@ def plot_weather_summary(U,V,W, height, lat, lon,
             lax.contour(lon,lat,topog,topog_contours,
                         colors='k', alpha=0.7, linewidths=1)
         
-        if extentname is not None:
-            plotting.map_add_locations_extent(extentname, hide_text=True)
+        plotting.map_add_locations_extent(extent, hide_text=True)
         
         ##Streamplot the horizontal winds
         ## This shifts the subplot grid axes slightly!! 
@@ -149,12 +150,7 @@ def plot_weather_summary(U,V,W, height, lat, lon,
         Wr = np.mean(Wi,axis=0)
         
         cs = plt.contourf(lon, lat, Wr, wcontours, cmap=wcmap, norm=wnorm)
-        #print("DEBUG: Vertical motion")
-        #print("     : min, mean, max:", np.min(Wr),np.mean(Wr),np.max(Wr))
-        #print("     : shape, len(lats), len(lons):", np.shape(Wr),len(lat),len(lon))
-        #print("     : min,max for lat,lons:",np.min(lat),np.max(lat),np.min(lon),np.max(lon))
-        if extentname is not None:
-            plotting.map_add_locations_extent(extentname, hide_text=ii>0)
+        plotting.map_add_locations_extent(extent, hide_text=ii>0, nice=False,)
         
         # add cloud hatching
         if Q is not None:
@@ -189,7 +185,7 @@ def plot_weather_summary(U,V,W, height, lat, lon,
                 pad=0, extend='max')
         
 
-def weather_summary_model(model_version='waroona_run1',
+def weather_summary_model(mr,
                           fdtimes=None,
                           zoom_in=None,
                           subdir=None,
@@ -203,23 +199,23 @@ def weather_summary_model(model_version='waroona_run1',
     # font sizes etc
     plotting.init_plots()
     
-    extentname = model_version.split('_')[0]
+    extentname = mr.split('_')[0]
     extent = constants.extents[extentname]
     if zoom_in is not None:
         extentname=None
         extent = zoom_in
     if fdtimes is None:
-        fdtimes = fio.run_info[model_version]['filedates']
+        fdtimes = fio.run_info[mr]['filedates']
     FF = None
     
     # read one hour at a time, plot each available time slice
     for fdtime in fdtimes:
         
         # read cubes
-        cubes = fio.read_model_run(model_version, hours=[fdtime], extent=extent, 
+        cubes = fio.read_model_run(mr, hours=[fdtime], extent=extent, 
                                    HSkip=HSkip)
         utils.extra_cubes(cubes,add_winds=True) # add u,v,s,wind_direction
-        topog = fio.read_topog(model_version,
+        topog = fio.read_topog(mr,
                                extent=extent,
                                HSkip=HSkip)
         u,v= cubes.extract(['u','v'])
@@ -230,7 +226,7 @@ def weather_summary_model(model_version='waroona_run1',
         height = utils.height_from_iris(w)
         dtimes = utils.dates_from_iris(u)
         # read fire front
-        ff, = fio.read_fire(model_version, dtimes, extent=extent, HSkip=HSkip)
+        ff, = fio.read_fire(mr, dtimes, extent=extent, HSkip=HSkip)
         
         # for each time slice create a weather summary plot
         for i,dtime in enumerate(dtimes):
@@ -248,14 +244,14 @@ def weather_summary_model(model_version='waroona_run1',
                                  topog=topog.data,
                                  )
             
-            offsethours = fio.run_info[model_version]['UTC_offset']
+            offsethours = fio.run_info[mr]['UTC_offset']
             ltime=dtime+timedelta(hours=offsethours)
-            plt.suptitle("%s weather "%model_version + ltime.strftime("%Y %b %d %H:%M (LT)"))
+            plt.suptitle("%s weather "%mr + ltime.strftime("%Y %b %d %H:%M (LT)"))
             
             if (zoom_in is not None) and (subdir is None): 
                 subdir = 'zoomed'
-            fio.save_fig(model_run=model_version,
-                         plot_name=_sn_, 
+            fio.save_fig(model_run=mr,
+                         plot_name="weather_summary", 
                          plot_time=dtime, 
                          plt=plt,
                          extent_name=extentname,)
@@ -616,9 +612,9 @@ def weather_series(model_run='waroona_run3',
 if __name__=='__main__':
     
 
-    mr='sirivan_run1'
+    mr='KI_run1'
     hours = fio.run_info[mr]['filedates']
-    hwind_minmax = [5, 25]
+    hwind_minmax = [0, 30]
     weather_summary_model(mr,HSkip=None,fdtimes=hours, hwind_limits=hwind_minmax)
     
     print("INFO: weather_summary.py done")
