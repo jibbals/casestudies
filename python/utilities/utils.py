@@ -371,7 +371,14 @@ def transect(data, lats, lons, start, end, nx=None, z_th=None):
         end = [lat1,lon1]
         nx = how many points along horizontal. defaults to grid size
         z_th = optional altitude array [z, lats, lons]
-    RETURNS: transect, xaxis, yaxis 
+    RETURNS: 
+        struct: {
+            'transect': vertical cross section of data 
+            'x': x axis [Y,X] in metres from start point 
+            'y': y axis [Y,X] in terms of z_th
+            'lats': [X] lats along horizontal axis
+            'lons': [X] lons along horizontal axis
+        } 
         xaxis: x points in metres
         yaxis: y points in metres or None if no z_th provided
     '''
@@ -389,6 +396,7 @@ def transect(data, lats, lons, start, end, nx=None, z_th=None):
     
     # Define grid for horizontal interpolation.
     lataxis,lonaxis = latslons_axes_along_transect(lats,lons,start,end,nx=nx)
+    label=["(%.2f, %.2f)"%(lat,lon) for lat,lon in zip(lataxis,lonaxis)]
     
     # Interpolate data along slice (in model height coordinate). Note that the
     # transpose is needed because RectBivariateSpline assumes the axis order (x,y)
@@ -404,7 +412,59 @@ def transect(data, lats, lons, start, end, nx=None, z_th=None):
     # X, Y axes need to be on metres dimension!
     slicex=transect_slicex(lats,lons,start,end,nx=nx,nz=nz)
     
-    return np.squeeze(slicedata), slicex, slicez
+    return {'transect':np.squeeze(slicedata),
+            'x':slicex,
+            'y':slicez,
+            'lats':lataxis,
+            'lons':lonaxis,
+            'label':label,
+            }
+
+def transect_winds(u,v,lats,lons,start,end,z=None):
+    """
+    Get wind speed along arbitrary transect line
+    ARGUMENTS:
+        u[...,lev,lat,lon]: east-west wind speed
+        v[...,lev,lat,lon]: north_south wind speed
+        lats[lat]: latitudes
+        lons[lon]: longitudes
+        start[2]: lat,lon start point for transect
+        end[2]: lat,lon end point for transect
+        z[...,lev,lat,lon]: optional altitude or pressure levels
+        
+    """
+    lat0,lon0=start
+    lat1,lon1=end
+    # signed angle in radians for transect line
+    theta_rads=np.arctan2(lat1-lat0,lon1-lon0)
+    theta_degs=np.rad2deg(theta_rads)
+    print("CHECK: angle between", start, end)
+    print("     : is ",theta_degs, "degrees?")
+    
+    ucross_str=transect(u,lats,lons,
+                    start=[lat0,lon0],
+                    end=[lat1,lon1],
+                    z_th=z)
+    ucross = ucross_str['transect']
+    vcross_str=transect(v,lats,lons,
+                    start=[lat0,lon0],
+                    end=[lat1,lon1],
+                    z_th=z)
+    vcross = vcross_str['transect']
+    wind_mag = ucross * np.cos(theta_rads) + vcross * np.sin(theta_rads)
+    
+    ret={
+        'theta':theta_degs,
+        'wind':wind_mag,
+        'transect_v':vcross,
+        'transect_u':ucross,
+        'x':ucross_str['x'],
+        'y':ucross_str['y'],
+        'lats':ucross_str['lats'],
+        'lons':ucross_str['lons'],
+        'label':ucross_str['label'],
+        }
+    return ret
 
 def cube_to_xyz(cube,
                 ztop=-1):
@@ -608,7 +668,7 @@ def potential_temperature(p,T):
         print("WARNING: Potential temperature assumes Temperature is in Kelvin, lowest input temp is only ", np.min(T))
     return T*(1e5/p)**(287.05/1004.64)
     
-def destagger_winds(u1,v1):
+def destagger_winds(u1,v1,lats=None,lons=None,lats1=None,lons1=None):
     '''
     destagger winds from ACCESS um output
     wind speeds are on their directional grid edges
@@ -616,18 +676,41 @@ def destagger_winds(u1,v1):
     #v1 = [time,levs,lat1,lons]
     
     '''
-    N_DIMS=len(np.shape(u1))
+    
+    # can check assumptions  and fix !! todo
+    if lats is not None:
+        print("INFO: Destagger check:")
+        arrlens=[len(arr) for arr in [lats,lats1,lons,lons1]]
+        print("    : len(lats)=%d  len(lats1)=%d  len(lons)=%d  len(lons1)=%d"%(arrlens[0],arrlens[1],arrlens[2],arrlens[3]))
+        print("    : lats1[0], lats[0], lats1[1]: ",lats1[0],lats[0],lats1[1])
+        print("    : lats1[-2], lats[-1], lats1[-1]: ",lats1[-2],lats[-1],lats1[-1])
+        print("    : lons1[0], lons[0], lons1[1]: ",lons1[0],lons[0],lons1[1])
+        print("    : lons1[-2], lons[-1], lons1[-1]: ",lons1[-2],lons[-1],lons1[-1])
+        print("INFO: Destagger ASSUMES that lons are edges but that they miss the LAST edge")
+        ## TODO since we have actual dims here, can do proper interpolation
+        
+    
+    #N_DIMS=len(np.shape(u1))
     u = np.tile(np.nan,u1.shape) # tile repeats the nan accross nz,ny,nx dimensions
-    if N_DIMS == 4:
-        # interpolation of edges
-        u[:,:,:,1:] = 0.5*(u1[:,:,:,1:] + u1[:,:,:,:-1]) 
-        v = 0.5*(v1[:,:,1:,:] + v1[:,:,:-1,:])
-    elif N_DIMS == 3:
-        u[:,:,1:] = 0.5*(u1[:,:,1:] + u1[:,:,:-1])
-        v = 0.5*(v1[:,1:,:] + v1[:,:-1,:])
-    elif N_DIMS == 2:
-        u[:,1:] = 0.5*(u1[:,1:] + u1[:,:-1])
-        v = 0.5*(v1[1:,:] + v1[:-1,:])
+    # if N_DIMS == 4:
+    #     # interpolation of edges
+    #     u[:,:,:,1:] = 0.5*(u1[:,:,:,1:] + u1[:,:,:,:-1])
+    #     u[:,:,:,0] = u1[:,:,:,0]
+    #     v = 0.5*(v1[:,:,1:,:] + v1[:,:,:-1,:])
+    # elif N_DIMS == 3:
+    #     u[:,:,1:] = 0.5*(u1[:,:,1:] + u1[:,:,:-1])
+    #     u[:,:,0] = u1[:,:,0]
+    #     v = 0.5*(v1[:,1:,:] + v1[:,:-1,:])
+    # elif N_DIMS == 2:
+        # u[:,1:] = 0.5*(u1[:,1:] + u1[:,:-1])
+        # u[:,0] = u1[:,0]
+        # v = 0.5*(v1[1:,:] + v1[:-1,:])
+        
+    ## model output misses eastmost edge(?)
+    u[...,:,:-1] = 0.5*(u1[...,:,:-1] + u1[...,:,1:])
+    u[...,:,-1] = u1[...,:,-1]
+    ## latitude edges behave as expected
+    v = 0.5*(v1[...,1:,:] + v1[...,:-1,:])
     
     return u,v
 
@@ -675,7 +758,7 @@ def uv_from_wind_degrees(wd,met_convention=True):
     v=np.sin(np.deg2rad(wd_math))
     return u,v
 
-def wind_speed(u,v, fix=True):
+def wind_speed(u,v):
     '''
     horizontal wind speed from u,v vectors
     fix sets instances of -5000 to NaN (problem from destaggering winds with one missing edge)
@@ -683,18 +766,14 @@ def wind_speed(u,v, fix=True):
     
     s = np.hypot(u,v) # Speed is hypotenuse of u and v
     
-    if fix and np.sum(s==-5000)>0:
+    if np.sum(s==-5000)>0:
+        print("ERROR: u and v are probably not on the same grid")
+        print("     : This was occurring for me before I destaggered model x and y wind output")
         s[s==-5000] = np.NaN
         assert np.sum(np.isnan(s[:,:,:,1:]))==0, "Some nans are left in the wind_speed calculation"
         assert np.sum(s==-5000)==0, "Some -5000 values remain in the wind_speed calculation"
     
     return s
-    ## HYPOT on this 
-    # S[0,:,:,0] ARE ALL -5000
-    # S[1,:,:,0] ARE ALL NaN
-    #s[:,:,:,0] = np.NaN # set that edge to NaN
-    # could also jsut set them to the adjacent edge
-    #s[:,:,:,0] = s[:,:,:,1]
 
 def find_max_index_2d(field):
     """
@@ -806,12 +885,6 @@ def wind_dir_from_uv(u,v):
     # met standard points to where the wind is coming from
     wind_dir = (-1*wind_dir_rads*180/np.pi - 90) % 360
     return wind_dir
-
-def wind_speed_from_uv(u,v):
-    """ 
-    return wind direction array
-    """
-    return np.hypot(u,v)
 
 def wind_speed_from_uv_cubes(u,v):
     """
