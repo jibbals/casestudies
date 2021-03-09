@@ -40,6 +40,11 @@ sim_info={
         'filedates':np.array([datetime(2019,12,30,3) + timedelta(hours=x) for x in range(24)]), # in UTC
         'UTC_offset':11, # UTC + 11 hours AEDT (daylight savings)
         },
+    'corryong':{
+        'topog':'umnsaa_2019123015_slv.nc',
+        'filedates':np.array([datetime(2019,12,30,15) + timedelta(hours=x) for x in range(24)]), # in UTC
+        'UTC_offset':11, # UTC + 11 hours AEDT (daylight savings)
+        },
     'KI':{
         'topog':'umnsaa_2020010215_slv.nc',
         'filedates':np.array([datetime(2020,1,2,15) + timedelta(hours=x) for x in range(24)]),
@@ -53,6 +58,13 @@ run_info = {
     'badja_run1':{
         'dir':__DATADIR__+'badja_run1/',
         'WESN':[149.26,150.075,-36.52,-35.914],
+        'desc':{ # any description stuff in here
+            "fuel":"constant = 2 everywhere",
+            },
+        },
+    'corryong_run1':{
+        'dir':__DATADIR__+'corryong_run1/',
+        'WESN':[147.0196,148.6296,-37.1244,-35.5144],
         'desc':{ # any description stuff in here
             "fuel":"constant = 2 everywhere",
             },
