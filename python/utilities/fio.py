@@ -14,6 +14,7 @@ Created on Mon Aug  5 13:52:09 2019
 
 import iris
 from iris.experimental.equalise_cubes import equalise_attributes
+import xarray as xr # better fio
 import numpy as np
 import timeit # for timing stuff
 import warnings
@@ -30,7 +31,7 @@ from utilities import utils, constants
 ## GLOBALS
 ###
 __VERBOSE__=True
-__DATADIR__=constants.__DATADIR__
+__DATADIR__="../data/"
 
 ## Info that is the same for most runs
 #
@@ -176,6 +177,20 @@ def create_wind_profile_csv(model_run, name, latlon):
     print("INFO: SAVED FILE outputs/waroona_winds.csv")
 
 
+def hours_available(mr):
+    """
+    Return list of hours where model output exists
+    """
+    ddir = '../data/'+mr+'/atmos/'
+    # glob _slv files and build dates list from filenames
+    fpattern=ddir+'*mdl_th1.nc'
+    filepaths=glob(fpattern)
+    filepaths.sort()
+    # just last 28 chars "umnsaa_....nc"
+    files = [f[-28:] for f in filepaths]
+    datetimes=[datetime.strptime(f, "umnsaa_%Y%m%d%H_mdl_th1.nc") for f in files]
+    return datetimes
+
 def read_nc_iris(fpath, constraints=None, keepvars=None, HSkip=None):
     '''
     Read netcdf file using iris, returning cubeslist
@@ -220,8 +235,7 @@ def read_nc_iris(fpath, constraints=None, keepvars=None, HSkip=None):
 def fire_paths(model_run):
     fdir = run_info[model_run]['dir']+'fire/'
     affix='20' # if there is no affix, look for name.YYYYMMDDTHHmmZ.nc
-    if 'fire_affix' in run_info[model_run]:
-        affix=run_info[model_run]['fire_affix']
+    
     #print("DEBUG: looking for file:",fdir+'firefront.'+affix+'*')
     ffpaths=glob(fdir+'firefront.'+affix+'*')
     fluxpaths=glob(fdir+'sensible_heat.'+affix+'*')
@@ -238,10 +252,9 @@ def fire_paths(model_run):
 def fire_path(model_run, filename):
     """
     """
-    fdir = run_info[model_run]['dir']+'fire/'
+    fdir = __DATADIR__+model_run+'/fire/'
     affix='20' # if there is no affix, look for name.YYYYMMDDTHHmmZ.nc
-    if 'fire_affix' in run_info[model_run]:
-        affix=run_info[model_run]['fire_affix']
+    
     #print("DEBUG: looking for file:",fdir+'firefront.'+affix+'*')
     paths=glob(fdir+filename+'.'+affix+'*')
     return paths
@@ -262,7 +275,7 @@ def read_fire(model_run,
         filename: string matching one of {'firefront', 'sensible_heat','fire_speed','10m_uwind','10m_vwind','fuel_burning','relative_humidity','water_vapor','surface_temp'}
     '''
     ## If no fire exists for model run, return None
-    fdir = run_info[model_run]['dir']+'fire/'
+    fdir = __DATADIR__+model_run+'/fire/'
     if not os.path.exists(fdir):
         print("ERROR: no such filepath:",fdir)
         # needs to be iterable to match cubelist return type (with wind counted twice) 
@@ -358,7 +371,7 @@ def model_run_filepaths(run_name,
     
 
 
-def read_model_run(run_name,
+def read_model_run(mr,
                    hours=None, extent=None, constraints=None, HSkip=None):
     '''
     Read output from particular model run into cubelist, generally concatenates
@@ -396,14 +409,18 @@ def read_model_run(run_name,
 
     ## make sure we have model run data
     #assert model_version in run_info.keys(), "%s not yet supported by 'read_model_run'"%model_version
-    ddir = __DATADIR__ + run_name + '/atmos/'
+    ddir = __DATADIR__ + mr + '/atmos/'
     
     timelesscubes=[]
     allcubes=None
 
     ## No ftimes? set to all ftimes
     if hours is None:
-        hours = run_info[model_version]['filedates']
+        #hours = run_info[mr]['filedates']
+        hours=hours_available(mr)
+        if len(hours)<1:
+            print("ERROR: No files in "+ddir)
+            assert False, "NO FILES FOR "+mr
             
     # make sure it's iterable
     if not hasattr(hours,'__iter__'):
@@ -412,7 +429,7 @@ def read_model_run(run_name,
 
     ## First read the basics, before combining along time dim
     for dtime in hours:
-        slv,ro1,th1,th2 = read_standard_run(run_name, dtime,
+        slv,ro1,th1,th2 = read_standard_run(mr, dtime,
                                             HSkip=HSkip,
                                             extent=extent,
                                             constraints=constraints)
@@ -465,12 +482,6 @@ def read_model_run(run_name,
             
     ## NOW add any timeless cubes
     allcubes.extend(timelesscubes)
-
-    ## Subset spatially
-    # based on extent
-    test_air_pressure = allcubes.extract("air_pressure")[0]
-    tap_lats = test_air_pressure.coord('latitude').points
-    tap_lons = test_air_pressure.coord('longitude').points
 
     ## extras
     water_and_ice = allcubes.extract(['cld_water',
@@ -571,17 +582,20 @@ def read_topog(model_version, extent=None, HSkip=None):
     Read topography cube
     '''
 
-    ddir = __DATADIR__ + model_version + '/atmos/'
-    files= glob(ddir+"*_slv.nc")
+    ddir = '../data/' + model_version + '/atmos/'
+    files= glob(ddir+"*_mdl_th1.nc")
     files.sort()
     
     constraints='surface_altitude'
     if extent is not None:
         constraints = _constraints_from_extent_(extent,constraints)
-    topog, = read_nc_iris(files[0],
-                          constraints = constraints, 
-                          HSkip=HSkip)
-
+        
+    assert len(files) > 0, "NO FILES FOUND IN "+ddir
+    topog = read_nc_iris(files[0],
+                         constraints = constraints, 
+                         HSkip=HSkip,
+                         )[0]
+    
     # don't want time dim in topog
     topog = iris.util.squeeze(topog) 
     return topog

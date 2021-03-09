@@ -219,7 +219,7 @@ def profile_interpolation(cube, latlon, average=False):
         #do stuff
     return data0
 
-def number_of_interp_points(lats,lons,start,end, factor=2.0):
+def number_of_interp_points(lats,lons,start,end, factor=2.5):
     """
     Returns how many points should be interpolated to between start and end on latlon grid
     Based on min grid size, multiplied by some factor
@@ -245,6 +245,8 @@ def number_of_interp_points(lats,lons,start,end, factor=2.0):
         print("     : lons[0:3]:", lons[0:3])
         print("     : start, end:", start, end)
         assert False, "Start and end are too close"
+    if nx == 2:
+        nx = 3 # best to have at least 3 points
     return nx
 
 def latslons_axes_along_transect(lats,lons,start,end,nx):
@@ -432,6 +434,17 @@ def transect_winds(u,v,lats,lons,start,end,z=None):
         end[2]: lat,lon end point for transect
         z[...,lev,lat,lon]: optional altitude or pressure levels
         
+    RETURNS: structure containing:
+        'transect_angle': transect line angle (counter clockwise positive, east=0 degrees)
+        'wind':wind_magnitude,
+        'transect_v':v cross section,
+        'transect_u':u cross section,
+        'x': metres from start point along transect,
+        'y': metres above surface along transect,
+        'lats':transect latitudes,
+        'lons':transect longitudes,
+        'label':[x,'lat,lon'] list for nicer xticks in cross section
+        
     """
     lat0,lon0=start
     lat1,lon1=end
@@ -454,7 +467,7 @@ def transect_winds(u,v,lats,lons,start,end,z=None):
     wind_mag = ucross * np.cos(theta_rads) + vcross * np.sin(theta_rads)
     
     ret={
-        'theta':theta_degs,
+        'transect_angle':theta_degs,
         'wind':wind_mag,
         'transect_v':vcross,
         'transect_u':ucross,
