@@ -354,6 +354,9 @@ def map_sensibleheat(sh, lat, lon,
         cs, cbar: contour return value, colorbar handle
     """
     flux = sh + 0.01 # get rid of zeros
+    if np.nanmax(flux) < 100:
+        return None,None
+    
     # set defaults
     if 'norm' not in contourfargs:
         contourfargs['norm']=col.LogNorm()
@@ -369,6 +372,7 @@ def map_sensibleheat(sh, lat, lon,
         shlatlon = sh.T
         print("WARNING: Heat flux is in [lon,lat]")
     
+    ## Do the filled contour plot
     cs = plt.contourf(lon, lat, shlatlon,
                       levels, # color levels
                       **contourfargs,
@@ -398,6 +402,9 @@ def map_sensibleheat(sh, lat, lon,
             cbar_kwargs['label'] ='log$_{10}$ Wm$^{-2}$',
         
         cbar=plt.colorbar(cs, **cbar_kwargs)
+        # Need to set xticks prior to calling set_xticklabels
+        # somehow the 'ticks' kwarg may not do this in colorbar method
+        cbar.ax.set_xticks(cbar_kwargs['ticks'])
         cbar.ax.set_xticklabels(xtick_labels)
         
     plt.xticks([],[])
@@ -840,7 +847,17 @@ def transect(data, z, lat, lon, start, end, npoints=None,
         npoints = utils.number_of_interp_points(lat,lon,start,end)
         
     # Transect slice: data[z,x] x[z,x], z[z,x]
-    slicedata, slicex, slicez  = utils.transect(data,lat,lon,start,end,nx=npoints, z_th=z)
+    # struct: {
+    #         'transect': vertical cross section of data 
+    #         'x': x axis [Y,X] in metres from start point 
+    #         'y': y axis [Y,X] in terms of z_th
+    #         'lats': [X] lats along horizontal axis
+    #         'lons': [X] lons along horizontal axis
+    #     } 
+    transect_struct = utils.transect(data,lat,lon,start,end,nx=npoints, z_th=z)
+    slicedata = transect_struct['transect']
+    slicex = transect_struct['x']
+    slicez = transect_struct['y']
     
     # Pull out cross section of topography and height
     if latt is None:
@@ -885,7 +902,8 @@ def transect(data, z, lat, lon, start, end, npoints=None,
     xbottom = slicex[0,:]
     # make sure land is obvious
     if topog is not None:
-        slicetopog,_,_ = utils.transect(topog,latt,lont,start,end,nx=npoints)
+        slicetopog_struct = utils.transect(topog,latt,lont,start,end,nx=npoints)
+        slicetopog = slicetopog_struct['transect']
         # Plot gray fill unless we have sensible heat
         if (sh is not None):
             if (np.max(sh) < 1):
@@ -897,7 +915,8 @@ def transect(data, z, lat, lon, start, end, npoints=None,
                 cmap=plt.cm.cmap_d['plasma']
                 normalize = col.SymLogNorm(vmin=0, vmax=10000, linthresh=100, base=10.0)
                 
-                shslice,_,_ = utils.transect(sh, lat, lon, start, end, nx=npoints)
+                sh_trans_struct = utils.transect(sh, lat, lon, start, end, nx=npoints)
+                shslice = sh_trans_struct['transect']
                 # colour a sequence of polygons with the value coming from sh
                 for i in range(len(shslice) - 1):
                     if shslice[i]<100:
@@ -1075,6 +1094,8 @@ def streamplot_regridded(x,y,u,v,**kwargs):
         u = 2darray [y,x] (m/s)
         v = 2darray [y,x] (m/s)
     """
+    #print("DEBUG: x:",x)
+    #print("DEBUG: y:",y)
     if 'minlength' not in kwargs:
         # increase minimum line length (default is 0.1)
         kwargs['minlength']=0.5 
@@ -1099,7 +1120,10 @@ def streamplot_regridded(x,y,u,v,**kwargs):
             lwi = kwargs['linewidth']
             kwargs['linewidth'] = interp2d(x,y,lwi,bounds_error=False,fill_value=0)(xi,yi)
             
-    
+    #print("DEBUG: xi:",xi)
+    #print("DEBUG: yi:",yi)
+    #print("DEBUG:",np.shape(ui))
+    #print("DEBUG:",np.shape(vi))
     splot = plt.streamplot(xi,yi,ui,vi,**kwargs) 
     # set limits back to latlon limits
     #plt.gca().set_ylim(yi[0],yi[-1])
