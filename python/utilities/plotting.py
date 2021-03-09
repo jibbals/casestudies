@@ -404,8 +404,8 @@ def map_sensibleheat(sh, lat, lon,
         cbar=plt.colorbar(cs, **cbar_kwargs)
         # Need to set xticks prior to calling set_xticklabels
         # somehow the 'ticks' kwarg may not do this in colorbar method
-        cbar.ax.set_xticks(cbar_kwargs['ticks'])
-        cbar.ax.set_xticklabels(xtick_labels)
+        #cbar.ax.set_xticks(cbar_kwargs['ticks'])
+        #cbar.ax.set_xticklabels(xtick_labels)
         
     plt.xticks([],[])
     plt.yticks([],[])

@@ -201,7 +201,7 @@ def hours_available(mr):
     # just last 28 chars "umnsaa_....nc"
     files = [f[-28:] for f in filepaths]
     datetimes=[datetime.strptime(f, "umnsaa_%Y%m%d%H_mdl_th1.nc") for f in files]
-    return datetimes
+    return np.array(datetimes)
 
 def read_nc_iris(fpath, constraints=None, keepvars=None, HSkip=None):
     '''

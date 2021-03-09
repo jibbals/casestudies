@@ -158,7 +158,7 @@ def transect_wind(u,v,w,z,
     start,end = transect
     # interpolation points
     npoints=utils.number_of_interp_points(lats,lons,start,end)
-    #print("DEBUG: npoints:",npoints)
+    print("DEBUG: npoints:",npoints)
     # horizontal wind speed m/s
     s = np.hypot(u,v)
     # contourf of horizontal wind speeds
@@ -307,11 +307,9 @@ def topdown_view(extent,
             sh_kwargs['alpha']=0.6
         if 'cbar_kwargs' not in sh_kwargs:
             sh_kwargs['cbar_kwargs'] = {'label':"Wm$^{-2}$"}
-        print("DEBUG: topdown_view: type, min,max of sh:",type(sh),np.min(sh),np.max(sh))
-        print("DEBUG: topdown_view: sh, lats, lons:",np.shape(sh),np.shape(lats),np.shape(lons))
         cs_sh, cb_sh = plotting.map_sensibleheat(sh,lats,lons,**sh_kwargs)
         if annotate:
-            plt.annotate(s="max heat flux = %6.1e W/m2"%np.max(sh),
+            plt.annotate(text="max heat flux = %6.1e W/m2"%np.max(sh),
                          xy=[0,1.06],
                          xycoords='axes fraction', 
                          fontsize=10)
@@ -363,8 +361,8 @@ def topdown_view(extent,
 
 def map_and_transects(mr, 
                       latlontimes=None,
-                      dx=.2,
-                      dy=0,
+                      dx=.4,
+                      dy=.2,
                       extent=None,
                       hours=None,
                       topography=True,
@@ -389,7 +387,8 @@ def map_and_transects(mr,
             ztop: 5000, how high to do transect?
     """
     if extent is None and HSkip is None:
-        HSkip=4
+        HSkip=3
+        # generally inner domains are on the order of 2 degrees by 2 degrees
     # read topog
     topog = fio.read_topog(mr,extent=extent,HSkip=HSkip)
     lat = topog.coord('latitude').points
@@ -403,8 +402,9 @@ def map_and_transects(mr,
     umdtimes = fio.hours_available(mr)
     dtoffset = fio.sim_info[simname]['UTC_offset']
     
+    print("DEBUG:", hours,hours[0], type(hours[0]))
     if hours is not None:
-        if isinstance(hours[0],int):
+        if not isinstance(hours[0],datetime):
             umdtimes=umdtimes[hours]
         else:
             umdtimes = hours
@@ -412,6 +412,7 @@ def map_and_transects(mr,
         
     # read one model file at a time
     for umdtime in umdtimes:
+        print("DEBUG: datetime:",umdtime, umdtimes)
         cubelist = fio.read_model_run(mr, 
                                       hours=[umdtime],
                                       extent=extent,
@@ -433,7 +434,6 @@ def map_and_transects(mr,
                                      dx=dx,
                                      dy=dy,
                                      )
-        #print("DEBUG: transect_list:",transect_list)
         
         # read fire
         ff, sh, u10, v10 = fio.read_fire(model_run=mr, 
@@ -453,11 +453,12 @@ def map_and_transects(mr,
         
         zcube, = cubelist.extract(['z_th']) # z has no time dim
         z = zcube.data
+        topogd=topog.data if topography else None
         # for each time slice pull out potential temp, winds
         for i,dtime in enumerate(dtimes):
             for transecti, transect in enumerate(transect_list):
                 
-                #utcstamp = dtime.strftime("%b %d %H:%M (UTC)")
+                #utcstamp = dtime.s)trftime("%b %d %H:%M (UTC)")
                 ltstamp = (dtime+timedelta(hours=dtoffset)).strftime("%H:%M (LT)")
                 # winds
                 u,v,w = uvw[0][i].data, uvw[1][i].data, uvw[2][i].data
@@ -473,7 +474,6 @@ def map_and_transects(mr,
                     v10i = v10[i].data
                 #vertical motion at roughly 300m altitude
                 wmap=w[levhind]
-                topogd=topog.data if topography else None
                 
                 start,end=transect
                 
@@ -517,7 +517,7 @@ def map_and_transects(mr,
                 plt.subplot(2,1,2)
                 
                 transect_wind(u, v, w, z, lat, lon, transect, 
-                              topog=topog.data,
+                              topog=topogd,
                               ztop=ztop,
                               sh=shi)
                 
@@ -736,10 +736,8 @@ def flux_plot_hour(mr='waroona_run3', extent=None, hour=12,
     # if not defined, pull first or second tiff for backdrop
     osm="_osm" if hour > 14 else ""
     #if "fname" not in map_tiff_args:
-    #    print("DEBUG: in fname check")
     map_tiff_args['fname']="waroona_%s%s.tiff"%(which,osm)
     
-    #print("DEBUG:",map_tiff_args['fname'], osm, hour, dtime)
     
     # Read front and SH
     ftimes = [dtime + timedelta(minutes=mins) for mins in np.arange(0,60.1,5)]
@@ -768,4 +766,7 @@ def flux_plot_hour(mr='waroona_run3', extent=None, hour=12,
 if __name__ == '__main__':
     latlontimes=firefront_centres["KI_run1"]['latlontimes']
     
-    map_and_transects('KI_run1_exploratory', latlontimes=latlontimes)
+    map_and_transects('KI_run1', 
+            latlontimes=latlontimes,
+            hours=np.arange(4,20),
+            )
