@@ -118,79 +118,57 @@ def add_vertical_contours(w,lat,lon,
         )
 
 
-def transect_wind(u,v,w,z,
+def transect_winds(u,v,w,z,
                   lats,lons,
                   transect,
-                  topog,
-                  ztop=700,
-                  sh=None,
-                  theta=None,
-                  theta_contourargs={},
+                  ztop=5000,
                   wind_contourargs={},
                   ):
     """
-    Plot transect showing east-west-vertical streamplot
-    overlaid on horizontal wind contourf
-    with potential temperature contours
-    TODO: 
-        fix for arbitrary transect direction
+    Plot transect wind streamplot: uses utils.transect_winds to get winds along transect plane
+    
     ARGUMENTS:
-        u,v,w,z: arrays [lev,lats,lons] of East wind, N wind, Z wind, and level altitude
+        u,v,w,z: arrays [lev,lats,lons] of East wind, N wind, Z wind, and level altitudes
         lats,lons: dims, in degrees
-        transect: [[lat0, lon0], [lat1,lon1]] transect (lat0 == lat1)
+        transect: [[lat0, lon0], [lat1,lon1]]
         topog: [lats,lons] surface altitude array
-        ztop: top altitude to look at, defualt 800m
-        ff: [lats,lons] firefront array (optional)
-        theta: potential temperature (if contour is desired)
-        theta_contourargs: dict(contour args for pot temp)
-            defaults: levels=[300,305,310]
-        
+        ztop: top altitude to look at, defualt 5000m
     """
     retdict = {} # return info for whatever use
     
     # First we subset all the arrays so to be below the z limit
     zmin = np.min(z,axis=(1,2)) # lowest altitude on each model level
     ztopi = np.argmax(ztop<zmin)+1 # highest index where ztop is less than model level altitude
-    
     u,v,w,z = [u[:ztopi],v[:ztopi],w[:ztopi],z[:ztopi]]
-    if theta is not None:
-        theta=theta[:ztopi]
-    start,end = transect
+    
     # interpolation points
+    start,end = transect
     npoints=utils.number_of_interp_points(lats,lons,start,end)
-    print("DEBUG: npoints:",npoints)
-    # horizontal wind speed m/s
-    s = np.hypot(u,v)
-    # contourf of horizontal wind speeds
-    #print("DEBUG:", s.shape, z.shape, lats.shape, lons.shape, start, end)
-    wind_contourargs['ztop']=ztop
-    wind_contourargs['npoints']=npoints
-    wind_contourargs['topog']=topog
-    wind_contourargs['sh'] = sh
-    if 'title' not in wind_contourargs:
-        wind_contourargs['title']=""
-    if 'lines' not in wind_contourargs:
-        wind_contourargs['lines']=None
     
-    slices, slicex, slicez = plotting.transect_s(s,z, 
-                                            lats,lons, 
-                                            start, end,
-                                            **wind_contourargs)
+    # vertical wind speed along transect
+    transect_w_struct = utils.transect(w,lats,lons,start,end,nx=npoints,z_th=z)
+    transect_w = transect_w_struct['transect']
     
-    # save the max windspeed and location
-    mlocs = utils.find_max_index_2d(slices)
-    retdict['s'] = slices
-    retdict['max_s'] = slices[mlocs]
-    retdict['max_s_index'] = mlocs
+    # transect direction left to right wind speed
+    transect_winds_struct = utils.transect_winds(u,v,lats,lons,start,end,nx=npoints,z=z)
+    transect_s = transect_winds_struct['transect_wind']
+    slicex = transect_winds_struct['x']
+    slicez = transect_winds_struct['y']
+    
+    retdict['label'] = transect_winds_struct['label']
+    # left to right wind speed along transect
+    retdict['s'] = transect_s
+    # vertical wind motion along transect
+    retdict['w'] = transect_w
+    # x and y axis coordinates along transect
     retdict['x'] = slicex
     retdict['y'] = slicez
-    # east-west and vertical winds on transect
-    cross1 = utils.transect(u,lats,lons,start,end,nx=npoints, z_th=z)
-    sliceu = cross1['transect']
-    cross2 = utils.transect(w,lats,lons,start,end,nx=npoints, z_th=z)
-    slicew = cross2['transect']
+    # east to west, south to north wind speeds along transect
+    retdict['u'] = transect_winds_struct['transect_u']
+    retdict['v'] = transect_winds_struct['transect_v']
+    
     # Streamplot
-    plotting.streamplot_regridded(slicex,slicez,sliceu,slicew,
+    plotting.streamplot_regridded(slicex,slicez,transect_s,transect_w,
                                   density=(1,1), 
                                   color='darkslategrey',
                                   zorder=1,
@@ -200,30 +178,6 @@ def transect_wind(u,v,w,z,
     plt.xlim(np.min(slicex),np.max(slicex))
     plt.ylim(np.min(slicez),ztop)
     
-    ## Theta contours
-    if theta is not None:
-        
-        cross3 = utils.transect(theta,lats,lons,start,end,nx=npoints,z_th=z)
-        sliceth = cross3['transect']
-        # set defaults for theta contour plot
-        if 'levels' not in theta_contourargs:
-            theta_contourargs['levels'] = [295,300,305,310]
-        if 'cmap' not in theta_contourargs:
-            theta_contourargs['cmap'] = 'YlOrRd'#['grey','yellow','orange','red']
-        if 'alpha' not in theta_contourargs:
-            theta_contourargs['alpha'] = 0.9
-        if 'linestyles' not in theta_contourargs:
-            theta_contourargs['linestyles'] = 'dashed'
-        if 'linewidths' not in theta_contourargs:
-            theta_contourargs['linewidths'] = 0.9
-        if 'extend' not in theta_contourargs:
-            theta_contourargs['extend'] = 'both'
-        
-        # add faint lines for clarity
-        contours = plt.contour(slicex,slicez,sliceth, **theta_contourargs)
-        contours.set_clim(theta_contourargs['levels'][0], 
-                          theta_contourargs['levels'][-1])
-        plt.clabel(contours, inline=True, fontsize=10)
     return retdict
 
 def topdown_view(extent,
@@ -361,8 +315,8 @@ def topdown_view(extent,
 
 def map_and_transects(mr, 
                       latlontimes=None,
-                      dx=.4,
-                      dy=.2,
+                      dx=.3,
+                      dy=.3,
                       extent=None,
                       hours=None,
                       topography=True,
@@ -386,14 +340,20 @@ def map_and_transects(mr,
             wmap_height: 300m # what height for topdown vertical motion contours?
             ztop: 5000, how high to do transect?
     """
-    if extent is None and HSkip is None:
-        HSkip=3
-        # generally inner domains are on the order of 2 degrees by 2 degrees
+    # generally inner domains are on the order of 2 degrees by 2 degrees
+    # we can look at subset if we haven't zoomed in anywhere
+    if (extent is None) and (HSkip is None) and ((dx+dy) > .2):
+        # exploratory outputs already subset
+        if 'exploratory' not in mr:
+            HSkip=3
+
     # read topog
     topog = fio.read_topog(mr,extent=extent,HSkip=HSkip)
     lat = topog.coord('latitude').points
     lon = topog.coord('longitude').points
-        
+    topogd=topog.data if topography else None
+    
+    # set extent to whole space if extent is not specified
     if extent is None:
         extent = [lon[0],lon[-1],lat[0],lat[-1]]
     
@@ -402,7 +362,7 @@ def map_and_transects(mr,
     umdtimes = fio.hours_available(mr)
     dtoffset = fio.sim_info[simname]['UTC_offset']
     
-    print("DEBUG:", hours,hours[0], type(hours[0]))
+    # hours input can be datetimes or integers
     if hours is not None:
         if not isinstance(hours[0],datetime):
             umdtimes=umdtimes[hours]
@@ -412,12 +372,13 @@ def map_and_transects(mr,
         
     # read one model file at a time
     for umdtime in umdtimes:
-        print("DEBUG: datetime:",umdtime, umdtimes)
+        # read cube list
         cubelist = fio.read_model_run(mr, 
                                       hours=[umdtime],
                                       extent=extent,
                                       HSkip=HSkip,
                                       )
+        # add temperature, height, destaggered wind cubes
         utils.extra_cubes(cubelist,
                           add_theta=True,
                           add_z=True,
@@ -428,7 +389,6 @@ def map_and_transects(mr,
         # Set up list of cross section end points
         if latlontimes is None:
             latlontimes=firefront_centres[mr]['latlontimes']
-        
         transect_list=interp_centres(latlontimes,
                                      dtimes,
                                      dx=dx,
@@ -436,6 +396,7 @@ def map_and_transects(mr,
                                      )
         
         # read fire
+        # TODO: read this out of loop, find time index in loop
         ff, sh, u10, v10 = fio.read_fire(model_run=mr, 
                                          dtimes=dtimes, 
                                          extent=extent,
@@ -446,14 +407,14 @@ def map_and_transects(mr,
         
         # pull out bits we want
         uvw = cubelist.extract(['u','v','upward_air_velocity'])
+        zcube, = cubelist.extract(['z_th'])
+        
         # extra vert map at ~ 300m altitude
         
         levh = utils.height_from_iris(uvw[2])
         levhind = np.sum(levh<wmap_height)
         
-        zcube, = cubelist.extract(['z_th']) # z has no time dim
-        z = zcube.data
-        topogd=topog.data if topography else None
+        
         # for each time slice pull out potential temp, winds
         for i,dtime in enumerate(dtimes):
             for transecti, transect in enumerate(transect_list):
@@ -462,7 +423,8 @@ def map_and_transects(mr,
                 ltstamp = (dtime+timedelta(hours=dtoffset)).strftime("%H:%M (LT)")
                 # winds
                 u,v,w = uvw[0][i].data, uvw[1][i].data, uvw[2][i].data
-                
+                z = zcube[i].data
+                T = theta[i].data
                 # fire
                 ffi,shi,u10i,v10i=None,None,None,None
                 if ff is not None:
@@ -478,8 +440,8 @@ def map_and_transects(mr,
                 start,end=transect
                 
                 ## First plot, topography
-                fig,ax0 = topdown_view(extent=extent,
-                                       subplot_row_col_n=[2,1,1], 
+                fig,ax1 = topdown_view(extent=extent,
+                                       subplot_row_col_n=[3,1,1], 
                                        lats=lat, 
                                        lons=lon, 
                                        topog=topogd,
@@ -500,27 +462,48 @@ def map_and_transects(mr,
                 
                 ## Subplot 2, transect of potential temp
                 # how many horizontal points to interpolate to
-                #npoints = utils.number_of_interp_points(lat,lon,start,end)
-                #ax1=plt.subplot(3,1,2)
-                #trets = plotting.transect_theta(theta[i].data, z.data, lat, lon, start, end, npoints=npoints,
-                #                                topog=topog.data, ff=ffi, ztop=ztop,
-                #                                contours=np.arange(290,320.1,0.5),
-                #                                lines=None, #np.arange(290,321,2), 
-                #                                linestyles='dashed')
+                npoints = utils.number_of_interp_points(lat,lon,start,end)
+                
+                ax2=plt.subplot(3,1,2)
+                trets = plotting.transect_theta(T, z, lat, lon, start, end,
+                                                npoints=npoints,
+                                                topog=topogd, 
+                                                ff=ffi, 
+                                                ztop=ztop,
+                                                contours=np.arange(290,320),
+                                                lines=None, 
+                                                levels=np.arange(290,321),
+                                                )
                 ## add faint lines for clarity
-                #thetaslice,xslice,zslice=trets
-                #plt.contour(xslice,zslice,thetaslice,np.arange(290,320.1,1),colors='k',
-                #            alpha=0.5, linestyles='dashed', linewidths=0.5)
-                # 
+                thetaslice,xslice,zslice=trets
+                ## Add wind streams to theta contour
+                wrets = transect_winds(u, v, w, z, lat, lon, transect, 
+                                       ztop=ztop,
+                                       )
+                
+                #retdict['label'] = transect_winds_struct['label']
+                #retdict['s'] = transect_s
+                #retdict['w'] = transect_w
+                #retdict['x'] = slicex
+                #retdict['y'] = slicez
+                #retdict['u'] = transect_winds_struct['transect_u']
+                #retdict['v'] = transect_winds_struct['transect_v']
                 
                 ## Finally show winds on transect
-                plt.subplot(2,1,2)
+                ax3=plt.subplot(3,1,3)
                 
-                transect_wind(u, v, w, z, lat, lon, transect, 
-                              topog=topogd,
-                              ztop=ztop,
-                              sh=shi)
-                
+                plotting.transect_w(w, z, lat, lon, start, end, 
+                                    npoints=npoints, 
+                                    topog=topogd, 
+                                    sh=None, 
+                                    ztop=ztop,
+                                    title="Vertical motion (m/s)", 
+                                    ax=ax3, 
+                                    #colorbar=True, 
+                                    #contours=np.union1d(np.union1d(2.0**np.arange(-2,6),-1*(2.0**np.arange(-2,6))),np.array([0])),
+                                    #lines=np.array([0]),
+                                    #cbar_args={},
+                                    )
                 # Save figure into folder with numeric identifier
                 stitle="%s %s"%(mr,ltstamp)
                 plt.suptitle(stitle)
@@ -766,7 +749,7 @@ def flux_plot_hour(mr='waroona_run3', extent=None, hour=12,
 if __name__ == '__main__':
     latlontimes=firefront_centres["KI_run1"]['latlontimes']
     
-    map_and_transects('KI_run1', 
+    map_and_transects('KI_run1_exploratory', 
             latlontimes=latlontimes,
-            hours=np.arange(4,20),
+            hours=np.arange(4,8),
             )

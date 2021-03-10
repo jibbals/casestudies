@@ -50,18 +50,21 @@ def extra_cubes(allcubes,
     if add_z:
         # add zth cube
         p, pmsl = allcubes.extract(['air_pressure','air_pressure_at_sea_level'])
-        # take out time dimension
-        p, pmsl = p[0], pmsl[0]
-        nz,ny,nx = p.shape
-        # repeat surface pressure along z axis
-        reppmsl = np.repeat(pmsl.data[np.newaxis,:,:],nz, axis=0)
+        ## DONT take out time dimension
+        ##p, pmsl = p[0], pmsl[0]
+        nt,nz,ny,nx = p.shape
+        # repeat surface pressure along new z axis
+        reppmsl0 = np.repeat(pmsl.data[np.newaxis,:,:,:],nz, axis=0)
+        # put time dim first to match air pressure
+        reppmsl = np.transpose(reppmsl0,(1,0,2,3)) 
         zth = -(287*300/9.8)*np.log(p.data/reppmsl)
         iris.std_names.STD_NAMES['z_th'] = {'canonical_units': 'm'}
         zthcube=iris.cube.Cube(zth, standard_name='z_th',
                                var_name="zth", units="m",
-                               dim_coords_and_dims=[(p.coord('model_level_number'),0),
-                                                    (p.coord('latitude'),1),
-                                                    (p.coord('longitude'),2)])
+                               dim_coords_and_dims=[(p.coord('time'),0),
+                                                    (p.coord('model_level_number'),1),
+                                                    (p.coord('latitude'),2),
+                                                    (p.coord('longitude'),3)])
         allcubes.append(zthcube)
 
     if add_winds:
@@ -422,7 +425,7 @@ def transect(data, lats, lons, start, end, nx=None, z_th=None):
             'label':label,
             }
 
-def transect_winds(u,v,lats,lons,start,end,z=None):
+def transect_winds(u,v,lats,lons,start,end,nx=None,z=None):
     """
     Get wind speed along arbitrary transect line
     ARGUMENTS:
@@ -432,11 +435,12 @@ def transect_winds(u,v,lats,lons,start,end,z=None):
         lons[lon]: longitudes
         start[2]: lat,lon start point for transect
         end[2]: lat,lon end point for transect
+        nx: optional number of interpolation points along transect
         z[...,lev,lat,lon]: optional altitude or pressure levels
         
     RETURNS: structure containing:
         'transect_angle': transect line angle (counter clockwise positive, east=0 degrees)
-        'wind':wind_magnitude,
+        'transect_wind':wind along transect (left to right is positive),
         'transect_v':v cross section,
         'transect_u':u cross section,
         'x': metres from start point along transect,
@@ -453,22 +457,27 @@ def transect_winds(u,v,lats,lons,start,end,z=None):
     theta_degs=np.rad2deg(theta_rads)
     print("CHECK: angle between", start, end)
     print("     : is ",theta_degs, "degrees?")
-    
+    # base interp points on grid size
+    if nx is None:
+        nx = number_of_interp_points(lats,lons,start,end)
+        
     ucross_str=transect(u,lats,lons,
                     start=[lat0,lon0],
                     end=[lat1,lon1],
+                    nx=nx,
                     z_th=z)
     ucross = ucross_str['transect']
     vcross_str=transect(v,lats,lons,
                     start=[lat0,lon0],
                     end=[lat1,lon1],
+                    nx=nx,
                     z_th=z)
     vcross = vcross_str['transect']
     wind_mag = ucross * np.cos(theta_rads) + vcross * np.sin(theta_rads)
     
     ret={
         'transect_angle':theta_degs,
-        'wind':wind_mag,
+        'transect_wind':wind_mag,
         'transect_v':vcross,
         'transect_u':ucross,
         'x':ucross_str['x'],
@@ -476,6 +485,7 @@ def transect_winds(u,v,lats,lons,start,end,z=None):
         'lats':ucross_str['lats'],
         'lons':ucross_str['lons'],
         'label':ucross_str['label'],
+        'nx':nx,
         }
     return ret
 

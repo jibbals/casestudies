@@ -886,7 +886,7 @@ def transect(data, z, lat, lon, start, end, npoints=None,
         if 'aspect' not in cbar_args:
             cbar_args['aspect']=30
         if 'shrink' not in cbar_args:
-            cbar_args['shrink'] = 0.7
+            cbar_args['shrink'] = 0.85
         if 'fraction' not in cbar_args:
             cbar_args['fraction'] = .075
         plt.colorbar(**cbar_args)
@@ -997,8 +997,8 @@ def transect_theta(theta, z, lat, lon, start, end, npoints=100,
                     cbar_args=cbar_args,
                     **contourfargs)
 
-def transect_w(w, z, lat, lon, start, end, npoints=100, 
-               topog=None, sh=None, latt=None, lont=None, ztop=4000,
+def transect_w(w, z, lat, lon, start, end, npoints=None, 
+               topog=None, sh=None, latt=None, lont=None, ztop=5000,
                title="Vertical motion (m/s)", ax=None, colorbar=True, 
                contours=np.union1d(np.union1d(2.0**np.arange(-2,6),-1*(2.0**np.arange(-2,6))),np.array([0])),
                lines=np.array([0]),
@@ -1027,7 +1027,7 @@ def transect_w(w, z, lat, lon, start, end, npoints=100,
                     cbar_args=cbar_args,
                     **contourfargs)
 
-def transect_qc(qc, z, lat, lon, start, end, npoints=100, 
+def transect_qc(qc, z, lat, lon, start, end, npoints=None, 
                topog=None, sh=None, latt=None, lont=None, ztop=4000,
                title="Water and ice (g/kg air)", ax=None, colorbar=True,
                contours=np.arange(0.0,0.4,0.01),

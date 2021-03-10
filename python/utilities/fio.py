@@ -672,21 +672,23 @@ def save_fig_to_path(pname,plt, **savefigargs):
     plt.close()
 
 def standard_fig_name(model_run, plot_name, plot_time,
-                      extent_name=None, 
+                      subdir=None, 
                       ext='.png'):
     if isinstance(plot_time,datetime):
         dstamp=plot_time.strftime('%dT%H%M')
     else:
         dstamp=plot_time
 
-    if extent_name is None:
-        extent_name = "unspecified_extent"
+    if subdir is None:
+        subdir = ""
+    elif subdir[0] not in "/\\":
+        subdir = "/"+subdir
 
-    path='../figures/%s/%s/%s/%s'%(plot_name, model_run, extent_name, dstamp) + ext
+    path='../figures/%s/%s%s/%s'%(plot_name, model_run, subdir, dstamp) + ext
     return path
 
 def save_fig(model_run, plot_name, plot_time, plt,
-             extent_name=None, 
+             subdir=None, 
              ext='.png', 
              **savefigargs):
     """
@@ -700,7 +702,7 @@ def save_fig(model_run, plot_name, plot_time, plt,
         extent_name : name of extent used making plot
     """
     path = standard_fig_name(model_run, plot_name, plot_time, 
-                             extent_name, ext,**savefigargs)
+                             subdir, ext, **savefigargs)
 
     save_fig_to_path(path, plt, **savefigargs)
 
