@@ -173,7 +173,8 @@ def transect_winds(u,v,w,z,
                                   color='darkslategrey',
                                   zorder=1,
                                   #linewidth=np.hypot(sliceu,slicew), # too hard to see what's going on
-                                  minlength=0.8, # longer minimum stream length
+                                  minlength=0.3, # longer minimum stream length (axis coords: ?)
+                                  arrowsize=2.0, # double arrow size
                                   )
     plt.xlim(np.min(slicex),np.max(slicex))
     plt.ylim(np.min(slicez),ztop)
@@ -189,11 +190,12 @@ def topdown_view(extent,
                  wmap=None, wmap_height=None,
                  topog=None,
                  tiffname=None,
-                 annotate=True, showlatlons=True,
+                 annotate=False, 
+                 showlatlons=True,
                  sh_kwargs={},
                  ):
     """
-    Top down view of Waroona/Yarloop, adding fire front and heat flux and 10m winds
+    Top down view of model run
     ARGUMENTS:
         ax: plotting axis, if this is provided then no backdrop is drawn (assume axis already has backdrop)
             In this case just winds/fire/etc will be overplotted
@@ -261,12 +263,19 @@ def topdown_view(extent,
             sh_kwargs['alpha']=0.6
         if 'cbar_kwargs' not in sh_kwargs:
             sh_kwargs['cbar_kwargs'] = {'label':"Wm$^{-2}$"}
-        cs_sh, cb_sh = plotting.map_sensibleheat(sh,lats,lons,**sh_kwargs)
-        if annotate:
-            plt.annotate(text="max heat flux = %6.1e W/m2"%np.max(sh),
-                         xy=[0,1.06],
-                         xycoords='axes fraction', 
-                         fontsize=10)
+        cs_sh, cb_sh = plotting.map_sensibleheat(sh,lats,lons,
+                                                 colorbar=False,
+                                                 **sh_kwargs)
+        if cs_sh is not None:
+            # colorbar without mucking the axes
+            cbar_ax = fig.add_axes([0.75, 0.92, 0.2, 0.01]) # X Y Width Height
+            cb_sh = fig.colorbar(cs_sh, cax=cbar_ax, pad=0,orientation='horizontal')
+            if annotate:
+                plt.annotate(text="max heat flux = %6.1e W/m2"%np.max(sh),
+                             xy=[0,1.06],
+                             xycoords='axes fraction', 
+                             fontsize=12)
+        
     if u10 is not None:
         # winds, assume v10 is also not None
         s10 = np.hypot(u10,v10)
@@ -316,7 +325,7 @@ def topdown_view(extent,
 def map_and_transects(mr, 
                       latlontimes=None,
                       dx=.3,
-                      dy=.3,
+                      dy=.2,
                       extent=None,
                       hours=None,
                       topography=True,
@@ -369,7 +378,15 @@ def map_and_transects(mr,
         else:
             umdtimes = hours
     
-        
+    
+    # Some plot stuff
+    vertmotion_contours = np.union1d(
+        np.union1d(
+            2.0**np.arange(-2,6),
+            -1*(2.0**np.arange(-2,6))
+            ),
+        np.array([0]) ) / 4.0
+    
     # read one model file at a time
     for umdtime in umdtimes:
         # read cube list
@@ -439,7 +456,7 @@ def map_and_transects(mr,
                 
                 start,end=transect
                 
-                ## First plot, topography
+                ### First plot, topography
                 fig,ax1 = topdown_view(extent=extent,
                                        subplot_row_col_n=[3,1,1], 
                                        lats=lat, 
@@ -473,6 +490,7 @@ def map_and_transects(mr,
                                                 contours=np.arange(290,320),
                                                 lines=None, 
                                                 levels=np.arange(290,321),
+                                                cmap='gist_rainbow_r',
                                                 )
                 ## add faint lines for clarity
                 thetaslice,xslice,zslice=trets
@@ -495,13 +513,13 @@ def map_and_transects(mr,
                 plotting.transect_w(w, z, lat, lon, start, end, 
                                     npoints=npoints, 
                                     topog=topogd, 
-                                    sh=None, 
+                                    sh=shi, 
                                     ztop=ztop,
                                     title="Vertical motion (m/s)", 
                                     ax=ax3, 
                                     #colorbar=True, 
-                                    #contours=np.union1d(np.union1d(2.0**np.arange(-2,6),-1*(2.0**np.arange(-2,6))),np.array([0])),
-                                    #lines=np.array([0]),
+                                    contours=vertmotion_contours,
+                                    lines=np.array([0]),
                                     #cbar_args={},
                                     )
                 # Save figure into folder with numeric identifier
@@ -517,162 +535,101 @@ def map_and_transects(mr,
                 fio.save_fig(mr, "map_and_transect_winds", dtime, 
                              plt=plt)
             
-def zoomed_emberstorm_plots(mr='waroona_run3',
-                            hours=None,
-                            first=True, second=True,
-                            topography=False,
-                            extent=None,
-                            wmap_height=300,
-                            ):
+def multiple_transects(mr,
+                       hours=None,
+                       extent=None,
+                       start=None,
+                       end=None,
+                       dx=None,
+                       dy=None,
+                       ):
     """
-    Create zoomed in pictures showing top down winds and zmotion, with 
-    either topography or open street maps underlay
-    Arguments:
-        hours: list of which hours to plot [0,...,23]
-        first: True if plotting first emberstorm event
-        second: True if plotting second emberstorm event
-        topdown: True if topdown plot is desired
-        transect: True if transect plot is desired
-        topography: True if topography is desired instead of OSM
-        wmap_height: how high to show vmotion contours, default 300m
+    4 rows 2 columns: 
+        first row: top down winds at 10m and 2500m? and transect lines
+        2nd, 3rd, 4th rows: transect of heat/winds, transect of vert motion
+    ARGUMENTS:
+        mr: model run name
+        hours: optional run for subset of model hours
+        extent: subset extent
+        start,end: [lat,lon] of start, end points for transect
+            default is middle of plot, left to right 80% extent coverage
+        dx,dy: how far to stagger transect lines
+            default is no stagger for lons, 20% of extent for lats
     """
-    hflag=(hours is None)
-    eflag=(extent is None)
-    for i in range(2):
-        if (i==0) and not first:
-            continue
-        if (i==1) and not second:
-            continue
-        key=['first','second'][i]
-        
-        # if hflag:
-        #     hours = _emberstorm_centres_[mr][key]['hours']
-        # if eflag:
-        #     extent = _emberstorm_centres_[mr][key]['extent']
-        
-        dtimes=fio.run_info[mr]['filedates'][np.array(hours)]
-        
-        cubes = fio.read_model_run(mr, fdtime=dtimes, extent=extent, 
-                                   add_topog=True, add_winds=True,
-                                   add_z=True, add_theta=True)
-        u,v,w,z = cubes.extract(["u","v","upward_air_velocity","z_th"])
-        theta, = cubes.extract("potential_temperature")
-        topog=cubes.extract("surface_altitude")[0].data
-        topogd = topog if topography else None
-        ctimes = utils.dates_from_iris(w)
-        
-        # transects: list of [[lat,lon],[lat1,lon1]], transects to draw
-        transects=interp_centres(firefront_centres[mr]['latlontimes'],ctimes)
-        
-        # extra vert map at ~ 300m altitude
-        levh = utils.height_from_iris(w)
-        levhind = np.sum(levh<wmap_height)
-        wmap = w[:,levhind]
-        # read fire
-        ff,sh,u10,v10 = fio.read_fire(model_run=mr,
-                                      dtimes=ctimes, 
+    
+    # read topog
+    cube_topog = fio.read_topog(mr,extent=extent)
+    lats = cube_topog.coord('latitude').points
+    lons = cube_topog.coord('longitude').points
+    cube_topog = topog.data
+    
+    # set extent to whole space if extent is not specified
+    if extent is None:
+        extent = [lons[0],lons[-1],lats[0],lats[-1]]
+    
+    # Read model run
+    simname=mr.split('_')[0]
+    umdtimes = fio.hours_available(mr)
+    dtoffset = fio.sim_info[simname]['UTC_offset']
+    
+    # hours input can be datetimes or integers
+    if hours is not None:
+        if not isinstance(hours[0],datetime):
+            umdtimes=umdtimes[hours]
+        else:
+            umdtimes = hours
+    
+    # Default start/end/dx/dy
+    if start is None or end is None:
+        start = np.mean(lats), np.mean(lons)-0.4*(lons[-1]-lons[0])
+        end = np.mean(lats), np.mean(lons)+0.4*(lons[-1]-lons[0])
+    if dy is None and dx is None:
+        dy=0.3 * (lats[-1]-lats[0])
+        dx=0.0
+    if dx is None:
+        dx = 0 
+    if dy is None:
+        dy = 0
+    
+    # 3 transects, shifted by dy and dx
+    transects = [ [start[0]-dy,start[1]-dx], [end[0]-dy,end[1]-dx],
+                 [start, end],
+                 [start[0]+dy,start[1]+dx], [end[0]+dy,end[1]+dx],
+                 ]
+    
+    ## Loop over hours
+    for umdtime in umdtimes:
+        # read cube list
+        cubelist = fio.read_model_run(mr, 
+                                      hours=[umdtime],
                                       extent=extent,
-                                      sensibleheat=True,
-                                      wind=True)
-            
-        lats = ff.coord('latitude').points
-        lons = ff.coord('longitude').points
-        zd = z.data.data
-        for dti, dt in enumerate(ctimes):
-            transect=transects[dti]
-            shd = sh[dti].data.data
-            LT = dt + timedelta(hours=8)
-            
-            ffd = ff[dti].data.data
-            u10d = u10[dti].data.data
-            v10d = v10[dti].data.data
-            wmapd = wmap[dti].data.data
-                
-            fig,ax = topdown_view(extent=extent,
-                                        lats=lats,lons=lons,
-                                        ff=ffd, sh=shd, 
-                                        u10=u10d, v10=v10d,
-                                        topog=topogd,
-                                        wmap=wmapd,
-                                        wmap_height=wmap_height)
-                
-            ## Add dashed line to show where transect will be
-            #start,end =transect
-            #plt.plot([start[1],end[1]],[start[0],end[0], ], '--k', 
-            #         linewidth=2, alpha=0.5)
-            
-            ## Plot title
-            plt.title(LT.strftime('%b %d, %H%M(local)'))
-            plt.tight_layout()
-            fio.save_fig(mr,_sn_,dt,subdir=key+'/topdown',plt=plt)
-            
-            ## Transect plot has map top left, showing transect winds and fire
-            ## then transect for most of map
-            ## annotations will be top right
-            fig=plt.figure(figsize=[13,13])
-            topleft=[0.04,0.74,0.55,0.22] #left, bottom, width, height
-            bottom=[0.04,0.04,0.92,0.68]
-            topright = [.6,.74,.36,0.22]
-            _,ax1 = plotting.map_tiff_qgis(
-                        fname="waroonaz_osm.tiff", 
-                        extent=extent,
-                        fig=fig,
-                        subplot_axes=topleft,
-                        #subplot_row_col_n=subplot_row_col_n,
-                        show_grid=True,
-                        #aspect='equal',
-                        )
-            # add winds and firefront
-            topdown_view(fig=fig, ax=ax1,
-                       extent=extent, lats=lats, lons=lons, 
-                       ff=ffd, sh=shd, u10=u10d, v10=v10d,
-                       annotate=False, showlatlons=False)
-            # add transect
-            start,end =transect
-            ax1.plot([start[1],end[1]],[start[0],end[0], ], '--k', 
-                     linewidth=2, alpha=0.6)
-            # Add latlon labels to left and top
-            ax.xaxis.set_major_locator(LinearLocator(numticks=5))
-            ax.yaxis.set_major_locator(LinearLocator(numticks=5))
-            ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-            ax.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-            ax1.xaxis.tick_top()
+                                      )
+        # add temperature, height, destaggered wind cubes
+        utils.extra_cubes(cubelist,
+                          add_theta=True,
+                          add_z=True,
+                          add_winds=True,)
+        theta, = cubelist.extract('potential_temperature')
+        dtimes = utils.dates_from_iris(theta)
         
-            ax1.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-            ax1.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+        # read fire front, sens heat, 10m winds
+        ff,sh,u10,v10 = fio.read_fire(model_run=mr,
+                                      dtimes=dtimes, 
+                                      extent=extent,
+                                      filenames=['firefront','sensible_heat',
+                                                 '10m_uwind','10m_vwind'],
+                                      )
+        ## loop over time steps
+        for ti,dtime in enumerate(dtimes):
+            ### FIRST ROW: 10m HWINDS AND VWINDS, AND STREAMS
             
-            ## Transect
-            ax2 = fig.add_axes(bottom,frameon=False)
-            ## New plot for transect goes here
-            rets = transect_wind(u[dti].data.data,
-                                       v[dti].data.data,
-                                       w[dti].data.data,
-                                       zd,
-                                       lats,lons,
-                                       transect,
-                                       topog=topog,
-                                       sh=shd,
-                                       theta=theta[dti].data.data)
-            # finally add desired annotations
-            ax3 = fig.add_axes(topright,frameon=False)
-            plt.xticks([],[])
-            plt.yticks([],[])
             
-            title = LT.strftime('Transect %b %d, %H%M(local)')
-            ax3.annotate(title, xy=(0.01,0.9),xycoords='axes fraction', fontsize=18)
-            maxwinds="Maximum horizontal wind speed (red cirle)= %3.1fms$^{-1}$"%rets['max_s']
-            ax3.annotate(maxwinds, xy=(0.01,0.7),xycoords='axes fraction', fontsize=12)
-            maxwindloc = 'occurs at %5.1fm altitude'%(rets['y'][rets['max_s_index']])
-            ax3.annotate(maxwindloc,xy=(0.01,0.6), xycoords='axes fraction', fontsize=12)
-            ax2.scatter(rets['x'][rets['max_s_index']], 
-                        rets['y'][rets['max_s_index']], 
-                        marker='o', s=100, 
-                        facecolors='none', edgecolors='r',
-                        zorder=5)
+            ### NEXT 3 ROWS: Transects
             
-            ## SAVE FIGURE
-            
-            fio.save_fig(mr,_sn_,dt,subdir=key+'/transect',plt=plt)
+            for transect in transects:
+                
+                ## SAVE FIGURE
+                fio.save_fig(mr,"multiple_transects",dtime,subdir="full_extent",plt=plt)
 
 def flux_plot(SH, lat, lon,FF=None, map_tiff_args={}):
     """
@@ -751,5 +708,5 @@ if __name__ == '__main__':
     
     map_and_transects('KI_run1_exploratory', 
             latlontimes=latlontimes,
-            hours=np.arange(4,8),
+            hours=np.arange(4,14),
             )

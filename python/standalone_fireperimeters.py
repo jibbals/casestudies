@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 ####### Figure: fire contours #######
 ##################################### 
 # where is data output
-ffront_filename = 'g/data/en0/jwg574/casestudies/data/exploratory_KI_run1/fire/firefront.20200102T1500Z.nc'
+ffront_filename = '../data/KI_run1_exploratory/fire/firefront.20200102T1500Z.nc'
 # yours may be at /g/data/en0/<username>/ACCESS-fire/<run name>/<yyyymmdd of run>/timestamp of simulation/<name of nest>/fire/firefront....
 
 # can set extent to look at (for zooming in or out of something)
@@ -34,11 +34,12 @@ figpath= 'firefront.png'
 
 # read file into dataset
 ds=xr.open_dataset(ffront_filename)
-#print(ds)
+print(ds)
 ffront=ds['firefront']
 # pull out lats and lons for easy plotting
 lats=ffront.lat.data
 lons=ffront.lon.data
+times=ffront.time.data
 
 print(ffront) # can check what data looks like
 nt,nx,ny = ffront.shape # fire output shape is [T,lon,lat]
@@ -62,6 +63,7 @@ for ti in range(0,nt,30):
         plt.contour(lons, lats, ffti, np.array([0]),
                     transform=ccrs.PlateCarree(),
                     colors='red')
+plt.title("Fire fronts between" + str(times[0]) + " and " + str(times[30]))
 
 # add coastline
 ax.coastlines()
