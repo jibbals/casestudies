@@ -912,7 +912,7 @@ def transect(data, z, lat, lon, start, end, npoints=None,
                                  zorder=2)
             else:
                 # 0-50k W/m2 colormap on log scale
-                cmap=plt.cm.cmap_d['plasma']
+                cmap=plt.get_cmap('plasma')
                 normalize = col.SymLogNorm(vmin=0, vmax=10000, linthresh=100, base=10.0)
                 
                 sh_trans_struct = utils.transect(sh, lat, lon, start, end, nx=npoints)

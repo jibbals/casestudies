@@ -11,7 +11,7 @@ import matplotlib
 
 # plotting stuff
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FormatStrFormatter,LinearLocator
+from matplotlib.ticker import FormatStrFormatter,LinearLocator, LogFormatter
 import matplotlib.patheffects as PathEffects
 import numpy as np
 import warnings
@@ -104,18 +104,18 @@ def add_vertical_contours(w,lat,lon,
                     colors=('pink',))
     if xy1 is None:
         xy1=[xy0[0], xy0[1]-.03]
-    plt.annotate(
-        'vertical motion at %dm altitude'%wmap_height, 
-        xy=xy0, 
-        xycoords='axes fraction', 
-        fontsize=9
-        )
-    plt.annotate(
-        'dashed is %.1fm/s, solid is %.1fm/s'%(wmap_levels[0],wmap_levels[1]), 
-        xy=xy1, 
-        xycoords='axes fraction', 
-        fontsize=9
-        )
+    # plt.annotate(
+    #     'vertical motion at %dm altitude'%wmap_height, 
+    #     xy=xy0, 
+    #     xycoords='axes fraction', 
+    #     fontsize=9
+    #     )
+    # plt.annotate(
+    #     'dashed is %.1fm/s, solid is %.1fm/s'%(wmap_levels[0],wmap_levels[1]), 
+    #     xy=xy1, 
+    #     xycoords='axes fraction', 
+    #     fontsize=9
+    #     )
 
 
 def transect_winds(u,v,w,z,
@@ -173,8 +173,8 @@ def transect_winds(u,v,w,z,
                                   color='darkslategrey',
                                   zorder=1,
                                   #linewidth=np.hypot(sliceu,slicew), # too hard to see what's going on
-                                  minlength=0.3, # longer minimum stream length (axis coords: ?)
-                                  arrowsize=2.0, # double arrow size
+                                  minlength=0.4, # longer minimum stream length (axis coords: ?)
+                                  arrowsize=1.5, # arrow size multiplier
                                   )
     plt.xlim(np.min(slicex),np.max(slicex))
     plt.ylim(np.min(slicez),ztop)
@@ -190,7 +190,7 @@ def topdown_view(extent,
                  wmap=None, wmap_height=None,
                  topog=None,
                  tiffname=None,
-                 annotate=False, 
+                 #annotate=False, 
                  showlatlons=True,
                  sh_kwargs={},
                  ):
@@ -254,8 +254,9 @@ def topdown_view(extent,
     ylims = ax.get_ylim()
     
     if ff is not None:
+        ffcolor='red' if (sh is None) else 'darkgrey'
         # add firefront
-        plotting.map_fire(ff,lats,lons)
+        plotting.map_fire(ff,lats,lons,colors=ffcolor)
     if sh is not None:
         # add hot spots for heat flux
         # default kwargs for sh plot
@@ -267,14 +268,23 @@ def topdown_view(extent,
                                                  colorbar=False,
                                                  **sh_kwargs)
         if cs_sh is not None:
+            # if annotate:
+            #     plt.annotate(text="max heat flux = %6.1e W/m2"%np.max(sh),
+            #                  xy=[0,1.06],
+            #                  xycoords='axes fraction', 
+            #                  fontsize=12)
             # colorbar without mucking the axes
-            cbar_ax = fig.add_axes([0.75, 0.92, 0.2, 0.01]) # X Y Width Height
-            cb_sh = fig.colorbar(cs_sh, cax=cbar_ax, pad=0,orientation='horizontal')
-            if annotate:
-                plt.annotate(text="max heat flux = %6.1e W/m2"%np.max(sh),
-                             xy=[0,1.06],
-                             xycoords='axes fraction', 
-                             fontsize=12)
+            cbar_ax = fig.add_axes([0.75, 0.9, 0.2, 0.01]) # X Y Width Height
+            cb_sh = fig.colorbar(cs_sh, cax=cbar_ax, pad=0,orientation='horizontal',
+                         #format=LogFormatter(),
+                         ticks=[100,1000,10000,100000],
+                         )
+            
+            #cb_sh.ax.set_xticks([100,1000,10000,100000]) 
+            cb_sh.ax.set_xticklabels(['10$^2$','10$^3$','10$^4$','10$^5$'])
+            
+            plt.sca(ax) # reset current axis
+            
         
     if u10 is not None:
         # winds, assume v10 is also not None
@@ -288,14 +298,15 @@ def topdown_view(extent,
                        linewidth=lw10, 
                        color='k',
                        density=density,
+                       arrowsize=2.0, # arrow size multiplier
                        )
-        if annotate:
-            plt.annotate("10m wind linewidth increases up to %dms$^{-1}$"%(speedmax),
-                         xy=[0,1.09], 
-                         xycoords="axes fraction", 
-                         fontsize=10)
-            plotting.annotate_max_winds(s10, text="10m wind max = %5.1f m/s",
-                                        xytext=[0,1.025])
+        # if annotate:
+        #     plt.annotate("10m wind linewidth increases up to %dms$^{-1}$"%(speedmax),
+        #                  xy=[0,1.12], 
+        #                  xycoords="axes fraction", 
+        #                  fontsize=12)
+        #     plotting.annotate_max_winds(s10, text="10m wind max = %5.1f m/s",
+        #                                 xytext=[0,1.025])
     
     if wmap is not None:
         add_vertical_contours(wmap,lats,lons,
@@ -331,6 +342,7 @@ def map_and_transects(mr,
                       topography=True,
                       wmap_height=300,
                       ztop=5000,
+                      temperature=False,
                       HSkip=None
                       ):
     """
@@ -440,6 +452,7 @@ def map_and_transects(mr,
                 ltstamp = (dtime+timedelta(hours=dtoffset)).strftime("%H:%M (LT)")
                 # winds
                 u,v,w = uvw[0][i].data, uvw[1][i].data, uvw[2][i].data
+                s = np.hypot(u,v)
                 z = zcube[i].data
                 T = theta[i].data
                 # fire
@@ -482,20 +495,31 @@ def map_and_transects(mr,
                 npoints = utils.number_of_interp_points(lat,lon,start,end)
                 
                 ax2=plt.subplot(3,1,2)
-                trets = plotting.transect_theta(T, z, lat, lon, start, end,
+                if temperature:
+                    plotting.transect_theta(T, z, lat, lon, start, end,
                                                 npoints=npoints,
                                                 topog=topogd, 
-                                                ff=ffi, 
+                                                sh=shi,
                                                 ztop=ztop,
                                                 contours=np.arange(290,320),
                                                 lines=None, 
                                                 levels=np.arange(290,321),
                                                 cmap='gist_rainbow_r',
                                                 )
-                ## add faint lines for clarity
-                thetaslice,xslice,zslice=trets
+                    #thetaslice,xslice,zslice=trets
+                else:
+                    plotting.transect_s(s, z, lat, lon, start, end,
+                                                npoints=npoints,
+                                                topog=topogd, 
+                                                sh=shi,
+                                                ztop=ztop,
+                                                lines=None, 
+                                                cmap='Blues',
+                                                )
+                                                
+                
                 ## Add wind streams to theta contour
-                wrets = transect_winds(u, v, w, z, lat, lon, transect, 
+                retdict = transect_winds(u, v, w, z, lat, lon, transect, 
                                        ztop=ztop,
                                        )
                 
@@ -561,7 +585,7 @@ def multiple_transects(mr,
     cube_topog = fio.read_topog(mr,extent=extent)
     lats = cube_topog.coord('latitude').points
     lons = cube_topog.coord('longitude').points
-    cube_topog = topog.data
+    topog = cube_topog.data
     
     # set extent to whole space if extent is not specified
     if extent is None:
@@ -708,5 +732,5 @@ if __name__ == '__main__':
     
     map_and_transects('KI_run1_exploratory', 
             latlontimes=latlontimes,
-            hours=np.arange(4,14),
+            hours=np.arange(6,14),
             )
