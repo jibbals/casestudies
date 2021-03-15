@@ -283,7 +283,7 @@ def topdown_view(extent,
                          #format=LogFormatter(),
                          ticks=[100,1000,10000,100000],
                          )
-            cb_sh.set_label("W/m$^2$")
+            cb_sh.ax.set_title("W/m$^2$")
             #cb_sh.ax.set_xticks([100,1000,10000,100000]) 
             cb_sh.ax.set_xticklabels(['10$^2$','10$^3$','10$^4$','10$^5$'])
             
@@ -836,7 +836,7 @@ if __name__ == '__main__':
     
     # check topdown only
     if True:
-        topdown_view_only('KI_run1_exploratory')
+        topdown_view_only('KI_run1')
     
     if False:
         map_and_transects('KI_run1_exploratory', 

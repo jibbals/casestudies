@@ -730,8 +730,8 @@ def map_topography(extent, topog,lat,lon,title="Topography", cbar=True, **contou
     Show topography map matching extents
     '''
     # some defaults
-    if 'aspect' not in contourfargs:
-        contourfargs['aspect']='auto'
+    #if 'aspect' not in contourfargs:
+    #    contourfargs['aspect']='auto'
     if 'levels' not in contourfargs:
         # push blue water part of scale a bit lower
         contourfargs['levels'] = np.linspace(-150,550,50,endpoint=True)
