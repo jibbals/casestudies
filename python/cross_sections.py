@@ -83,6 +83,10 @@ def add_vertical_contours(w,lat,lon,
                           xy0=[.7,-.02], 
                           xy1=None):
     '''
+    Add contours to show vertical motion at one altitude on a top down map
+    wmap_levels give contours in m/s
+    light blue for downwards, pink for upwards 
+    
     ARGS:
         w [lat,lon] : map of vertical motion
         lat,lon : degrees
@@ -274,12 +278,12 @@ def topdown_view(extent,
             #                  xycoords='axes fraction', 
             #                  fontsize=12)
             # colorbar without mucking the axes
-            cbar_ax = fig.add_axes([0.75, 0.9, 0.2, 0.01]) # X Y Width Height
+            cbar_ax = fig.add_axes([0.75, 0.91, 0.2, 0.01]) # X Y Width Height
             cb_sh = fig.colorbar(cs_sh, cax=cbar_ax, pad=0,orientation='horizontal',
                          #format=LogFormatter(),
                          ticks=[100,1000,10000,100000],
                          )
-            
+            cb_sh.set_label("W/m$^2$")
             #cb_sh.ax.set_xticks([100,1000,10000,100000]) 
             cb_sh.ax.set_xticklabels(['10$^2$','10$^3$','10$^4$','10$^5$'])
             
@@ -331,6 +335,106 @@ def topdown_view(extent,
     
     
     return fig, ax
+
+def topdown_view_only(mr, 
+                      extent=None,
+                      hours=None,
+                      topography=True,
+                      wmap_height=300,
+                      HSkip=None
+                      ):
+    """
+    show map of 10m winds over topography
+    ARGS:
+        # REQUIRED:
+            mr: model run we are loading 
+        # OPTIONAL:
+            extent: [West,East,South,North] ## can set extent to look down on manually
+            hours: [integers]
+            topography: True|False # set true to use topog for topdown view
+            wmap_height: 300m # what height for topdown vertical motion contours?
+            ztop: 5000, how high to do transect?
+    """
+    
+    # read topog
+    topog = fio.read_topog(mr,extent=extent,HSkip=HSkip)
+    lat = topog.coord('latitude').points
+    lon = topog.coord('longitude').points
+    topogd=topog.data if topography else None
+    
+    # set extent to whole space if extent is not specified
+    if extent is None:
+        extent = [lon[0],lon[-1],lat[0],lat[-1]]
+    
+    # Read model run
+    simname=mr.split('_')[0]
+    umdtimes = fio.hours_available(mr)
+    dtoffset = fio.sim_info[simname]['UTC_offset']
+    
+    # hours input can be datetimes or integers
+    if hours is not None:
+        if not isinstance(hours[0],datetime):
+            umdtimes=umdtimes[hours]
+        else:
+            umdtimes = hours
+    
+    
+    # read one model file at a time
+    for umdtime in umdtimes:
+        # read cube list
+        cubelist = fio.read_model_run(mr, 
+                                      hours=[umdtime],
+                                      extent=extent,
+                                      HSkip=HSkip,
+                                      )
+        
+        wcube, = cubelist.extract(['upward_air_velocity'])
+        dtimes = utils.dates_from_iris(wcube)
+        
+        # read fire
+        # TODO: read this out of loop, find time index in loop
+        ff, sh, u10, v10 = fio.read_fire(model_run=mr, 
+                                         dtimes=dtimes, 
+                                         extent=extent,
+                                         HSkip=HSkip,
+                                         filenames=['firefront','sensible_heat',
+                                                    '10m_uwind','10m_vwind'],
+                                         )
+                
+        # extra vert map at ~ 300m altitude
+        levh = utils.height_from_iris(wcube)
+        levhind = np.sum(levh<wmap_height)
+        
+        # for each time slice pull out potential temp, winds
+        for i,dtime in enumerate(dtimes):
+            #utcstamp = dtime.s)trftime("%b %d %H:%M (UTC)")
+            ltstamp = (dtime+timedelta(hours=dtoffset)).strftime("%H:%M (LT)")
+            
+            ## fire and winds for this time step
+            ffi = ff[i].data 
+            shi = sh[i].data
+            u10i = u10[i].data
+            v10i = v10[i].data
+            #vertical motion at roughly 300m altitude
+            wmap=wcube[i,levhind].data
+            
+            ### First plot, topography
+            fig,ax = topdown_view(extent=extent,
+                                  lats=lat, 
+                                  lons=lon, 
+                                  topog=topogd,
+                                  ff=ffi, 
+                                  sh=shi, 
+                                  u10=u10i, 
+                                  v10=v10i,
+                                  wmap=wmap, 
+                                  wmap_height=wmap_height, 
+                                  )
+            plt.title(mr + " 10m horizontal winds at " + ltstamp)
+            
+            #model_run, plot_name, plot_time, plt, subdir=None,
+            fio.save_fig(mr, "wind10m_on_topography", dtime, 
+                         plt=plt)
 
 
 def map_and_transects(mr, 
@@ -730,7 +834,12 @@ def flux_plot_hour(mr='waroona_run3', extent=None, hour=12,
 if __name__ == '__main__':
     latlontimes=firefront_centres["KI_run1"]['latlontimes']
     
-    map_and_transects('KI_run1_exploratory', 
+    # check topdown only
+    if True:
+        topdown_view_only('KI_run1_exploratory')
+    
+    if False:
+        map_and_transects('KI_run1_exploratory', 
             latlontimes=latlontimes,
             hours=np.arange(6,14),
             )
