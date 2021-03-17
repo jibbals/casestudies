@@ -854,10 +854,12 @@ def transect(data, z, lat, lon, start, end, npoints=None,
     #         'lats': [X] lats along horizontal axis
     #         'lons': [X] lons along horizontal axis
     #     } 
-    transect_struct = utils.transect(data,lat,lon,start,end,nx=npoints, z_th=z)
+    transect_struct = utils.transect(data,lat,lon,start,end,nx=npoints, z=z)
     slicedata = transect_struct['transect']
-    slicex = transect_struct['x']
-    slicez = transect_struct['y']
+    # X axis [0,1,...]
+    X = transect_struct['x']
+    # heights along transect [x,y]
+    Y = transect_struct['y']
     
     # Pull out cross section of topography and height
     if latt is None:
@@ -870,9 +872,9 @@ def transect(data, z, lat, lon, start, end, npoints=None,
     # Note that contourf can work with non-plaid coordinate grids provided both are 2-d
     # Contour inputs: xaxis, yaxis, data, colour gradient 
     if contours is None:
-        plt.contourf(slicex,slicez,slicedata,**contourfargs)
+        plt.contourf(X,Y,slicedata,**contourfargs)
     else:
-        plt.contourf(slicex,slicez,slicedata,contours,**contourfargs)
+        plt.contourf(X,Y,slicedata,contours,**contourfargs)
     
     if colorbar:
         # defaults if not set
@@ -896,10 +898,10 @@ def transect(data, z, lat, lon, start, end, npoints=None,
         # ignore warning when there are no lines?
         #with warnings.catch_warnings():
             #warnings.simplefilter('ignore')
-        plt.contour(slicex,slicez,slicedata,lines,colors='k')            
+        plt.contour(X,Y,slicedata,lines,colors='k')            
     
-    zbottom = np.tile(np.min(slicez),reps=npoints) # xcoords
-    xbottom = slicex[0,:]
+    zbottom = np.tile(np.min(Y),reps=npoints) # xcoords
+    xbottom = X[0,:]
     # make sure land is obvious
     if topog is not None:
         slicetopog_struct = utils.transect(topog,latt,lont,start,end,nx=npoints)
@@ -936,7 +938,7 @@ def transect(data, z, lat, lon, start, end, npoints=None,
     plt.xlabel('')
     plt.title(title)
 
-    return slicedata, slicex, slicez
+    return slicedata, X, Y
 
 def transect_s(s, z, lat, lon, start, end, npoints=100, 
                topog=None, sh=None, latt=None, lont=None, ztop=4000,
@@ -968,7 +970,7 @@ def transect_s(s, z, lat, lon, start, end, npoints=100,
                     cbar_args=cbar_args,
                     **contourfargs)
 
-def transect_theta(theta, z, lat, lon, start, end, npoints=100, 
+def transect_theta(theta, z, lat, lon, start, end, npoints=None, 
                    topog=None, sh=None, latt=None, lont=None, ztop=4000,
                    title="$T_{\\theta}$ (K)", ax=None, colorbar=True,
                    contours = np.arange(280,350,1),
@@ -1098,7 +1100,7 @@ def streamplot_regridded(x,y,u,v,**kwargs):
     #print("DEBUG: y:",y)
     if 'minlength' not in kwargs:
         # increase minimum line length (default is 0.1)
-        kwargs['minlength']=0.5 
+        kwargs['minlength']=0.3
     # figure out xn,yn based on smallest grid space in that direction
     if len(x.shape) > 1:
         nx = int(np.ceil((x.max()-x.min())/np.min(np.diff(x,axis=1))))
@@ -1110,21 +1112,24 @@ def streamplot_regridded(x,y,u,v,**kwargs):
     yi = np.linspace(y.min(),y.max(),ny)
     #with warnings.catch_warnings():
         #warnings.simplefilter("ignore")
-    
+    print("DEBUG: PLOTTING.STREAMPLOT_REGRIDDED INTERP START")
     ui = interp2d(x,y,u,bounds_error=False,fill_value=np.NaN)(xi,yi)
     vi = interp2d(x,y,v,bounds_error=False,fill_value=np.NaN)(xi,yi)
+    print("DEBUG: PLOTTING.STREAMPLOT_REGRIDDED INTERP END1")
     # if linewidth is an argument 
     if 'linewidth' in kwargs:
         # on the same grid as input u,v
         if len(kwargs['linewidth'].shape) > 1:
             lwi = kwargs['linewidth']
             kwargs['linewidth'] = interp2d(x,y,lwi,bounds_error=False,fill_value=0)(xi,yi)
-            
+            print("DEBUG: PLOTTING.STREAMPLOT_REGRIDDED INTERP END2")
     #print("DEBUG: xi:",xi)
     #print("DEBUG: yi:",yi)
     #print("DEBUG:",np.shape(ui))
     #print("DEBUG:",np.shape(vi))
-    splot = plt.streamplot(xi,yi,ui,vi,**kwargs) 
+    print("DEBUG: PLOTTING.STREAMPLOT_REGRIDDED STREAMPLOT START")
+    splot = plt.streamplot(xi,yi,ui,vi,**kwargs)
+    print("DEBUG: PLOTTING.STREAMPLOT_REGRIDDED STREAMPLOT END")
     # set limits back to latlon limits
     #plt.gca().set_ylim(yi[0],yi[-1])
     #plt.gca().set_xlim(xi[0],xi[-1])

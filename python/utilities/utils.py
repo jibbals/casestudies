@@ -13,6 +13,7 @@ from datetime import datetime,timedelta
 from scipy import interpolate
 
 import iris
+import xarray as xr
 from utilities import constants
 
 # more print statements for testing
@@ -118,7 +119,7 @@ def extra_cubes(allcubes,
         q_orig_units = q.units
         p.convert_units('hPa')
         q.convert_units('kg kg-1')
-        #print("DEBUG: units", p_orig_units, p.units, q_orig_units,q.units)
+        
         # calculate vapour pressure:
         epsilon = 0.6220 # gas constant ratio for dry air to water vapour
         e = p*q/(epsilon+(1-epsilon)*q)
@@ -222,7 +223,7 @@ def profile_interpolation(cube, latlon, average=False):
         #do stuff
     return data0
 
-def number_of_interp_points(lats,lons,start,end, factor=2.5):
+def number_of_interp_points(lats,lons,start,end, factor=1.5):
     """
     Returns how many points should be interpolated to between start and end on latlon grid
     Based on min grid size, multiplied by some factor
@@ -287,7 +288,7 @@ def interp_cube_to_altitudes(cube, altitudes, model_heights=None, closest=False)
         for i,wanted_height in enumerate(altitudes):
             hind = np.argmin(np.abs(model_heights-wanted_height))
             hinds[i]=hind
-        #print("DEBUG: closest indices:",hinds)
+        
         # subset to height indices
         ret_cube  = cube[:,hinds,:,:]
     else:
@@ -366,7 +367,77 @@ def transect_slicex(lats,lons,start,end,nx=None, nz=1,
 #      
 #    return np.squeeze(slicedata)
 
-def transect(data, lats, lons, start, end, nx=None, z_th=None):
+def transect(data, lats, lons, start, end, nx=None, z=None,
+             interpmethod='linear'):
+    '''
+    interpolate along cross section
+    USES XARRAY INTERPOLATION 
+    inputs: 
+        wind: data [[z], lats, lons]
+        lats, lons: horizontal dims 1d arrays
+        start = [lat0,lon0]
+        end = [lat1,lon1]
+        nx = how many points along horizontal. defaults to grid size
+        z_th = optional altitude array [z, lats, lons]
+    RETURNS: 
+        struct: {
+            'transect': vertical cross section of data 
+            'x': 0,1,...,len(X axis)-1
+            'y': y axis [Y,X] in terms of z
+            'lats': [X] lats along horizontal axis
+            'lons': [X] lons along horizontal axis
+        } 
+        xaxis: x points in metres
+        yaxis: y points in metres or None if no z provided
+    '''
+    lat1,lon1 = start
+    lat2,lon2 = end
+    
+    # base interp points on grid size
+    if nx is None:
+        nx = number_of_interp_points(lats,lons,start,end)
+    
+    # Interpolation line is really a list of latlons
+    lataxis,lonaxis = latslons_axes_along_transect(lats,lons,start,end,nx=nx)
+    # Create label to help interpret output
+    label=["(%.2f, %.2f)"%(lat,lon) for lat,lon in zip(lataxis,lonaxis)]
+    xdistance = np.array([distance_between_points(start, latlon) for latlon in zip(lataxis,lonaxis)])
+    
+    # Lets put our data into an xarray data array 
+    coords = []
+    if len(data.shape) ==3:
+        coords = [("z",np.arange(data.shape[0]))]    
+    coords.extend([("lats",lats),("lons",lons)])
+    da = xr.DataArray(data,
+                      coords)
+    # we also put lat and lon list into data array with new "X" dimension
+    da_lats = xr.DataArray(lataxis,dims="X")
+    da_lons = xr.DataArray(lonaxis,dims="X")
+    
+    # interpolat to our lat,lon list
+    slicedata = np.squeeze(da.interp(lats=da_lats,lons=da_lons,method=interpmethod).values)
+    X=xdistance
+    Y=None
+    if z is not None:
+        NZ=data.shape[0] # levels is first dimension
+        da_z = xr.DataArray(z,
+                            coords)
+        # Y in 2d: Y [y,x]
+        Y = np.squeeze(da_z.interp(lats=da_lats,lons=da_lons,method=interpmethod).values)
+        # X in 2d: X [y,x]
+        X = np.repeat(xdistance[np.newaxis,:],NZ,axis=0)
+        
+    return {'transect':slicedata, # interpolation of data along transect
+            'xdistance':xdistance, # [x] metres from start
+            'x':X, # [[y,]x] # metres from start, repeated along z dimension
+            'y':Y, # [y,x] # interpolation of z input along transect
+            'xlats':lataxis, # [x] 
+            'xlons':lonaxis, # [x]
+            'xlabel':label, # [x]
+            }
+
+
+def transect_old(data, lats, lons, start, end, nx=None, z_th=None):
     '''
     interpolate along cross section
     inputs: 
@@ -465,13 +536,13 @@ def transect_winds(u,v,lats,lons,start,end,nx=None,z=None):
                     start=[lat0,lon0],
                     end=[lat1,lon1],
                     nx=nx,
-                    z_th=z)
+                    z=z)
     ucross = ucross_str['transect']
     vcross_str=transect(v,lats,lons,
                     start=[lat0,lon0],
                     end=[lat1,lon1],
                     nx=nx,
-                    z_th=z)
+                    z=z)
     vcross = vcross_str['transect']
     wind_mag = ucross * np.cos(theta_rads) + vcross * np.sin(theta_rads)
     
@@ -482,9 +553,9 @@ def transect_winds(u,v,lats,lons,start,end,nx=None,z=None):
         'transect_u':ucross,
         'x':ucross_str['x'],
         'y':ucross_str['y'],
-        'lats':ucross_str['lats'],
-        'lons':ucross_str['lons'],
-        'label':ucross_str['label'],
+        'xlats':ucross_str['xlats'],
+        'xlons':ucross_str['xlons'],
+        'xlabel':ucross_str['xlabel'],
         'nx':nx,
         }
     return ret
@@ -562,7 +633,6 @@ def height_from_iris(cube,bounds=False):
     return height
 
 def unmask(arr):
-    #print("DEBUG: umask(arr)", type(arr))
     if np.ma.isMaskedArray(arr):
         #print("     : returning arr.data")
         return arr.data
