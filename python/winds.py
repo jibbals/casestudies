@@ -42,7 +42,8 @@ def wind_and_heat_flux_looped(mr,
     wind direction can be put onto a tiff if tiffname is set
     """
     #dtime = datetime(2017,2,12,7,30) # 1830 LT
-    LToffset= timedelta(hours=fio.run_info[mr]['UTC_offset'])
+    simname=mr.split('_')[0]
+    LToffset= timedelta(hours=fio.sim_info[simname]['UTC_offset'])
 
     # Read 10m winds and firefront:
     ff,fflux,u10,v10=fio.read_fire(mr,
@@ -151,11 +152,11 @@ def wind_and_heat_flux_looped(mr,
 def rotation_looped(mr, extent=None, dtimes=None, HSkip=None):
     """
     """
-    
-    H0 = fio.run_info[mr]['filedates'][0]
+    simname=mr.split('_')[0]
+    H0 = fio.sim_info[simname]['filedates'][0]
     if dtimes is None:
         dtimes=[H0 + timedelta(minutes=x*30) for x in range(24*2)]
-    LToffset= timedelta(hours=fio.run_info[mr]['UTC_offset'])
+    LToffset= timedelta(hours=fio.sim_info[simname]['UTC_offset'])
 
     # Read 10m winds and firefront:
     ff,u10,v10 = fio.read_fire(mr,
@@ -229,12 +230,12 @@ def rotation_looped(mr, extent=None, dtimes=None, HSkip=None):
 if __name__=='__main__':
     
     ### Run the stuff
-    mr='KI_run1'
+    mr='KI_run2'
     extent= [136.52,137.24, -36.07,-35.6] # None
     tiffname='KI.tiff' # 'badja.tiff'
     
     # CHECK LOWER LEVEL ROTATION
-    if False:
+    if True:
         rotation_looped(mr,HSkip=5)
 
     # Look at winds and heat flux

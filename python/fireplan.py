@@ -282,16 +282,19 @@ def fire_spread_hourly(mr,
 
 if __name__=='__main__':
     
-    ## Check KI output
-    mr='badja_run1'
-    #mr='KI_run1'
+    ## Check fire spread for model run
+    #mr='badja_run1'
+    mr='KI_run2'
     
-    # can just choose a subset
-    hours=range(5,10)
+    ## can just choose a subset
+    #hours=range(5,10)
     hours=None
+    
     fig,ax = fire_spread_hourly(mr,hours=hours)
     #fio.save_fig_to_path('check.png',plt)
     fio.save_fig(mr,_sn_,"FF_hourly",plt)
+
+
     
     
     

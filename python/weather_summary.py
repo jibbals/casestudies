@@ -612,8 +612,8 @@ def weather_series(model_run='waroona_run3',
 if __name__=='__main__':
     
 
-    mr='KI_run1'
-    hours = fio.run_info[mr]['filedates']
+    mr='KI_run2'
+    hours = fio.hours_available(mr)
     hwind_minmax = [0, 30]
     weather_summary_model(mr,HSkip=None,fdtimes=hours, hwind_limits=hwind_minmax)
     

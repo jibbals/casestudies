@@ -890,9 +890,8 @@ if __name__ == '__main__':
     KI_zoom_west = [136.5,137.5,-36.1,-35.6]
     ## Multiple transects 
     if True:
-        #multiple_transects('KI_run1_exploratory')
-        multiple_transects('KI_run1_exploratory',extent=KI_zoom_west,subdir="zoomed",
-                           hours=[2],)
+        multiple_transects('KI_run1')
+        multiple_transects('KI_run1',extent=KI_zoom_west,subdir="zoomed")
     
     ## TOPDOWN 10m WINDS ONLY
     if False:
