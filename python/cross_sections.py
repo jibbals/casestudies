@@ -300,17 +300,26 @@ def topdown_view(extent,
     if u10 is not None:
         # winds, assume v10 is also not None
         s10 = np.hypot(u10,v10)
-        speedmax=20 # what speed for thickest wind streams
-        lwmax_winds=5 # how thick can the wind streams become
-        lw10 = utils.wind_speed_to_linewidth(s10, lwmax=lwmax_winds, speedmax=speedmax)
-        # higher density if using topography instead of OSM
-        density=(0.6,0.5) if topog is None else (0.75,0.7)
-        plt.streamplot(lons,lats,u10,v10, 
+        # float point error issue means streamplot fails
+        #print("DEBUG: lons:",lons) 
+        # streamplot requires regular grid
+        if np.all(np.diff(lons) == lons[1]-lons[0]) and np.all(np.diff(lats) == lats[1]-lats[0]):
+            speedmax=20 # what speed for thickest wind streams
+            lwmax_winds=5 # how thick can the wind streams become
+            lw10 = utils.wind_speed_to_linewidth(s10, lwmax=lwmax_winds, speedmax=speedmax)
+            # higher density if using topography instead of OSM
+            density=(0.6,0.5) if topog is None else (0.75,0.7)
+            plt.streamplot(lons,lats,u10,v10, 
                        linewidth=lw10, 
                        color='k',
                        density=density,
                        arrowsize=2.0, # arrow size multiplier
                        )
+        else:
+            xskip=int(np.max([len(lons)//30-1,1]))
+            yskip=int(np.max([len(lats)//30-1,1]))
+            plt.quiver(lons[::xskip],lats[::yskip],u10[::yskip,::xskip],v10[::yskip,::xskip])
+
         # if annotate:
         #     plt.annotate("10m wind linewidth increases up to %dms$^{-1}$"%(speedmax),
         #                  xy=[0,1.12], 
@@ -414,6 +423,22 @@ def topdown_view_only(mr,
         # extra vert map at ~ 300m altitude
         levh = utils.height_from_iris(wcube)
         levhind = np.sum(levh<wmap_height)
+            
+        # add fire if available
+        ffhr,shhr,u10hr,v10hr = None,None,None,None
+        if ff is None and ("1p0" in mr or "3p0" in mr):
+            print("INFO: Adding fire at higher res to topdown view")
+            ffhr,shhr,u10hr,v10hr=fio.read_fire(
+                    model_run=mr[:-4], 
+                    dtimes=dtimes, 
+                    extent=extent,
+                    HSkip=HSkip,
+                    filenames=['firefront','sensible_heat',
+                        '10m_uwind','10m_vwind'],
+                    )
+            latshr = ffhr.coord('latitude').points
+            lonshr = ffhr.coord('longitude').points
+
         
         # for each time slice pull out potential temp, winds
         for i,dtime in enumerate(dtimes):
@@ -421,10 +446,20 @@ def topdown_view_only(mr,
             ltstamp = (dtime+timedelta(hours=dtoffset)).strftime("%H:%M (LT)")
             
             ## fire and winds for this time step
-            ffi = ff[i].data 
-            shi = sh[i].data
-            u10i = u10[i].data
-            v10i = v10[i].data
+            ffi,shi,v10i,u10i=None,None,None,None
+            if ff is not None:
+                ffi = ff[i].data 
+                shi = sh[i].data
+                u10i = u10[i].data
+                v10i = v10[i].data
+            else:
+                ## if no fire data, still want surface HWinds
+                xwind,ywind = cubelist.extract(['x_wind','y_wind'])
+                u,v = utils.destagger_wind_cubes([xwind[i,0],ywind[i,0]])
+                u10i = u.data
+                v10i = v.data
+
+            
             #vertical motion at roughly 300m altitude
             wmap=wcube[i,levhind].data
             
@@ -442,6 +477,10 @@ def topdown_view_only(mr,
                                   )
             plt.title(mr + " 10m horizontal winds at " + ltstamp)
             
+            # add high res info if needed
+            if ffhr is not None:
+                plotting.map_fire(ffhr[i].data,latshr,lonshr)
+
             #model_run, plot_name, plot_time, plt, subdir=None,
             fio.save_fig(mr, "wind10m_on_topography", dtime, 
                          plt=plt)
@@ -889,13 +928,13 @@ if __name__ == '__main__':
     latlontimes=firefront_centres["KI_run1"]['latlontimes']
     KI_zoom_west = [136.5,137.5,-36.1,-35.6]
     ## Multiple transects 
-    if True:
+    if False:
         multiple_transects('KI_run1')
         multiple_transects('KI_run1',extent=KI_zoom_west,subdir="zoomed")
     
     ## TOPDOWN 10m WINDS ONLY
-    if False:
-        topdown_view_only('KI_run1')
+    if True:
+        topdown_view_only('KI_run2_1p0')
     
     ## MAP WITH DEFINED TRANSECT
     if False:

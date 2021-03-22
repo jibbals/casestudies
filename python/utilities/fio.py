@@ -286,16 +286,17 @@ def read_fire(model_run,
         extent: [WESN]
         filename: string matching one of {'firefront', 'sensible_heat','fire_speed','10m_uwind','10m_vwind','fuel_burning','relative_humidity','water_vapor','surface_temp'}
     '''
-    ## If no fire exists for model run, return None
+    ## make sure filenames is list of strings
+    if isinstance(filenames, str):
+        filenames=[filenames]
+    
+    ## If no fire exists for model run, return [None,...]
     fdir = __DATADIR__+model_run+'/fire/'
     if not os.path.exists(fdir):
         print("ERROR: no such filepath:",fdir)
         # needs to be iterable to match cubelist return type (with wind counted twice) 
-        return None
+        return [None]*len(filenames)
     
-    if isinstance(filenames, str):
-        filenames=[filenames]
-
     if extent is not None:
         constraints = _constraints_from_extent_(extent,constraints)
 
@@ -684,7 +685,7 @@ def standard_fig_name(model_run, plot_name, plot_time,
     elif subdir[0] not in "/\\":
         subdir = "/"+subdir
 
-    path='../figures/%s/%s%s/%s'%(plot_name, model_run, subdir, dstamp) + ext
+    path='../figures/%s/%s%s/%s'%(model_run, plot_name, subdir, dstamp) + ext
     return path
 
 def save_fig(model_run, plot_name, plot_time, plt,
