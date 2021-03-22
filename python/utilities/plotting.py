@@ -214,35 +214,38 @@ def map_add_locations_extent(extent,
     else:
         map_add_locations(latlons, text=Names, color=color, textcolor='k', dx=dx,dy=dy)
 
-def map_add_locations(namelist, text=None, proj=None,
+def map_add_locations(latlons, texts, proj=None,
                       marker='o', color='grey', markersize=None, 
                       textcolor='k',
                       dx=.025,dy=.015):
     '''
     input is list of names to be added to a map using the lat lons in _latlons_
     '''
-    for i,name in enumerate(namelist):
-        y,x=_latlons_[name]
-        # maybe want special text
-        if text is not None:
-            name = text[i]
+    for i,(latlon,name) in enumerate(zip(latlons,texts)):
+        y,x=latlon
+        
         # dx,dy can be scalar or list
         dxi,dyi = dx,dy
         if isinstance(dx, (list,tuple,np.ndarray)):
             dxi,dyi = dx[i], dy[i]
 
         # Add marker and text
-        if proj is None:
-            plt.plot(x,y,  color=color, linewidth=0, 
-                     marker=marker, markersize=None)
-            plt.text(x+dxi, y+dyi, name, color=textcolor,
-                     horizontalalignment='right')
-        else:
-            plt.plot(x,y,  color=color, linewidth=0, 
-                     marker=marker, markersize=None, transform=proj)
-            plt.text(x+dxi, y+dyi, name, color=textcolor,
-                     horizontalalignment='right',
-                     transform=proj)
+        pltargs = {
+                "color":color,
+                "linewidth":0,
+                "marker":marker,
+                "markersize":markersize,
+                }
+        txtargs = {
+                "color":color,
+                "horizontalalignment":"right",
+                }
+        if proj is not None:
+            pltargs['transform']=proj
+            txtargs['transform']=proj
+        
+        plt.plot(x,y, **pltargs)
+        plt.text(x+dxi, y+dyi, name, **txtargs)
 
 def map_add_rectangle(LRBT, **rectargs):
     """
@@ -819,13 +822,15 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
 def transect(data, z, lat, lon, start, end, npoints=None, 
              topog=None, sh=None, latt=None, lont=None, ztop=4000,
              title="", ax=None, colorbar=True,
-             contours=None,lines=None,
+             contours=None,lines=None, 
              cbar_args={},
              **contourfargs):
     '''
     Draw cross section
-        data is 3d
-        z (3d), lat(1d), lon(1d) is height (m), lats and lons
+    ARGUMENTS:
+        data is 3d [levs,lats,lons]
+        z (3d): height [lev,lats,lons]
+        lat(1d), lon(1d)
         start, end are [lat0,lon0], [lat1,lon1]
         contours will be filled colours
         lines will be where to draw black lines

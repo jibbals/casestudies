@@ -418,6 +418,7 @@ def transect(data, lats, lons, start, end, nx=None, z=None,
     slicedata = np.squeeze(da.interp(lats=da_lats,lons=da_lons,method=interpmethod).values)
     X=xdistance
     Y=None
+    
     if z is not None:
         NZ=data.shape[0] # levels is first dimension
         da_z = xr.DataArray(z,

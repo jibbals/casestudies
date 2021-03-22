@@ -160,6 +160,8 @@ def transect_winds(u,v,w,z,
     transect_s = transect_winds_struct['transect_wind']
     slicex = transect_winds_struct['x']
     slicez = transect_winds_struct['y']
+    # scale for Y axis based on axes
+    Yscale=ztop/transect_winds_struct['xdistance'][-1]
     
     retdict['xlabel'] = transect_winds_struct['xlabel']
     # left to right wind speed along transect
@@ -172,14 +174,16 @@ def transect_winds(u,v,w,z,
     # east to west, south to north wind speeds along transect
     retdict['u'] = transect_winds_struct['transect_u']
     retdict['v'] = transect_winds_struct['transect_v']
-    
+    retdict['yscale'] = Yscale
     # Streamplot
-    plotting.streamplot_regridded(slicex,slicez,transect_s,transect_w,
+    print("INFO: streamplotting transect winds: ")
+    print("    : xdistance=%.2fm, zheight=%.2fm, SCALING VERT MOTION BY factor of %.6f"%(transect_winds_struct['xdistance'][-1],ztop,Yscale))
+    plotting.streamplot_regridded(slicex,slicez*Yscale,transect_s,transect_w,
                                   density=(1,1), 
                                   color='darkslategrey',
                                   zorder=1,
                                   #linewidth=np.hypot(sliceu,slicew), # too hard to see what's going on
-                                  minlength=0.4, # longer minimum stream length (axis coords: ?)
+                                  minlength=0.2, # longer minimum stream length (axis coords: ?)
                                   arrowsize=1.5, # arrow size multiplier
                                   )
     plt.xlim(np.min(slicex),np.max(slicex))
