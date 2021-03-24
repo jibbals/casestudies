@@ -413,6 +413,7 @@ def map_sensibleheat(sh, lat, lon,
     plt.xticks([],[])
     plt.yticks([],[])
     return cs, cbar
+    
 
 def map_cartopy(extent,coastlines=True,bluemarble=False):
     """

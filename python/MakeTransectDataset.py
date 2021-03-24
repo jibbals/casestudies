@@ -13,6 +13,8 @@ import numpy as np
 # file reading stuff
 import xarray as xr
 from glob import glob
+from utilities.fio import read_model_run_hour
+from utilities.utils import destagger_winds_DA
 #from datetime import datetime,timedelta
 
 ###
@@ -27,18 +29,7 @@ from glob import glob
 ## METHODS
 ###
 
-def destagger_wind(DA_u, DA_v):
-    """
-    ## Staggered grid:
-    ## u[latitude,longitude_edges] # minus one edge for some reason
-    ## v[latitude_edges,longitude]
-    ## fix by linear interpolation
-    """
-    # interpolate xwind longitudes onto vwind longitude dim
-    u = DA_u.interp(longitude=DA_v['longitude'].values)
-    v = DA_v.interp(latitude=DA_u['latitude'].values)
-    
-    return u,v
+
 
 def distance_between_points(latlon0,latlon1):
     """
@@ -66,7 +57,7 @@ def latslons_axes_along_transect(lats,lons,start,end,nx):
         start: [lat0,lon0] # start of transect
         end: [lat1,lon1] # end of transect
         
-    return lons,lats
+    return lats,lons
         interpolated degrees from start to end along lats,lons grid
     """
     x_factor = np.linspace(0,1,nx)
@@ -76,15 +67,21 @@ def latslons_axes_along_transect(lats,lons,start,end,nx):
     lats_axis = lat0 + (lat1-lat0)*x_factor
     return lats_axis,lons_axis
 
-def number_of_xpoints_in_transect(lats,lons,start,end,factor=0.5):
+def number_of_xpoints_in_transect(lats,lons,start,end,factor=1.0):
     """
-    get good number of grid points for transect based on native resolution
-    if grid size is 300m (diagonally about 424m), and transect is 42 400m, ~100 grid points 
+    get good number of grid points for transect based on native resolution.
+    if grid size is 300m (diagonally about 424m), and transect is 42 400m, 
+    then there are ~100 grid points native resolution diagonally.
+    multiply this diagonal native available number by <factor> to get number of xpoints
+    NB: error from high latitudes not accounted for
+
     ARGUMENTS:
         lats,lons to figure out grid size
         start = [lat0,lon0]
         end = [lat1,lon1]
         factor: multiply nx by some fudge factor if you want, default is to halve nx
+    RETURNS:
+        integer number of xpoints
     """
     fulldist=distance_between_points(start, end)
     gridres = distance_between_points([lats[0],lons[0]], [lats[1],lons[1]])
@@ -94,25 +91,7 @@ def number_of_xpoints_in_transect(lats,lons,start,end,factor=0.5):
 
 
 
-def read_model_run_hour(path, hour=0):
-    """
-    Read wind,temperature,pressure,altitude data from model run
-    ARGUMENTS:
-        path: /g/data/en0/.../0p3    -  parent folder to /fire and /atmos for access-fire model run output
-        hour: integer   # 0 is first hour, 1 is second hour, ...  
-    """
-    allfiles=glob(path+"/atmos/*.nc")
-    allfiles.sort()
-    # 4 files per model hour
-    hourfiles = allfiles[hour*4:hour*4+4]
-    print("INFO: will read files:")
-    print("    :",hourfiles)
-    DS = xr.open_mfdataset(hourfiles,compat='override')
-    print(DS.head())
-    #lats = DS['latitude']
-    #lons = DS['longitude']
-    #topog=DS["surface_altitude"]
-    return DS
+
 
 def transect(DA, start, end, nx,
              interpmethod='linear'):
@@ -279,7 +258,7 @@ def make_transect_dataset(path,start,end,
             nx = number_of_xpoints_in_transect(lats, lons, start, end)
         
         # we need to destagger xwind and ywind:
-        u,v = destagger_wind(DS['wnd_ucmp'],DS['wnd_vcmp']) # [time,lev,lat,lon]
+        u,v = destagger_winds_DA(DS['wnd_ucmp'],DS['wnd_vcmp']) # [time,lev,lat,lon]
         
         
 

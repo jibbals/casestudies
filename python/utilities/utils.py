@@ -11,9 +11,11 @@ from datetime import datetime,timedelta
 
 # interpolation package
 from scipy import interpolate
+from pandas import Timedelta
 
 import iris
 import xarray as xr
+
 from utilities import constants
 
 # more print statements for testing
@@ -761,7 +763,26 @@ def potential_temperature(p,T):
     if np.min(T) < 50:
         print("WARNING: Potential temperature assumes Temperature is in Kelvin, lowest input temp is only ", np.min(T))
     return T*(1e5/p)**(287.05/1004.64)
+
+def destagger_winds_DA(DA_u, DA_v):
+    """
+    ## Staggered grid:
+    ## u[latitude,longitude_edges] # minus one edge for some reason
+    ## v[latitude_edges,longitude]
+    ## fix by linear interpolation
+    ARGS:
+        DA_u = DataArray 'xwind' from model output with staggered longitudes
+        DA_v = DataArray 'ywind' from model output with staggered latitudes
+    RETURNS:
+        u,v DataArrays on destaggered coordinates ['latitude','longitude']
+    """
+    # move x wind onto y wind longitudes
+    u = DA_u.interp(longitude=DA_v['longitude'].values)
+    # then move y wind onto xwind latitudes
+    v = DA_v.interp(latitude=DA_u['latitude'].values)
     
+    return u,v
+
 def destagger_winds(u1,v1,lats=None,lons=None,lats1=None,lons1=None):
     '''
     destagger winds from ACCESS um output
@@ -880,6 +901,33 @@ def find_max_index_2d(field):
     # find max windspeed, put into same shape as winds [y,x]
     mloc = np.unravel_index(np.argmax(field,axis=None),field.shape)
     return mloc
+
+def local_time_from_time_lats_lons(time_utc,lats,lons):
+    if isinstance(time_utc,datetime):
+        time_utc=np.datetime64(time_utc)
+        
+    houroffset=local_time_offset_from_lats_lons(lats,lons)
+    time_lt=np.datetime64((time_utc+Timedelta(houroffset,'h'))).astype(datetime)
+    return time_lt
+
+def local_time_offset_from_lats_lons(lats,lons):
+    """
+    Guess time based on mean longitude
+    Assume summer
+    return integer (hours offset from UTC+0)
+    """
+    meanlon=np.mean(lons)
+    meanlat=np.mean(lats)
+    
+    if meanlon>141:
+        # daylight savings in NSW and VIC, but not QLD
+        off=11.0 if meanlat<-29.0 else 10.0
+    elif meanlon > 129:
+        off=10.5
+    else:
+        off=8.0 #WA... should be 8.75 for daylight savings???
+        
+    return off
 
 def locations_from_extent(extent):
     """

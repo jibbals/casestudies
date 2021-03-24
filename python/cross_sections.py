@@ -20,7 +20,8 @@ from datetime import datetime,timedelta
 #import cartopy.crs as ccrs
 
 # local modules
-from utilities import plotting, utils, fio, constants
+from utilities import plotting, utils, constants
+from utilities import fio_iris as fio
 
 ###
 ## GLOBALS
@@ -40,9 +41,6 @@ firefront_centres = {
             ],
         },
 }
-## Duplicates
-#_emberstorm_centres_['waroona_run3_1p0']=_emberstorm_centres_['waroona_run3']
-
 
 def interp_centres(latlontimes, outtimes, 
                    dx=0.1,
@@ -931,13 +929,16 @@ def multiple_transects(mr,
 if __name__ == '__main__':
     latlontimes=firefront_centres["KI_run1"]['latlontimes']
     KI_zoom_west = [136.5,137.5,-36.1,-35.6]
+    
+    mr = "KI_run1_exploratory"
+    
     ## Multiple transects 
-    if False:
-        multiple_transects('KI_run1')
-        multiple_transects('KI_run1',extent=KI_zoom_west,subdir="zoomed")
+    if True:
+        multiple_transects(mr)
+        multiple_transects(mr,extent=KI_zoom_west,subdir="zoomed")
     
     ## TOPDOWN 10m WINDS ONLY
-    if True:
+    if False:
         topdown_view_only('KI_run2_1p0')
     
     ## MAP WITH DEFINED TRANSECT
