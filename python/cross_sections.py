@@ -928,14 +928,20 @@ def multiple_transects(mr,
 
 if __name__ == '__main__':
     latlontimes=firefront_centres["KI_run1"]['latlontimes']
+    # keep track of used zooms
     KI_zoom_west = [136.5,137.5,-36.1,-35.6]
-    
-    mr = "KI_run1_exploratory"
+    badja_zoom=[149.4,150.0, -36.4, -35.99]
+    badja_zoom_name="zoom1"
+
+    # settings for plots
+    mr='badja_run1'
+    zoom=badja_zoom
+    subdir=badja_zoom_name
     
     ## Multiple transects 
     if True:
-        multiple_transects(mr)
-        multiple_transects(mr,extent=KI_zoom_west,subdir="zoomed")
+        multiple_transects(mr,extent=zoom,subdir=subdir)
+        multiple_transects(mr) #wider area too I guess
     
     ## TOPDOWN 10m WINDS ONLY
     if False:

@@ -23,7 +23,8 @@ import iris
 
 from cartopy import crs as ccrs
 
-from utilities import plotting, utils, fio, constants
+from utilities import plotting, utils, constants
+from utilities import fio_iris as fio
 
 ###
 ## GLOBALS
@@ -36,6 +37,7 @@ def wind_and_heat_flux_looped(mr,
         extent=None,
         tiffname=None,
         HSkip=None,
+        subdir=None,
         ):
     """
     Figure with 2 panels: 10m wind speed, and wind direction overlaid on heat flux
@@ -146,10 +148,11 @@ def wind_and_heat_flux_looped(mr,
     
         #plotting.map_add_locations_extent(extentname, hide_text=True)
         fio.save_fig(mr, "wind10_and_heat", utc,
-                plt=plt,
+                plt=plt, 
+                subdir=subdir,
                 )
 
-def rotation_looped(mr, extent=None, dtimes=None, HSkip=None):
+def rotation_looped(mr, extent=None, dtimes=None, HSkip=None, subdir=None,):
     """
     """
     simname=mr.split('_')[0]
@@ -225,18 +228,31 @@ def rotation_looped(mr, extent=None, dtimes=None, HSkip=None):
         #plt.plot(casLL[1],casLL[0],color='grey',linewidth=0,
         #        marker='o',)
 
-        fio.save_fig(mr, "wind_dir_10m", dtime, plt=plt)
+        fio.save_fig(mr, "wind_dir_10m", dtime, subdir=subdir, plt=plt)
 
 if __name__=='__main__':
     
+    # keep track of used zooms
+    badja_zoom=[149.4,150.0, -36.4, -35.99]
+    KI_zoom= [136.52,137.24, -36.07,-35.6] 
+    KI_zoom_name='zoom1'
+    KI_tiffname='KI.tiff' # 'badja.tiff'
+    badja_zoom_name="zoom1"
+
+    # settings for plots
+    mr='badja_run1'
+    extent=KI_zoom
+    subdir=KI_zoom_name
+    tiffname=KI_tiffname
+
     ### Run the stuff
-    mr='KI_run2'
-    extent= [136.52,137.24, -36.07,-35.6] # None
-    tiffname='KI.tiff' # 'badja.tiff'
     
     # CHECK LOWER LEVEL ROTATION
     if True:
-        rotation_looped(mr,HSkip=5)
+        rotation_looped(mr,
+                extent=extent,
+                subdir=subdir,
+                )
 
     # Look at winds and heat flux
     if True:
@@ -244,5 +260,6 @@ if __name__=='__main__':
                 extent=extent,
                 HSkip=2,
                 tiffname=tiffname,
+                subdir=subdir,
                 )
     

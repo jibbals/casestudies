@@ -19,7 +19,8 @@ import cartopy.crs as ccrs
 import warnings
 from datetime import datetime, timedelta
 
-from utilities import utils, plotting, fio, constants
+from utilities import utils, plotting, constants
+from utilities import fio_iris as fio
 
 ## GLOBAL
 #Script name
@@ -27,7 +28,6 @@ _sn_ = 'weather_summary'
 __cloud_thresh__ = constants.cloud_threshold
 
 def plot_weather_summary(U,V,W, height, lat, lon, 
-                         extentname=None, 
                          Q=None, FF=None, 
                          topog=None, topog_contours=[4],
                          hwind_limits=None):
@@ -106,15 +106,6 @@ def plot_weather_summary(U,V,W, height, lat, lon,
         # Add fire contour if availalbe
         if FF is not None:
             plotting.map_fire(FF, lat, lon)
-        # can do underlay of topography contour(s)
-        if topog is not None:
-            #print("DEBUG:", lon.shape, lat.shape, topog.shape,topog_contours)
-            #print("     : lons", lon[:7])
-            #print("     : lats", lat[:7])
-            #print("     :", type(topog))
-            
-            lax.contour(lon,lat,topog,topog_contours,
-                        colors='k', alpha=0.7, linewidths=1)
         
         plotting.map_add_locations_extent(extent, hide_text=True)
         
@@ -199,13 +190,9 @@ def weather_summary_model(mr,
     # font sizes etc
     plotting.init_plots()
     
-    extentname = mr.split('_')[0]
-    extent = constants.extents[extentname]
-    if zoom_in is not None:
-        extentname=None
-        extent = zoom_in
+    extent = zoom_in
     if fdtimes is None:
-        fdtimes = fio.run_info[mr]['filedates']
+        fdtimes = utils.hours_available(mr)
     FF = None
     
     # read one hour at a time, plot each available time slice
@@ -219,7 +206,7 @@ def weather_summary_model(mr,
                                extent=extent,
                                HSkip=HSkip)
         u,v= cubes.extract(['u','v'])
-        w = cubes.extract('upward_air_velocity')[0]
+        w, = cubes.extract('upward_air_velocity')
         qc, = cubes.extract('qc')
         lat = w.coord('latitude').points
         lon = w.coord('longitude').points
@@ -238,23 +225,24 @@ def weather_summary_model(mr,
                 FF = ff[i].data
             
             plot_weather_summary(ui, vi, wi, height, lat, lon, 
-                                 extentname=extentname,
                                  Q = qci, FF=FF,
                                  hwind_limits=hwind_limits,
                                  topog=topog.data,
                                  )
-            
-            offsethours = fio.run_info[mr]['UTC_offset']
+            offsethours=0
+            if mr in fio.run_info.keys():
+                offsethours = fio.run_info[mr]['UTC_offset']
             ltime=dtime+timedelta(hours=offsethours)
-            plt.suptitle("%s weather "%mr + ltime.strftime("%Y %b %d %H:%M (LT)"))
+            plt.suptitle("%s weather "%mr + ltime.strftime("%Y %b %d %H:%M (UTC+"+"%.1f"%(offsethours)+")"))
             
             if (zoom_in is not None) and (subdir is None): 
                 subdir = 'zoomed'
             fio.save_fig(model_run=mr,
                          plot_name="weather_summary", 
                          plot_time=dtime, 
+                         subdir=subdir,
                          plt=plt,
-                         extent_name=extentname,)
+                         )
 
 def weather_series(model_run='waroona_run3', 
                    extent=None,
@@ -610,12 +598,35 @@ def weather_series(model_run='waroona_run3',
     fio.save_fig(model_run, _sn_, pname, plt=plt)
 
 if __name__=='__main__':
-    
+    # keep track of used zooms
+    badja_zoom=[149.4,150.0, -36.4, -35.99]
+    badja_zoom_name="zoom1"
 
+    # settings for plots
     mr='KI_run2'
-    hours = fio.hours_available(mr)
-    hwind_minmax = [0, 30]
-    weather_summary_model(mr,HSkip=None,fdtimes=hours, hwind_limits=hwind_minmax)
-    
-    print("INFO: weather_summary.py done")
+    zoom=None
+    subdir=None
 
+    # further settings
+    # runn all hours?
+    hours = fio.hours_available(mr)
+    # hwind limits
+    hwind_minmax = [0, 30]
+    # first do zoomed
+    weather_summary_model(mr,
+            zoom_in=zoom,
+            subdir=subdir,
+            HSkip=None,
+            fdtimes=hours, 
+            hwind_limits=hwind_minmax,
+            )
+    
+    # then non zoomed
+    if False:
+        weather_summary_model(
+            mr,
+            HSkip=None,
+            fdtimes=hours, 
+            hwind_limits=hwind_minmax,
+            )
+    

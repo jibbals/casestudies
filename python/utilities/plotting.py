@@ -212,7 +212,7 @@ def map_add_locations_extent(extent,
     if nice:
         map_add_nice_text(plt.gca(),latlons=latlons,texts=Names)
     else:
-        map_add_locations(latlons, text=Names, color=color, textcolor='k', dx=dx,dy=dy)
+        map_add_locations(latlons, texts=Names, color=color, textcolor='k', dx=dx,dy=dy)
 
 def map_add_locations(latlons, texts, proj=None,
                       marker='o', color='grey', markersize=None, 

@@ -556,6 +556,7 @@ def transect_winds(u,v,lats,lons,start,end,nx=None,z=None):
         'transect_u':ucross,
         'x':ucross_str['x'],
         'y':ucross_str['y'],
+        'xdistance':ucross_str['xdistance'],
         'xlats':ucross_str['xlats'],
         'xlons':ucross_str['xlons'],
         'xlabel':ucross_str['xlabel'],
