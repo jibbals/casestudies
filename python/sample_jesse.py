@@ -23,71 +23,77 @@ import os
 
 ## RUN
 
-####### Figure: fire contours #######
+####### Figure: wind direction #######
 ##################################### 
-filepattern= '../data/KI_run1_exploratory/atmos/*mdl_th1.nc'
-filepaths = glob(filepattern)
-filepaths.sort()
-print(filepaths)
-# can set extent to look at (for zooming in or out of something)
-extent = None
-#extent=[135, 138, -38, -34]
 
-# where will plots go
-def makefolder(folder):
-    if not os.path.exists(folder):
-        print("INFO: Creating folder:",folder)
-        os.makedirs(folder)
 
-figdir="airpressures"
-makefolder(figdir)
+from utilities import fio
 
-# make air pressure for one time slice per hour:
-for fpath in filepaths:
-    ds=xr.open_dataset(fpath)
-    #print(ds)
-    P=ds['pressure'] # [T,lev,lat,lon] in Pascals
-    
-    # pull out lats and lons for easy plotting
-    lats=P.latitude.data
-    lons=P.longitude.data
-    times=P.time.data
-    
-    # datetime to OK string
-    tstr = str(times[0])[:18]
-    
-    #print(P) # can check what data looks like
-    # make a plot with platecarree projection (so we can add coastlines)
-    fig = plt.figure(figsize=(15,11))
-    ax = plt.axes(projection=ccrs.PlateCarree())
-    
-    
-    # set the extent we will look at:
-    if extent is not None:
-        ax.set_extent(extent, crs=ccrs.PlateCarree())
-    
-    # just pulling one time step per file, and only looking at surface level
-    Surf_Press_hPa = P[0,0].values/100. # hectapascals
-    Pmin=965
-    Pmax=1015
-    Levels=np.arange(Pmin,Pmax+.1, 2.5)
-    plt.contourf(lons, lats, Surf_Press_hPa,
-                 Levels,
-                 cmap='Purples',
-                 extend="both",
-                 vmin=Pmin,
-                 vmax=Pmax,
-                 )
-    plt.colorbar(label="hPa")
-    plt.title("Surface Air pressure "+tstr+" (UTC)")
-    ## Should probably add firefront contour for this sort of plot
-    ## that would go here
-    
-    # add coastline
-    ax.coastlines()
+import matplotlib.pyplot as plt
+from matplotlib import colors
 
-    # save figure
-    figpath=figdir + "/" + tstr
-    print("INFO: saving figure:",figpath)
-    plt.savefig(figpath)
-    plt.close(fig)
+mr='KI_run1_exploratory'
+#DS = fio.read_model_run_hour(mr,hour=9)
+## Read topography
+topog = fio.model_run_topography(mr)
+
+## colorbar manual test
+#direction colors from 0-15,15-45,...,345-360
+# 13 colors over 14 areas (so 15 bounds)
+dircolorlist=['deeppink','purple',
+              'darkblue','blue','lightblue',
+              'chartreuse','yellow','orange',
+              'tomato','red','darkred',
+              'pink','deeppink']
+dircolorbounds=[0,15,45,75,105,135,165,195,225,255,285,315,345,360]
+dirticks=[0,45,90,135,180,225,270,315]
+straight_colorbar=False
+ring_colorbar=True
+
+cmap = colors.ListedColormap(dircolorlist)
+norm=colors.BoundaryNorm(dircolorbounds, cmap.N)
+
+# need to set levels to maintain consistency
+fig = plt.figure(figsize=[11,11])
+img = plt.contourf(topog.values, 
+            levels=dircolorbounds,
+             cmap=cmap,
+             norm=norm,
+             vmin=0,vmax=360,
+             #extend='max',
+             )
+
+#if straight_colorbar:
+cb=plt.colorbar(img, 
+             cmap=cmap, 
+             norm=norm, 
+             boundaries=dircolorbounds, 
+             ticks=dircolorbounds,
+             )
+if ring_colorbar:
+    ring_ax=fig.add_axes([.9,.9,.1,.1],projection="polar")
+    # define colormap normalization for 0 to 2*pi
+    ring_norm=colors.Normalize(0,2*np.pi)
+    n=200 # secants for mesh
+    #t = np.linspace(np.pi/2.0,-1.5*np.pi,n) # angles to show
+    t = np.linspace(0,2*np.pi,n) # angles to show
+    r = np.linspace(0.1,1,2) # radius
+    rg, tg = np.meshgrid(r,t)
+    ring_img = ring_ax.pcolormesh(t,r,
+                                  # colors range from 0 to 2pi, 
+                                  # I convert to degrees and match with my own colorbar
+                                  (-1*tg.T*180/np.pi+90)%360,
+                                  #norm=ring_norm,
+                                  cmap=cmap,
+                                  norm=norm,
+                                  )
+    ring_ax.set_yticklabels([])
+    # convert 0 to 360 math direction ticks to met direction ticks
+    math_ticks=np.arange(0,360,30)
+    met_ticks=np.array([90,60,30,0,330,300,270,240,210,180,150,120])
+    ring_ax.set_xticks([]
+            #math_ticks
+            )
+    ring_ax.set_xticklabels([]
+            #met_ticks
+            )

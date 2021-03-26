@@ -185,6 +185,7 @@ def read_model_run_hour(mr, hour=0):
     """
     atmosdir=DATADIR+mr+"/atmos/"
     if not os.path.isdir(atmosdir):
+        print("INFO:",atmosdir," is not a directory")
         atmosdir=mr+"/atmos/"
         print("INFO: reading from %s"%atmosdir)
     
