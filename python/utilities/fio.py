@@ -204,14 +204,20 @@ def read_model_run_hour(mr, hour=0):
     #print(DS.head())
     return DS
     
-def read_model_run_fire(mr,datetimes=None):
+def read_model_run_fire(mr):
     """
     """
     fdir=DATADIR+mr+"/fire/"
     firepaths=glob(fdir+"*.nc")
     DS = xr.open_mfdataset(firepaths,compat=COMPAT)
-    if datetimes is not None:
-        DS = DS.loc[dict(time=datetimes)]
+    #print(DS)
+    #    if datetimes is not None:
+    #        dt64=datetimes
+    #        if isinstance(datetimes[0],datetime):
+    #            dt64 = [np.datetime64(dt) for dt in datetimes]
+    #        print(dt64)
+    #        print(DS.time)
+    #        DS = DS.loc[dict(time=dt64)]
         
     return(DS)
     
