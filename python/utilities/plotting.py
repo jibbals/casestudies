@@ -71,6 +71,78 @@ def init_plots():
     # rcParams["figure.dpi"] 
     #matplotlib.rcParams["figure.dpi"] = 200           # DEFAULT DPI for plot output
 
+def wind_dir_color_ring():
+    """
+    return struct with 'cmap' and 'norm' for building color ring
+    """
+    dircolorlist=['cyan','darkturquoise',
+              'darkblue','mediumblue','blue',
+              'limegreen','lime','green',
+              'salmon','red','darkred',
+              'aquamarine','cyan']
+    dircolorbounds=[0,15,45,75,105,135,165,195,225,255,285,315,345,360]
+    dirticks=[0,45,90,135,180,225,270,315]
+
+    cmap = colors.ListedColormap(dircolorlist)
+    norm=colors.BoundaryNorm(dircolorbounds, cmap.N)
+
+    n=200 # secants for mesh
+
+    t = np.linspace(0,2*np.pi,n) # angles to show
+    r = np.linspace(0.2,.9,2) # radius
+
+    rg, tg = np.meshgrid(r,t)
+    # Convert degrees math to degrees clockwise from north
+    deg_to_met=(-1*tg.T*180/np.pi+90)%360
+    
+    retstruct={
+        'cmap':cmap,
+        'norm':norm,
+        't':t,
+        'r':r,
+        'rg':rg,
+        'tg':tg,
+        'deg_to_met':deg_to_met,
+        'dircolorlist':dircolorlist,
+        'dircolorbounds':dircolorbounds,
+        'dirticks':dirticks,
+        }
+    return retstruct
+
+def add_wind_dir_color_ring(fig, color_ring_struct,
+                            XYwh=[.7,.15,.08,.08],
+                            deglable=False,
+                            ):
+    """
+    ARGS:
+        fig: figure to add ring colorbar to (uses add_axes)
+        XYwh: [X,Y,width,height] for color ring axes
+        color_ring_struct: structure containing:
+            'cmap','norm',... from wind_dir_color_ring method
+    RETURNS:
+        ring_img, ring_ax for if you want to edit the colorbar somehow
+    """
+    ring_ax=fig.add_axes(XYwh,projection="polar")
+    # define colormap normalization for 0 to 2*pi
+    t=color_ring_struct['t']
+    r=color_ring_struct['r']
+    cmap=color_ring_struct['cmap']
+    norm=color_ring_struct['norm']
+    values=color_ring_struct['deg_to_met']
+    
+    ring_img = ring_ax.pcolormesh(t,r,
+                                  values,
+                                  cmap=cmap,
+                                  norm=norm,
+                                  )
+    ring_ax.set_yticklabels([])
+    if deglable:
+        # convert 0 to 360 math direction ticks to met direction ticks
+        math_ticks=np.deg2rad([0,90,180,270])
+        met_ticks=np.array([90,0,270,180])
+        ring_ax.set_xticks(math_ticks)
+        ring_ax.set_xticklabels(met_ticks)
+    return ring_img, ring_ax
 
 def add_legend(ax,colours,labels,styles=None,markers=None, **lineargs):
     """

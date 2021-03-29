@@ -34,8 +34,8 @@ from matplotlib import colors
 
 mr='KI_run1_exploratory'
 alldatetimes=fio.hours_available(mr)
-hour=alldatetimes[9]
-hstr=hour.strftime("%Y-%m-%dT%H:%M")
+#hour=alldatetimes[9]
+#hstr=hour.strftime("%Y-%m-%dT%H:%M")
 #DS = fio.read_model_run_hour(mr,hour=9)
 ## Read topography
 #topog = fio.model_run_topography(mr)
@@ -104,11 +104,7 @@ if ring_colorbar:
                                   )
     ring_ax.set_yticklabels([])
     # convert 0 to 360 math direction ticks to met direction ticks
-    math_ticks=np.arange(0,360,30)
-    met_ticks=np.array([90,60,30,0,330,300,270,240,210,180,150,120])
-    ring_ax.set_xticks([]
-            #math_ticks
-            )
-    ring_ax.set_xticklabels([]
-            #met_ticks
-            )
+    math_ticks=np.deg2rad([0,90,180,270])
+    met_ticks=np.array([90,0,270,180])
+    ring_ax.set_xticks(math_ticks)
+    ring_ax.set_xticklabels(met_ticks)
