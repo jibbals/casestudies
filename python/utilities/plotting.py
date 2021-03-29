@@ -729,19 +729,11 @@ def map_add_nice_text(ax, latlons, texts=None, markers=None,
             # Add background (outline)
             txt.set_path_effects(text_effects)
     
-def map_topography(extent, topog,lat,lon,title="Topography", cbar=True, **contourfargs):
+def map_topography(topog,lat,lon,title="Topography", cbar=True, **contourfargs):
     '''
     Show topography map matching extents
     '''
     # some defaults
-    #if 'aspect' not in contourfargs:
-    #    contourfargs['aspect']='auto'
-    if 'levels' not in contourfargs:
-        # push blue water part of scale a bit lower
-        contourfargs['levels'] = np.linspace(-150,550,50,endpoint=True)
-        # sir ivan fire is at higher altitudes
-        if extent[0] > 140:
-            contourfargs['levels'] = np.linspace(100,800,50,endpoint=True)
     if 'cmap' not in contourfargs:
         contourfargs['cmap'] = plt.cm.get_cmap("terrain")
     # set colorbar arguments
@@ -756,10 +748,6 @@ def map_topography(extent, topog,lat,lon,title="Topography", cbar=True, **contou
             title=title, cbargs=cbar_args,
             **contourfargs)
     
-    #return map_contourf(extent, topog, lat, lon, 
-    #                    title=title, clabel="m", cbar=cbar, 
-    #                    cbar_args={'format':tick.ScalarFormatter()},
-    #                    **contourfargs)
 
 def make_patch_spines_invisible(ax):
     ax.set_frame_on(True)

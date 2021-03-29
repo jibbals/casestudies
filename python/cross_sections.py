@@ -176,7 +176,7 @@ def transect_winds(u,v,w,z,
     # Streamplot
     print("INFO: streamplotting transect winds: ")
     print("    : xdistance=%.2fm, zheight=%.2fm, SCALING VERT MOTION BY factor of %.6f"%(transect_winds_struct['xdistance'][-1],ztop,Yscale))
-    plotting.streamplot_regridded(slicex,slicez*Yscale,transect_s,transect_w,
+    plotting.streamplot_regridded(slicex,slicez,transect_s,transect_w*Yscale,
                                   density=(1,1), 
                                   color='darkslategrey',
                                   zorder=1,
@@ -257,7 +257,7 @@ def topdown_view(extent,
         if subplot_row_col_n is not None:
             prow,pcol,pnum=subplot_row_col_n
             ax = plt.subplot(prow,pcol,pnum)
-        plotting.map_topography(extent,topog,lats,lons,
+        plotting.map_topography(topog,lats,lons,
                                 cbar=False,title="")
         ax=plt.gca()
         #ax.set_aspect('equal')
@@ -268,9 +268,9 @@ def topdown_view(extent,
         ylims = ax.get_ylim()
     
     if ff is not None:
-        ffcolor='red' if (sh is None) else 'darkgrey'
+        ffcolor='red' if (sh is None) else 'k'
         # add firefront
-        plotting.map_fire(ff,lats,lons,colors=ffcolor)
+        plotting.map_fire(ff,lats,lons,colors=ffcolor,linestyles='dashed')
     if sh is not None:
         # add hot spots for heat flux
         # default kwargs for sh plot
@@ -304,13 +304,14 @@ def topdown_view(extent,
         s10 = np.hypot(u10,v10)
         # float point error issue means streamplot fails
         #print("DEBUG: lons:",lons) 
+        # higher density if using topography instead of OSM
+        density=(0.6,0.5) if topog is None else (0.75,0.7)
+        
         # streamplot requires regular grid
         if np.all(np.diff(lons) == lons[1]-lons[0]) and np.all(np.diff(lats) == lats[1]-lats[0]):
             speedmax=20 # what speed for thickest wind streams
             lwmax_winds=5 # how thick can the wind streams become
             lw10 = utils.wind_speed_to_linewidth(s10, lwmax=lwmax_winds, speedmax=speedmax)
-            # higher density if using topography instead of OSM
-            density=(0.6,0.5) if topog is None else (0.75,0.7)
             plt.streamplot(lons,lats,u10,v10, 
                        linewidth=lw10, 
                        color='k',
@@ -318,9 +319,17 @@ def topdown_view(extent,
                        arrowsize=2.0, # arrow size multiplier
                        )
         else:
-            xskip=int(np.max([len(lons)//30-1,1]))
-            yskip=int(np.max([len(lats)//30-1,1]))
-            plt.quiver(lons[::xskip],lats[::yskip],u10[::yskip,::xskip],v10[::yskip,::xskip])
+            plotting.streamplot_regridded(lons,lats,u10,v10,
+                    color='k', 
+                    density=density, 
+                    arrowsize=2.0,
+                    )
+
+        #else:
+        #    xskip=int(np.max([len(lons)//25-1,1]))
+        #    yskip=int(np.max([len(lats)//25-1,1]))
+        #    plt.quiver(lons[::xskip],lats[::yskip],u10[::yskip,::xskip],v10[::yskip,::xskip],
+        #            pivot='mid')
 
         # if annotate:
         #     plt.annotate("10m wind linewidth increases up to %dms$^{-1}$"%(speedmax),
@@ -362,7 +371,8 @@ def topdown_view_only(mr,
                       hours=None,
                       topography=True,
                       wmap_height=300,
-                      HSkip=None
+                      HSkip=None,
+                      subdir=None,
                       ):
     """
     show map of 10m winds over topography
@@ -484,8 +494,10 @@ def topdown_view_only(mr,
                 plotting.map_fire(ffhr[i].data,latshr,lonshr)
 
             #model_run, plot_name, plot_time, plt, subdir=None,
-            fio.save_fig(mr, "wind10m_on_topography", dtime, 
-                         plt=plt)
+            fio.save_fig(mr, "wind10m_on_topography", dtime,
+                    plt=plt,
+                    subdir=subdir,
+                    )
 
 
 def map_and_transects(mr, 
@@ -640,7 +652,7 @@ def map_and_transects(mr,
                 
                 ## Add transect line
                 # start to end x=[lon0,lon1], y=[lat0, lat1]
-                plt.plot([start[1],end[1]],[start[0],end[0], ], '--k', 
+                plt.plot([start[1],end[1]],[start[0],end[0], ], '-k', 
                          linewidth=2, 
                          #marker='>', markersize=7, markerfacecolor='white'
                          )
@@ -847,7 +859,8 @@ def multiple_transects(mr,
                 # add transect to topdown map
                 ax1.plot([transect[0][1],transect[1][1]],[transect[0][0],transect[1][0]],'--k')
                 
-                #left panels show winds
+
+                ## LEFT PANEL: show H wind speed and wind streams
                 plt.subplot(4,2,3+trani*2)
                 
                 plotting.transect_s(si, zi, lats, lons, 
@@ -877,7 +890,10 @@ def multiple_transects(mr,
                            rotation=5)
                 if trani==0:
                     plt.title("Winds (m/s)")
+                else:
+                    plt.title("")
                 
+                ## RIGHT PANEL: T and Vert motion
                 axright=plt.subplot(4,2,4+trani*2)
                 
                 TT,TX,TY = plotting.transect_theta(Ti, zi, lats, lons, 
@@ -887,9 +903,9 @@ def multiple_transects(mr,
                                                 topog=topog, 
                                                 sh=shi,
                                                 ztop=ztop,
-                                                contours=np.arange(290,315),
+                                                contours=np.arange(295,315),
                                                 lines=None, 
-                                                levels=np.arange(290,316),
+                                                levels=np.arange(295,316),
                                                 cmap='gist_rainbow_r',
                                                 )
                 
@@ -902,8 +918,8 @@ def multiple_transects(mr,
                 
                 label=XRet['xlabel']
                 Xvals=XRet['x'][0,:]
-                VM_contours = np.arange(-5,5.1,1)
-                VM_colours = ['b']+['cyan']*4+['grey']+['pink']*4+['r']
+                VM_contours = [-5,-4,-3,-2,-1,1,2,3,4,5]
+                VM_colours = ['b']+['cyan']*4+['pink']*4+['r']
                 
                 plt.contour(XRet['x'],XRet['y'],XRet['transect'], 
                             VM_contours, # contour lines
@@ -911,6 +927,8 @@ def multiple_transects(mr,
                             )
                 if trani==0:
                     plt.title("T$_{Potential}$ and Vert motion")
+                else:
+                    plt.title("")
                 
                 label= wind_transect_struct['xlabel']
                 
@@ -939,13 +957,15 @@ if __name__ == '__main__':
     subdir=badja_zoom_name
     
     ## Multiple transects 
-    if True:
-        multiple_transects(mr,extent=zoom,subdir=subdir)
-        multiple_transects(mr) #wider area too I guess
+    if False:
+        multiple_transects(mr,extent=zoom,subdir=subdir,hours=[6])
+        #multiple_transects(mr) #wider area too I guess
     
     ## TOPDOWN 10m WINDS ONLY
-    if False:
-        topdown_view_only('KI_run2_1p0')
+    if True:
+        topdown_view_only(mr,extent=zoom,subdir=subdir)
+        for mr in ['KI_run1','KI_run2']:
+            topdown_view_only(mr,extent=KI_zoom_west, subdir='zoom1')
     
     ## MAP WITH DEFINED TRANSECT
     if False:

@@ -50,6 +50,7 @@ def wind_and_heat_flux_looped(mr,
     # Read 10m winds and firefront:
     ff,fflux,u10,v10=fio.read_fire(mr,
             extent=extent,
+            HSkip=HSkip,
             filenames=['firefront','sensible_heat','10m_uwind','10m_vwind',],
             )
     # just look at every 10 mins:
@@ -57,6 +58,13 @@ def wind_and_heat_flux_looped(mr,
     fflux=fflux[::10]
     u10=u10[::10]
     v10=v10[::10]
+
+    # topography
+    topog=fio.read_topog(mr,
+            extent=extent,
+            HSkip=HSkip,
+            )
+
 
     lat,lon = u10.coord('latitude').points,u10.coord('longitude').points
     dtimes = utils.dates_from_iris(u10)
@@ -111,6 +119,9 @@ def wind_and_heat_flux_looped(mr,
                     )
         else:
             ax2=plt.subplot(2,1,2)
+            print("DEBUG: topog, lat, lon",topog.shape, np.shape(lat), np.shape(lon))
+            plotting.map_topography(topog.data,lat,lon)
+
 
         # add contourfs showing heat flux
         cs=plt.contourf(lon,lat,ffluxi.data+1, fflux_levels,
@@ -238,17 +249,18 @@ if __name__=='__main__':
     KI_zoom_name='zoom1'
     KI_tiffname='KI.tiff' # 'badja.tiff'
     badja_zoom_name="zoom1"
+    badja_tiffname=None
 
     # settings for plots
     mr='badja_run1'
-    extent=KI_zoom
-    subdir=KI_zoom_name
-    tiffname=KI_tiffname
+    extent=badja_zoom
+    subdir=badja_zoom_name
+    tiffname=badja_tiffname
 
     ### Run the stuff
     
     # CHECK LOWER LEVEL ROTATION
-    if True:
+    if False:
         rotation_looped(mr,
                 extent=extent,
                 subdir=subdir,

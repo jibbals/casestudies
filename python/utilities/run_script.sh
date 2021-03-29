@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -P en0
 #PBS -q express
-#PBS -N accessfires_script
+#PBS -N casestudies_py
 #PBS -l walltime=20:00:00
 #PBS -l mem=120000MB
 #PBS -l cput=24:00:00
