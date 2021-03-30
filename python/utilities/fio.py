@@ -248,7 +248,8 @@ def standard_fig_name(model_run, plot_name, plot_time,
     if isinstance(plot_time,datetime):
         dstamp=plot_time.strftime('%dT%H%M')
     elif isinstance(plot_time,np.datetime64):
-        dstamp=(plot_time.astype(datetime)).strftime('%dT%H%M')
+        #dstamp=(plot_time.astype(datetime)).strftime('%dT%H%M')
+        dstamp = pandas.to_datetime(str(plot_time)).strftime('%dT%H%M')
     else:
         dstamp=plot_time
 

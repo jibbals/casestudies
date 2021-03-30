@@ -16,9 +16,6 @@ from matplotlib.lines import Line2D # for custom legends
 import matplotlib.colors as col
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
-from matplotlib.projections import register_projection
-from matplotlib.collections import LineCollection
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # interpolation
 from scipy.interpolate import interp2d
@@ -79,12 +76,12 @@ def wind_dir_color_ring():
               'darkblue','mediumblue','blue',
               'limegreen','lime','green',
               'salmon','red','darkred',
-              'aquamarine','cyan']
+              'lightskyblue','cyan']
     dircolorbounds=[0,15,45,75,105,135,165,195,225,255,285,315,345,360]
     dirticks=[0,45,90,135,180,225,270,315]
 
-    cmap = colors.ListedColormap(dircolorlist)
-    norm=colors.BoundaryNorm(dircolorbounds, cmap.N)
+    cmap = col.ListedColormap(dircolorlist)
+    norm=col.BoundaryNorm(dircolorbounds, cmap.N)
 
     n=200 # secants for mesh
 
@@ -136,6 +133,7 @@ def add_wind_dir_color_ring(fig, color_ring_struct,
                                   norm=norm,
                                   )
     ring_ax.set_yticklabels([])
+    ring_ax.set_xticklabels([])
     if deglable:
         # convert 0 to 360 math direction ticks to met direction ticks
         math_ticks=np.deg2rad([0,90,180,270])
@@ -213,11 +211,6 @@ def annotate_max_winds(winds, upto=None, **annotateargs):
         annotateargs['text'] = annotateargs['text']%(winds[:upto,:][mloc])
     
     plt.annotate(**annotateargs)
-
-import matplotlib.colors as col
-import matplotlib.pyplot as plt
-import matplotlib.ticker as tick
-import numpy as np
 
 def contours_symlog(w,levels=5):
     """

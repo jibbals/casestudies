@@ -30,10 +30,46 @@ from utilities import plotting, utils, constants, fio
 ##
 ## METHODS
 ###
-def topdown_wind_plot(DS):
+def topdown_wind_plot(DA_u, DA_v,
+                      addring=False,
+                      ring_XYwh=[.7,.88,.1,.1]):
     """
     """
-    print(':TODO:')
+    lats=DA_u.lat.values
+    lons=DA_u.lon.values
+    if len(lats) == DA_u.shape[1]:
+        u = DA_u.values.T
+        v = DA_v.values.T
+    else:
+        u = DA_u.values
+        v = DA_v.values
+    
+    WDir=utils.wind_dir_from_uv(u,v)
+
+    color_args=plotting.wind_dir_color_ring()
+    cmap = color_args['cmap']
+    norm = color_args['norm']
+    
+    plt.pcolormesh(
+        lons,
+        lats,
+        WDir, 
+        #levels=dircolorbounds,
+        cmap=cmap,
+        norm=norm,
+        vmin=0,vmax=360,
+        #extend='max',
+        )
+    ax = plt.gca()
+    rax=None
+    if addring:
+        _, rax = plotting.add_wind_dir_color_ring(
+                plt.gcf(),
+                color_args,
+                XYwh=ring_XYwh,
+                deglable=False,
+                )
+    return ax,rax
 
 def topdown_winds(
         mr,
@@ -54,40 +90,61 @@ def topdown_winds(
     # Defaults
     if hours is None:
         hours=range(24)
-
+    
+    ## topography: maybe we want coastline
+    topog=fio.model_run_topography(mr)
+    coastflag = np.min(topog.values) < 0
+    
     # read fire model output
     DS_fire=fio.read_model_run_fire(mr)
+    lats=DS_fire.lat.values
+    lons=DS_fire.lon.values
     
     for hour in hours:
         DS=fio.read_model_run_hour(mr,hour=hour)
         if extent is not None:
             DS = fio.extract_extent(DS,extent)
-        lats=DS.latitude.data
-        lons=DS.longitude.data
+        
         houroffset=utils.local_time_offset_from_lats_lons(lats,lons)
          
         times=DS.time.data # np.datetime64 array
         
         # loop over timesteps
         for ti,time_utc in enumerate(times):
-            # create square figure
-            plt.figure(figsize=[13,13])
             
-            # add fire
-            DS_fire_timeslice = DS_fire.loc[dict(time=time_utc)]
-            #print("DEBUG: transect: fire timeslice:", DS_fire_timeslice)
-            FF = DS_fire_timeslice['firefront'].data
-            plotting.map_fire(FF.T,lats,lons)
-            
-            # get local time
+            ## get local time
             time_lt = utils.local_time_from_time_lats_lons(time_utc,lats,lons)
             time_str=time_lt.strftime("%Y%m%d %H%M")+"(UTC+%.2f)"%houroffset
+                        
+            ## FIRST FIGURE: 10m WIND DIR:
+            fig=plt.figure(figsize=[11,11])
             
+            DS_fire_slice = DS_fire.sel(time=time_utc)
+            #print(DS_fire_slice) 
+            DA_u10 = DS_fire_slice['UWIND_2']
+            DA_v10 = DS_fire_slice['VWIND_2']
+            DA_ff  = DS_fire_slice['firefront']
+            ax,ringax = topdown_wind_plot(DA_u10,DA_v10,addring=True)
+            plt.sca(ax)
+            plt.title(time_str + "10m wind direction")
+            # add fire line            
+            plotting.map_fire(DA_ff.values,lats,lons)
+            # add topog
+            if coastflag:
+                plt.contour(lons,lats,topog.values,np.array([0]),colors='k')
+                
+            # save figure
+            fio.save_fig(mr,"topdown_wdir_10m", time_utc, plt, subdir=subdir)
+            
+            #fig = plt.figure(figsize=[11,11])
             DS_timeslice=DS.loc[dict(time=time_utc)]
-            
-
-            plt.suptitle(time_str+ "wind transect")
-            fio.save_fig(mr,"topdown_wind_dirs",time_utc,plt,)
+            #print(DS_timeslice)
+            DA_x = DS_timeslice['wnd_ucmp']
+            DA_y = DS_timeslice['wnd_vcmp']
+            # destagger x and y winds
+            #assert False, "Stop here for now"
+            #plt.suptitle(time_str+ "wind transect")
+            #fio.save_fig(mr,"topdown_wind_dirs",time_utc,plt,)
     
 
 if __name__ == '__main__':

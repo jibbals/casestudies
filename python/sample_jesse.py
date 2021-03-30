@@ -34,17 +34,21 @@ from matplotlib import colors
 
 mr='KI_run1_exploratory'
 alldatetimes=fio.hours_available(mr)
-#hour=alldatetimes[9]
-#hstr=hour.strftime("%Y-%m-%dT%H:%M")
+hour=alldatetimes[9]
+hstr=hour.strftime("%Y-%m-%dT%H:%M")
 #DS = fio.read_model_run_hour(mr,hour=9)
 ## Read topography
 #topog = fio.model_run_topography(mr)
 DS_fire = fio.read_model_run_fire(mr)
 #print(DS_fire)
+times=DS_fire.time.values
+time=times[9*20]
+
 DS_fire = DS_fire.isel(time=9*20) # exploratory is every 3 minutes
 print(DS_fire)
 DA_u10 = DS_fire['UWIND_2']
 DA_v10 = DS_fire['VWIND_2']
+DA_ff  = DS_fire['firefront']
 lats = DS_fire.lat.values
 lons = DS_fire.lon.values
 # transpose and get wind dir
@@ -76,7 +80,7 @@ img = plt.pcolormesh(lons,lats,WDir,
              vmin=0,vmax=360,
              #extend='max',
              )
-
+plt.title(time)
 #if straight_colorbar:
 #if not ring_colorbar:
 cb=plt.colorbar(img, 
@@ -85,6 +89,9 @@ cb=plt.colorbar(img,
              boundaries=dircolorbounds, 
              ticks=dircolorbounds,
              )
+
+plt.contour(lons,lats,DA_ff.values.T,np.array([0]),colors='red')
+
 if ring_colorbar:
     ring_ax=fig.add_axes([.7,.15,.08,.08],projection="polar")
     # define colormap normalization for 0 to 2*pi
@@ -108,3 +115,5 @@ if ring_colorbar:
     met_ticks=np.array([90,0,270,180])
     ring_ax.set_xticks(math_ticks)
     ring_ax.set_xticklabels(met_ticks)
+    
+plt.savefig("sample_wdir.png")
