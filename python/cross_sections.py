@@ -820,7 +820,7 @@ def multiple_transects(mr,
         ## loop over time steps
         for ti,dtime in enumerate(dtimes):
             LT = dtime+timedelta(hours=dtoffset)
-            LTstr = LT.strftime("%H%M (LT)")
+            LTstr = LT.strftime("%H%M (UTC+"+"%.2f)"%dtoffset)
             
             # Get time step data from cubes
             ffi=ff[ti].data
@@ -937,6 +937,7 @@ def multiple_transects(mr,
                            rotation=5)
                 
             ## SAVE FIGURE
+            plt.suptitle(LTstr,font=22)
             fio.save_fig(mr,"multiple_transects",dtime,
                          subdir=subdir,
                          plt=plt,

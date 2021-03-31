@@ -777,10 +777,26 @@ def destagger_winds_DA(DA_u, DA_v):
     RETURNS:
         u,v DataArrays on destaggered coordinates ['latitude','longitude']
     """
-    # move x wind onto y wind longitudes
-    u = DA_u.interp(longitude=DA_v['longitude'].values)
-    # then move y wind onto xwind latitudes
-    v = DA_v.interp(latitude=DA_u['latitude'].values)
+    if hasattr(DA_u,"latitude"):
+        # move x wind onto y wind longitudes
+        u = DA_u.interp(longitude_0=DA_v['longitude'].values)
+        # then move y wind onto xwind latitudes
+        v = DA_v.interp(latitude_0=DA_u['latitude'].values)
+        # rename dimensions
+        u=u.rename({"longitude_0":"longitude"})
+        v=v.rename({"latitude_0":"latitude"})
+    elif hasattr(DA_u,"lat"):
+        # move x wind onto y wind longitudes
+        u = DA_u.interp(lon_0=DA_v['lon'].values)
+        # then move y wind onto xwind latitudes
+        v = DA_v.interp(lat_0=DA_u['lat'].values)
+        # rename dimensions
+        u=u.rename({"lon_0":"lon"})
+        v=v.rename({"lat_0":"lat"})
+    else:
+        print(DA_u)
+        print("ERROR: COULDN'T FIND L(ong/at)ITUDE")
+    
     
     return u,v
 

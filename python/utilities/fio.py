@@ -198,9 +198,9 @@ def read_model_run_hour(mr, hour=0):
     print("    :",hourfiles)
     
     DS = xr.open_mfdataset(hourfiles,compat=COMPAT)
-    #lats = DS['latitude']
+    #lats = DS['latitude'].values
     #lons = DS['longitude']
-    #topog=DS["surface_altitude"]
+    #topog=DS["surface_altitude"].values
     #print(DS.head())
     return DS
     

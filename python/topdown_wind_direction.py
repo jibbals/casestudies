@@ -6,7 +6,7 @@ Created on Mon Mar 29 21:11:21 2021
 """
 
 import matplotlib
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 
 # plotting stuff
 import matplotlib.pyplot as plt
@@ -35,8 +35,16 @@ def topdown_wind_plot(DA_u, DA_v,
                       ring_XYwh=[.7,.88,.1,.1]):
     """
     """
-    lats=DA_u.lat.values
-    lons=DA_u.lon.values
+    if hasattr(DA_u,"longitude"):
+        lats=DA_u.latitude
+        lons=DA_u.longitude
+    elif hasattr(DA_u,"lon"):
+        lats=DA_u.lat.values
+        lons=DA_u.lon.values
+    else:
+        print(DA_u)
+        print("ERROR: COULDN'T FIND L(ong/at)ITUDE")
+        
     if len(lats) == DA_u.shape[1]:
         u = DA_u.values.T
         v = DA_v.values.T
@@ -93,7 +101,8 @@ def topdown_winds(
     
     ## topography: maybe we want coastline
     topog=fio.model_run_topography(mr)
-    coastflag = np.min(topog.values) < 0
+    coastline = 5.0
+    coastflag = np.min(topog.values) < coastline
     
     # read fire model output
     DS_fire=fio.read_model_run_fire(mr)
@@ -131,20 +140,29 @@ def topdown_winds(
             plotting.map_fire(DA_ff.values,lats,lons)
             # add topog
             if coastflag:
-                plt.contour(lons,lats,topog.values,np.array([0]),colors='k')
+                plt.contour(lons,lats,topog.values,np.array([coastline]),colors='k')
                 
             # save figure
             fio.save_fig(mr,"topdown_wdir_10m", time_utc, plt, subdir=subdir)
             
-            #fig = plt.figure(figsize=[11,11])
+            fig = plt.figure(figsize=[11,15])
             DS_timeslice=DS.loc[dict(time=time_utc)]
             #print(DS_timeslice)
             DA_x = DS_timeslice['wnd_ucmp']
             DA_y = DS_timeslice['wnd_vcmp']
             # destagger x and y winds
-            #assert False, "Stop here for now"
-            #plt.suptitle(time_str+ "wind transect")
-            #fio.save_fig(mr,"topdown_wind_dirs",time_utc,plt,)
+            DA_u,DA_v = utils.destagger_winds_DA(DA_x,DA_y)
+            for il,level in enumerate(levels):
+                topdown_wind_plot(DA_u,DA_v,addring=(il==0))
+                plt.title("")
+                plt.xlabel("height")
+                
+            print(DA_u)
+            # title and saved
+            plt.suptitle(time_str+ "model level winds")
+            fio.save_fig(mr,"topdown_wind_dirs",time_utc,plt,)
+            assert False, "Stop here for now"
+            
     
 
 if __name__ == '__main__':
