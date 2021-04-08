@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 import cartopy.crs as ccrs
+from matplotlib import colors
 from datetime import datetime, timedelta
 from utilities import fio, utils, plotting
 
@@ -42,18 +43,30 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
     #ws = utils.wind_speed(u,v)
     print(np.min(ff),np.max(ff))
     
-    # mask burnt area
-    masked = np.ma.masked_where(ff < -.1, sh)
-    
+    # burnt area
+    if np.min(ff)<-0.02:
+        #    contourfargs['norm']=col.LogNorm()
+        burn_levels=[-.07,-.001,0]
+        colors.Colormap
+        ## Do the filled contour plot
+        plt.contourf(lons, lats, ff,
+                     burn_levels, # color levels
+                     #vmax=-.01,
+                     cmap='Greys_r',
+                     #alpha=0.8,
+                     )
+        
     #plt.imshow(lons,lats,masked, interpolation='none')
     # heat flux
     if np.max(sh)>100:
         plotting.map_sensibleheat(sh,lats,lons,colorbar=False)
     
     # quiver
-    xskip=int(np.max([len(lons)//30-1,1]))
-    yskip=int(np.max([len(lats)//30-1,1]))
-    plt.quiver(lons[::xskip], lats[::yskip], u[::yskip,::xskip],v[::yskip,::xskip],
+    xskip=int(np.max([len(lons)//23-1,1]))
+    yskip=int(np.max([len(lats)//23-1,1]))
+    print(xskip,yskip)
+    plt.quiver(lons[::xskip], lats[::yskip], 
+               u[::yskip,::xskip], v[::yskip,::xskip],
                pivot='mid',
                scale_units="inches",
                scale=50,)
@@ -98,7 +111,9 @@ def fire_spread(mr, zoom=None, subdir=None, coastline=-5):
         time_str=time_lt.strftime("%Y%m%d %H%M")+"(UTC+%.2f)"%houroffset
                         
         ## FIRST FIGURE: 10m WIND DIR:
-        fig=plt.figure(figsize=[11,11])
+        plt.figure(
+            #figsize=[14,11],
+            )
         
         plot_fire_spread(DA_sh, DA_ff, DA_u10, DA_v10)
         
@@ -107,6 +122,7 @@ def fire_spread(mr, zoom=None, subdir=None, coastline=-5):
         if coastline>0:
             plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
                         colors='k')
+        plt.gca().set_aspect("equal")
         # save figure
         fio.save_fig(mr,"fire_spread", time_utc, plt, subdir=subdir)
 

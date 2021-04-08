@@ -75,7 +75,7 @@ def wind_dir_color_ring():
     dircolorlist=['cyan','darkturquoise',
               'darkblue','mediumblue','blue',
               'limegreen','lime','green',
-              'salmon','red','darkred',
+              'hotpink','deeppink','mediumvioletred',
               'lightskyblue','cyan']
     dircolorbounds=[0,15,45,75,105,135,165,195,225,255,285,315,345,360]
     dirticks=[0,45,90,135,180,225,270,315]

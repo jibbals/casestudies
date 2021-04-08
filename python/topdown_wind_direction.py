@@ -126,14 +126,17 @@ def topdown_winds(
             time_str=time_lt.strftime("%Y%m%d %H%M")+"(UTC+%.2f)"%houroffset
                         
             ## FIRST FIGURE: 10m WIND DIR:
-            fig=plt.figure(figsize=[11,11])
+            fig=plt.figure(figsize=[15,11])
             
             DS_fire_slice = DS_fire.sel(time=time_utc)
             #print(DS_fire_slice) 
             DA_u10 = DS_fire_slice['UWIND_2']
             DA_v10 = DS_fire_slice['VWIND_2']
             DA_ff  = DS_fire_slice['firefront']
-            ax,ringax = topdown_wind_plot(DA_u10,DA_v10,addring=True)
+            ax,ringax = topdown_wind_plot(DA_u10,DA_v10,
+                                          addring=True,
+                                          ring_XYwh=[.7,.81,.1,.1],
+                                          )
             plt.sca(ax)
             plt.title(time_str + "10m wind direction")
             # add fire line            
@@ -142,26 +145,27 @@ def topdown_winds(
             if coastflag:
                 plt.contour(lons,lats,topog.values,np.array([coastline]),colors='k')
                 
+            ax.set_aspect("equal")
             # save figure
             fio.save_fig(mr,"topdown_wdir_10m", time_utc, plt, subdir=subdir)
             
-            fig = plt.figure(figsize=[11,15])
-            DS_timeslice=DS.loc[dict(time=time_utc)]
-            #print(DS_timeslice)
-            DA_x = DS_timeslice['wnd_ucmp']
-            DA_y = DS_timeslice['wnd_vcmp']
-            # destagger x and y winds
-            DA_u,DA_v = utils.destagger_winds_DA(DA_x,DA_y)
-            for il,level in enumerate(levels):
-                topdown_wind_plot(DA_u,DA_v,addring=(il==0))
-                plt.title("")
-                plt.xlabel("height")
-                
-            print(DA_u)
-            # title and saved
-            plt.suptitle(time_str+ "model level winds")
-            fio.save_fig(mr,"topdown_wind_dirs",time_utc,plt,)
-            assert False, "Stop here for now"
+            #            fig = plt.figure(figsize=[11,15])
+            #            DS_timeslice=DS.loc[dict(time=time_utc)]
+            #            #print(DS_timeslice)
+            #            DA_x = DS_timeslice['wnd_ucmp']
+            #            DA_y = DS_timeslice['wnd_vcmp']
+            #            # destagger x and y winds
+            #            DA_u,DA_v = utils.destagger_winds_DA(DA_x,DA_y)
+            #            for il,level in enumerate(levels):
+            #                topdown_wind_plot(DA_u,DA_v,addring=(il==0))
+            #                plt.title("")
+            #                plt.xlabel("height")
+            #                
+            #            print(DA_u)
+            #            # title and saved
+            #            plt.suptitle(time_str+ "model level winds")
+            #            fio.save_fig(mr,"topdown_wind_dirs",time_utc,plt,)
+            #            assert False, "Stop here for now"
             
     
 
