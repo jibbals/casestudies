@@ -30,7 +30,7 @@ __cloud_thresh__ = constants.cloud_threshold
 def plot_weather_summary(U,V,W, height, lat, lon, 
                          Q=None, FF=None, 
                          topog=None, topog_contours=[4],
-                         hwind_limits=None):
+                         hwind_limits=[0,25]):
     '''
     Show horizontal slices of horizontal and vertical winds averaged between 
     several vertical levels. Also shows clouds (Q) and fires (FF) with contour outline.
@@ -192,7 +192,7 @@ def weather_summary_model(mr,
     
     extent = zoom_in
     if fdtimes is None:
-        fdtimes = utils.hours_available(mr)
+        fdtimes = fio.hours_available(mr)
     FF = None
     
     # read one hour at a time, plot each available time slice
@@ -603,15 +603,15 @@ if __name__=='__main__':
     badja_zoom_name="zoom1"
 
     # settings for plots
-    mr='KI_run2'
-    zoom=None
-    subdir=None
+    mr='KI_run3'
+    zoom=None #badja_zoom
+    subdir=None #badja_zoom_name
 
     # further settings
     # runn all hours?
     hours = fio.hours_available(mr)
     # hwind limits
-    hwind_minmax = [0, 30]
+    hwind_minmax = [0, 25]
     # first do zoomed
     weather_summary_model(mr,
             zoom_in=zoom,
@@ -622,7 +622,7 @@ if __name__=='__main__':
             )
     
     # then non zoomed
-    if False:
+    if zoom is not None:
         weather_summary_model(
             mr,
             HSkip=None,

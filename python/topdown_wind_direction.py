@@ -16,7 +16,8 @@ import numpy as np
 import warnings
 
 #from datetime import datetime,timedelta
-from pandas import Timedelta
+from pandas import Timedelta, DatetimeIndex
+from datetime import datetime
 #from scipy import interpolate
 #import cartopy.crs as ccrs
 
@@ -65,7 +66,8 @@ def topdown_wind_plot(DA_u, DA_v,
         #levels=dircolorbounds,
         cmap=cmap,
         norm=norm,
-        vmin=0,vmax=360,
+        shading="nearest", # since not passing lon,lat corners
+        #vmin=0,vmax=360,
         #extend='max',
         )
     ax = plt.gca()
@@ -108,6 +110,9 @@ def topdown_winds(
     DS_fire=fio.read_model_run_fire(mr)
     lats=DS_fire.lat.values
     lons=DS_fire.lon.values
+
+    print("DEBUG: DS_fire")
+    print(DS_fire)
     
     for hour in hours:
         DS=fio.read_model_run_hour(mr,hour=hour)
@@ -126,9 +131,9 @@ def topdown_winds(
             time_str=time_lt.strftime("%Y%m%d %H%M")+"(UTC+%.2f)"%houroffset
                         
             ## FIRST FIGURE: 10m WIND DIR:
-            fig=plt.figure(figsize=[15,11])
+            fig=plt.figure()
             
-            DS_fire_slice = DS_fire.sel(time=time_utc)
+            DS_fire_slice = DS_fire.sel(time=time_utc)#, method="nearest")
             #print(DS_fire_slice) 
             DA_u10 = DS_fire_slice['UWIND_2']
             DA_v10 = DS_fire_slice['VWIND_2']
@@ -146,6 +151,7 @@ def topdown_winds(
                 plt.contour(lons,lats,topog.values,np.array([coastline]),colors='k')
                 
             ax.set_aspect("equal")
+            
             # save figure
             fio.save_fig(mr,"topdown_wdir_10m", time_utc, plt, subdir=subdir)
             
@@ -170,5 +176,5 @@ def topdown_winds(
     
 
 if __name__ == '__main__':
-    mr="KI_run1_exploratory"
+    mr="KI_run1"
     topdown_winds(mr)

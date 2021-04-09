@@ -252,15 +252,15 @@ if __name__=='__main__':
     badja_tiffname=None
 
     # settings for plots
-    mr='badja_run1'
-    extent=badja_zoom
-    subdir=badja_zoom_name
-    tiffname=badja_tiffname
+    mr='KI_run3'
+    extent=None# badja_zoom
+    subdir=None# badja_zoom_name
+    tiffname=None# badja_tiffname
 
     ### Run the stuff
     
     # CHECK LOWER LEVEL ROTATION
-    if False:
+    if True:
         rotation_looped(mr,
                 extent=extent,
                 subdir=subdir,

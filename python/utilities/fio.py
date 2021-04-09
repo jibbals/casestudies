@@ -208,7 +208,7 @@ def read_model_run_fire(mr):
     """
     """
     fdir=DATADIR+mr+"/fire/"
-    firepaths=glob(fdir+"*.nc")
+    firepaths=glob(fdir+"*00Z.nc")
     DS = xr.open_mfdataset(firepaths,compat=COMPAT)
     #print(DS)
     #    if datetimes is not None:

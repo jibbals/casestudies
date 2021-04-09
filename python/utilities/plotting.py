@@ -131,6 +131,7 @@ def add_wind_dir_color_ring(fig, color_ring_struct,
                                   values,
                                   cmap=cmap,
                                   norm=norm,
+                                  shading="nearest",
                                   )
     ring_ax.set_yticklabels([])
     ring_ax.set_xticklabels([])
