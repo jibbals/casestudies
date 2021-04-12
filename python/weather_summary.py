@@ -177,9 +177,9 @@ def plot_weather_summary(U,V,W, height, lat, lon,
         
 
 def weather_summary_model(mr,
-                          fdtimes=None,
-                          zoom_in=None,
+                          extent=None,
                           subdir=None,
+                          fdtimes=None,
                           HSkip=None,
                           hwind_limits=None):
     '''
@@ -190,7 +190,6 @@ def weather_summary_model(mr,
     # font sizes etc
     plotting.init_plots()
     
-    extent = zoom_in
     if fdtimes is None:
         fdtimes = fio.hours_available(mr)
     FF = None
@@ -614,7 +613,7 @@ if __name__=='__main__':
     hwind_minmax = [0, 25]
     # first do zoomed
     weather_summary_model(mr,
-            zoom_in=zoom,
+            extent=zoom,
             subdir=subdir,
             HSkip=None,
             fdtimes=hours, 

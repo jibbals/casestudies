@@ -368,11 +368,11 @@ def topdown_view(extent,
 
 def topdown_view_only(mr, 
                       extent=None,
+                      subdir=None,
                       hours=None,
                       topography=True,
                       wmap_height=300,
                       HSkip=None,
-                      subdir=None,
                       ):
     """
     show map of 10m winds over topography
@@ -727,14 +727,14 @@ def map_and_transects(mr,
                              plt=plt)
             
 def multiple_transects(mr,
-                       hours=None,
                        extent=None,
+                       subdir=None,
+                       hours=None,
                        ztop=5000,
                        start=None,
                        end=None,
                        dx=None,
                        dy=None,
-                       subdir=None,
                        ):
     """
     4 rows 2 columns: 
