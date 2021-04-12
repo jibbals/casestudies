@@ -17,7 +17,6 @@ from matplotlib.lines import Line2D
 from datetime import datetime,timedelta
 
 # continuous colourmap
-import cmocean
 
 import iris
 
@@ -35,9 +34,9 @@ _sn_ = 'winds'
 
 def wind_and_heat_flux_looped(mr,
         extent=None,
+        subdir=None,
         tiffname=None,
         HSkip=None,
-        subdir=None,
         ):
     """
     Figure with 2 panels: 10m wind speed, and wind direction overlaid on heat flux
@@ -163,7 +162,12 @@ def wind_and_heat_flux_looped(mr,
                 subdir=subdir,
                 )
 
-def rotation_looped(mr, extent=None, dtimes=None, HSkip=None, subdir=None,):
+def rotation_looped(mr, 
+                    extent=None, 
+                    subdir=None,
+                    dtimes=None, 
+                    HSkip=None, 
+                    ):
     """
     """
     simname=mr.split('_')[0]

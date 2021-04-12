@@ -73,22 +73,22 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
     
     
 
-def fire_spread(mr, zoom=None, subdir=None, coastline=-5):
+def fire_spread(mr, extent=None, subdir=None, coastline=5):
     """
     ARGS:
         mr: model run name
-        zoom: [W,E,S,N] in degrees
-        subdir: name to save zoom into
+        extent: [W,E,S,N] in degrees
+        subdir: name to save zoomed into
         coastline: set to positive number to add coastline contour in metres
     """
     # Read firefront, heatflux (W/m2), U and V winds    
     DS_fire = fio.read_model_run_fire(mr)
     DA_topog = fio.model_run_topography(mr)
-    if zoom is not None:
-        DS_fire = fio.extract_extent(DS_fire,zoom)
-        topog = fio.extract_extent(topog,zoom)
+    if extent is not None:
+        DS_fire = fio.extract_extent(DS_fire,extent)
+        topog = fio.extract_extent(topog,extent)
         if subdir is None:
-            subdir=str(zoom)
+            subdir=str(extent)
     #print(DS_fire)
     #print(topog)
     lats=DS_fire.lat.data
@@ -119,7 +119,7 @@ def fire_spread(mr, zoom=None, subdir=None, coastline=-5):
         
         plt.title(time_str)
         
-        if coastline>0:
+        if coastline>0 and np.min(DA_topog.values)<coastline:
             plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
                         colors='k')
         plt.gca().set_aspect("equal")
