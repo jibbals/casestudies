@@ -229,10 +229,9 @@ def weather_summary_model(mr,
                                  hwind_limits=hwind_limits,
                                  topog=topog.data,
                                  )
-            offsethours=0
-            if mr in fio.run_info.keys():
-                offsethours = fio.run_info[mr]['UTC_offset']
-            ltime=dtime+timedelta(hours=offsethours)
+
+            ltime = utils.local_time_from_time_lats_lons(dtime,lat,lon)
+            offsethours = utils.local_time_offset_from_lats_lons(lat,lon)
             plt.suptitle("%s weather "%mr + ltime.strftime("%Y %b %d %H:%M (UTC+"+"%.1f"%(offsethours)+")"))
             
             if (zoom_in is not None) and (subdir is None): 
@@ -601,15 +600,15 @@ if __name__=='__main__':
     # keep track of used zooms
     badja_zoom=[149.4,150.0, -36.4, -35.99]
     badja_zoom_name="zoom1"
+    KI_zoom = [136.5,137.5,-36.1,-35.6]
+    KI_zoom_name = "zoom1"
 
     # settings for plots
     mr='KI_run3'
-    zoom=None #badja_zoom
-    subdir=None #badja_zoom_name
+    zoom=KI_zoom #badja_zoom
+    subdir=KI_zoom_name #badja_zoom_name
 
     # further settings
-    # runn all hours?
-    hours = fio.hours_available(mr)
     # hwind limits
     hwind_minmax = [0, 25]
     # first do zoomed
@@ -617,16 +616,7 @@ if __name__=='__main__':
             zoom_in=zoom,
             subdir=subdir,
             HSkip=None,
-            fdtimes=hours, 
-            hwind_limits=hwind_minmax,
-            )
-    
-    # then non zoomed
-    if zoom is not None:
-        weather_summary_model(
-            mr,
-            HSkip=None,
-            fdtimes=hours, 
+            #fdtimes=hours, 
             hwind_limits=hwind_minmax,
             )
     

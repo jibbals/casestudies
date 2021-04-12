@@ -764,7 +764,7 @@ def multiple_transects(mr,
     # Read model run
     simname=mr.split('_')[0]
     umdtimes = fio.hours_available(mr)
-    dtoffset = fio.sim_info[simname]['UTC_offset']
+    dtoffset = utils.local_time_offset_from_lats_lons(lats,lons)
     
     # hours input can be datetimes or integers
     if hours is not None:
@@ -787,10 +787,10 @@ def multiple_transects(mr,
     if dy is None:
         dy = 0
     
-    # 3 transects, shifted by dy and dx
-    transects = [ [[start[0]+dy,start[1]+dx], [end[0]+dy,end[1]+dx]],
+    # 3 transects, shifted by dy and dx # order will be top left to bottom right
+    transects = [ [[start[0]+dy,start[1]-dx], [end[0]+dy,end[1]-dx]],
                  [start, end],
-                 [[start[0]-dy,start[1]-dx], [end[0]-dy,end[1]-dx]],
+                 [[start[0]-dy,start[1]+dx], [end[0]-dy,end[1]+dx]],
                  ]
     
     ## Loop over hours
@@ -915,6 +915,7 @@ def multiple_transects(mr,
                                       nx=npoints, 
                                       z=zi)
                 
+                xdistance=XRet['xdistance'][-1]
                 
                 label=XRet['xlabel']
                 Xvals=XRet['x'][0,:]
@@ -927,6 +928,7 @@ def multiple_transects(mr,
                             )
                 if trani==0:
                     plt.title("T$_{Potential}$ and Vert motion")
+                    plt.xlabel("%.2f (km)"%(xdistance/1000.0),labelpad=-10)
                 else:
                     plt.title("")
                 
@@ -937,7 +939,8 @@ def multiple_transects(mr,
                            rotation=5)
                 
             ## SAVE FIGURE
-            plt.suptitle(LTstr,font=22)
+            print("DEBUG: LTstr",LTstr)
+            plt.suptitle(LTstr,fontsize=22)
             fio.save_fig(mr,"multiple_transects",dtime,
                          subdir=subdir,
                          plt=plt,
@@ -948,25 +951,43 @@ def multiple_transects(mr,
 if __name__ == '__main__':
     latlontimes=firefront_centres["KI_run1"]['latlontimes']
     # keep track of used zooms
-    KI_zoom_west = [136.5,137.5,-36.1,-35.6]
+    KI_zoom = [136.5,137.5,-36.1,-35.6]
+    KI_zoom_name = "zoom1"
     badja_zoom=[149.4,150.0, -36.4, -35.99]
     badja_zoom_name="zoom1"
 
     # settings for plots
-    mr='badja_run1'
-    zoom=badja_zoom
-    subdir=badja_zoom_name
+    mr='KI_run3'
+    zoom=KI_zoom
+    subdir=KI_zoom_name
     
+    ## Vertical transects for KI
+    if True:
+        ## Vertical transects also
+        multiple_transects(mr, 
+                extent=KI_zoom, 
+                subdir=KI_zoom_name+"_vert",
+                #hours=[9],
+                start=[-36.05,137.0],
+                end=[-35.65,137.0],
+                dx=0.3,
+                dy=0.0,
+                )
+
     ## Multiple transects 
-    if False:
-        multiple_transects(mr,extent=zoom,subdir=subdir,hours=[6])
+    if True:
+        
+        multiple_transects(mr,extent=zoom,subdir=subdir,
+                #hours=[6]
+                )
         #multiple_transects(mr) #wider area too I guess
+        
     
     ## TOPDOWN 10m WINDS ONLY
     if True:
         topdown_view_only(mr,extent=zoom,subdir=subdir)
-        for mr in ['KI_run1','KI_run2']:
-            topdown_view_only(mr,extent=KI_zoom_west, subdir='zoom1')
+        for mr in ['KI_run3','KI_run2']:
+            topdown_view_only(mr,extent=KI_zoom, subdir=KI_zoom_name)
     
     ## MAP WITH DEFINED TRANSECT
     if False:

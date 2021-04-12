@@ -31,6 +31,7 @@ extents['KIz'] = [136.6,136.9,-35.9,-35.7]
 # towns...
 latlons['Parndana'] = -35.79, 137.262
 #latlons['Cape Torrens'] = -35.74,136.75
+latlons['Karatta'] = -35.9657, 137.0015
 latlons['Emu Bay'] = -35.5941, 137.5447
 latlons['Cape Borda'] = -35.76191,136.594
 # show ignition area (roughly)
