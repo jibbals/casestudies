@@ -45,11 +45,20 @@ def plot_weather_summary(U,V,W, height, lat, lon,
             horizontal wind map contourf colorbar limits
     '''
     ## Just make sure we are using regular grid
+    ## sometimes floating point error leads to nonregularity, so I adjust to regular grid here
     if not np.all(np.equal(np.diff(lat),lat[1]-lat[0])):
-        print("WARNING: lats adjusted in plot_weather_summary")
+        latval=np.max(np.diff(lat)-(lat[1]-lat[0]))
+        if latval > 0.01:
+            print("ERROR: plot_weather_summary: lats are not regular")
+            print("       : max(np.diff(lat) - (lat[1]-lat[0])) = ",latval)
+            assert False, "NEED REGULAR LATS"
         lat = np.linspace(lat[0],lat[-1],len(lat))
     if not np.all(np.equal(np.diff(lon),lon[1]-lon[0])):
-        print("WARNING: lons adjusted in plot_weather_summary")
+        lonval=np.max(np.diff(lon)-(lon[1]-lon[0]))
+        if lonval > 0.01:
+            print("ERROR: plot_weather_summary: lons are not regular")
+            print("       : max(np.diff(lon) - (lon[1]-lon[0])) = ",lonval)
+            assert False, "NEED REGULAR LONS"
         lon = np.linspace(lon[0],lon[-1],len(lon))
 
     extent = [lon[0],lon[-1],lat[0],lat[-1]]
@@ -173,7 +182,9 @@ def plot_weather_summary(U,V,W, height, lat, lon,
     if hwind_limits is not None:
         cbar_ax2 = fig.add_axes([0.48, 0.4, 0.01, 0.2]) #XYWH
         fig.colorbar(csh, cax=cbar_ax2, format=ticker.ScalarFormatter(),
-                pad=0, extend='max')
+                pad=0,
+                #extend='max', # Get warning on NCI that this does nothing..
+                )
         
 
 def weather_summary_model(mr,
@@ -233,7 +244,7 @@ def weather_summary_model(mr,
             offsethours = utils.local_time_offset_from_lats_lons(lat,lon)
             plt.suptitle("%s weather "%mr + ltime.strftime("%Y %b %d %H:%M (UTC+"+"%.1f"%(offsethours)+")"))
             
-            if (zoom_in is not None) and (subdir is None): 
+            if (extent is not None) and (subdir is None): 
                 subdir = 'zoomed'
             fio.save_fig(model_run=mr,
                          plot_name="weather_summary", 
@@ -603,7 +614,7 @@ if __name__=='__main__':
     KI_zoom_name = "zoom1"
 
     # settings for plots
-    mr='KI_run3'
+    mr='KI_run2'
     zoom=KI_zoom #badja_zoom
     subdir=KI_zoom_name #badja_zoom_name
 

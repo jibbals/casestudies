@@ -41,7 +41,9 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
         ff= DA_ff.values
         sh= DA_sh.values
     #ws = utils.wind_speed(u,v)
-    print(np.min(ff),np.max(ff))
+    #print(np.min(ff),np.max(ff))
+    # min is -0.0316...
+    # max is .0084
     
     # burnt area
     if np.min(ff)<-0.02:
@@ -64,7 +66,7 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
     # quiver
     xskip=int(np.max([len(lons)//23-1,1]))
     yskip=int(np.max([len(lats)//23-1,1]))
-    print(xskip,yskip)
+    #print(xskip,yskip) # 24,24 in unzoomed run of corryong output
     plt.quiver(lons[::xskip], lats[::yskip], 
                u[::yskip,::xskip], v[::yskip,::xskip],
                pivot='mid',
@@ -127,4 +129,4 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
         fio.save_fig(mr,"fire_spread", time_utc, plt, subdir=subdir)
 
 
-fire_spread("KI_run1_exploratory",coastline=5)
+#fire_spread("KI_run1_exploratory",coastline=5)

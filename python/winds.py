@@ -118,7 +118,6 @@ def wind_and_heat_flux_looped(mr,
                     )
         else:
             ax2=plt.subplot(2,1,2)
-            print("DEBUG: topog, lat, lon",topog.shape, np.shape(lat), np.shape(lon))
             plotting.map_topography(topog.data,lat,lon)
 
 
@@ -249,22 +248,24 @@ if __name__=='__main__':
     
     # keep track of used zooms
     badja_zoom=[149.4,150.0, -36.4, -35.99]
-    KI_zoom= [136.52,137.24, -36.07,-35.6] 
+    KI_zoom= [136.5,137.5, -36.1,-35.6] 
     KI_zoom_name='zoom1'
+    KI_zoom2 = [136.5887,136.9122,-36.047,-35.7371]
+    KI_zoom2_name = "zoom2"
     KI_tiffname='KI.tiff' # 'badja.tiff'
     badja_zoom_name="zoom1"
     badja_tiffname=None
 
     # settings for plots
-    mr='KI_run3'
-    extent=None# badja_zoom
-    subdir=None# badja_zoom_name
-    tiffname=None# badja_tiffname
+    mr='KI_run1'
+    extent=KI_zoom
+    subdir=KI_zoom_name
+    tiffname=None
 
     ### Run the stuff
     
     # CHECK LOWER LEVEL ROTATION
-    if True:
+    if False:
         rotation_looped(mr,
                 extent=extent,
                 subdir=subdir,
@@ -274,7 +275,7 @@ if __name__=='__main__':
     if True:
         wind_and_heat_flux_looped(mr, 
                 extent=extent,
-                HSkip=2,
+                HSkip=None,
                 tiffname=tiffname,
                 subdir=subdir,
                 )

@@ -177,7 +177,7 @@ def transect_winds(u,v,w,z,
     print("INFO: streamplotting transect winds: ")
     print("    : xdistance=%.2fm, zheight=%.2fm, SCALING VERT MOTION BY factor of %.6f"%(transect_winds_struct['xdistance'][-1],ztop,Yscale))
     plotting.streamplot_regridded(slicex,slicez,transect_s,transect_w*Yscale,
-                                  density=(1,1), 
+                                  density=(.5,.5), 
                                   color='darkslategrey',
                                   zorder=1,
                                   #linewidth=np.hypot(sliceu,slicew), # too hard to see what's going on
@@ -735,6 +735,7 @@ def multiple_transects(mr,
                        end=None,
                        dx=None,
                        dy=None,
+                       SouthNorth=False,
                        ):
     """
     4 rows 2 columns: 
@@ -775,7 +776,7 @@ def multiple_transects(mr,
     if not hasattr(umdtimes,"__iter__"):
         umdtimes = [umdtimes]
     
-    # Default start/end/dx/dy
+    ## Default start/end/dx/dy is east-west transects
     if start is None or end is None:
         start = np.mean(lats), np.mean(lons)-0.4*(lons[-1]-lons[0])
         end = np.mean(lats), np.mean(lons)+0.4*(lons[-1]-lons[0])
@@ -786,7 +787,19 @@ def multiple_transects(mr,
         dx = 0 
     if dy is None:
         dy = 0
-    
+
+    ## Different defaults if SouthNorth is set to True
+    if SouthNorth:
+        start=np.mean(lats)-0.4*(lats[-1]-lats[0]), np.mean(lons)
+        end=np.mean(lats)+0.4*(lats[-1]-lats[0]), np.mean(lons)
+        dx=0.3*(lons[-1]-lons[0])
+        dy=0.0
+        if subdir is None:
+            subdir="SouthNorth"
+        else:
+            subdir=subdir+"_SouthNorth"
+
+
     # 3 transects, shifted by dy and dx # order will be top left to bottom right
     transects = [ [[start[0]+dy,start[1]-dx], [end[0]+dy,end[1]-dx]],
                  [start, end],
@@ -946,48 +959,59 @@ def multiple_transects(mr,
                          plt=plt,
                          )
     
-        
+def multiple_transects_SN(*args,**kwargs):
+    """
+        run multiple transects method with southnorth flag
+    """
+    kwargs['SouthNorth']=True
+    return multiple_transects(*args,**kwargs)
 
 if __name__ == '__main__':
     latlontimes=firefront_centres["KI_run1"]['latlontimes']
     # keep track of used zooms
     KI_zoom = [136.5,137.5,-36.1,-35.6]
     KI_zoom_name = "zoom1"
+    KI_zoom2 = [136.5887,136.9122,-36.047,-35.7371]
+    KI_zoom2_name = "zoom2"
     badja_zoom=[149.4,150.0, -36.4, -35.99]
     badja_zoom_name="zoom1"
 
+    corryong_zoom_name="check"
+
     # settings for plots
-    mr='KI_run3'
+    mr='KI_run1'
     zoom=KI_zoom
     subdir=KI_zoom_name
     
-    ## Vertical transects for KI
-    if True:
-        ## Vertical transects also
-        multiple_transects(mr, 
-                extent=KI_zoom, 
-                subdir=KI_zoom_name+"_vert",
-                #hours=[9],
-                start=[-36.05,137.0],
-                end=[-35.65,137.0],
-                dx=0.3,
-                dy=0.0,
+    ## Quick check for Dragana
+    if False:
+        multiple_transects("corryong_run4",
+                extent=None,
+                subdir="check",
+                start=[-35.85,147.5],
+                end=[-36.15,147.8],
+                dx=.1,
+                dy=.1,
                 )
+
 
     ## Multiple transects 
     if True:
-        
-        multiple_transects(mr,extent=zoom,subdir=subdir,
-                #hours=[6]
+        ## north_south transects
+        multiple_transects_SN(mr,
+                extent=zoom, 
+                subdir=subdir,
                 )
-        #multiple_transects(mr) #wider area too I guess
+        ## 
+        multiple_transects(mr,
+                extent=zoom,
+                subdir=subdir,
+                )
         
     
     ## TOPDOWN 10m WINDS ONLY
-    if True:
+    if False:
         topdown_view_only(mr,extent=zoom,subdir=subdir)
-        for mr in ['KI_run3','KI_run2']:
-            topdown_view_only(mr,extent=KI_zoom, subdir=KI_zoom_name)
     
     ## MAP WITH DEFINED TRANSECT
     if False:

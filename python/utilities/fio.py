@@ -77,8 +77,18 @@ def extract_extent(DS,WESN):
     """
     lon0,lon1,lat0,lat1=WESN
     
-    mask_lon = (DS.longitude >= lon0) & (DS.longitude <= lon1)
-    mask_lat = (DS.latitude >= lat0) & (DS.latitude <= lat1)
+    if hasattr(DS,"longitude"):
+        lats=DA_u.latitude
+        lons=DA_u.longitude
+    elif hasattr(DS,"lon"):
+        lats=DA_u.lat.values
+        lons=DA_u.lon.values
+    else:
+        print(DA_u)
+        print("ERROR: COULDN'T FIND L(ong/at)ITUDE")
+    
+    mask_lon = (lons >= lon0) & (lons <= lon1)
+    mask_lat = (lats >= lat0) & (lats <= lat1)
     
     if hasattr(DS,"longitude_0"):
         mask_lon = mask_lon & (DS.longitude_0 >= lon0) & (DS.longitude_0 <= lon1)
