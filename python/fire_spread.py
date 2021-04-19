@@ -88,18 +88,25 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
     DA_topog = fio.model_run_topography(mr)
     if extent is not None:
         DS_fire = fio.extract_extent(DS_fire,extent)
-        topog = fio.extract_extent(topog,extent)
+        print("DEBUG: Extracting topog:")
+        print(DA_topog)
+        print(extent)
+        DA_topog = fio.extract_extent(DA_topog,extent)
         if subdir is None:
             subdir=str(extent)
-    #print(DS_fire)
-    #print(topog)
+    
     lats=DS_fire.lat.data
     lons=DS_fire.lon.data
+    if extent is None:
+        extent=[lons[0],lons[-1],lats[0],lats[-1]]
     times=DS_fire.time.data
     
     houroffset=utils.local_time_offset_from_lats_lons(lats,lons)
     # loop over timesteps
-    for ti,time_utc in enumerate(times):
+    # interesting times don't begin before 3 hours in any run
+    ind_interest = np.union1d([0,30,60,90,120,150,180],np.arange(181,24*60-1,5))
+    times_of_interest=[times[i] for i in ind_interest]
+    for ti,time_utc in enumerate(times_of_interest):
         
         ## slice time
         DS_fire_slice = DS_fire.sel(time=time_utc)
@@ -111,6 +118,8 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
         ## get local time
         time_lt = utils.local_time_from_time_lats_lons(time_utc,lats,lons)
         time_str=time_lt.strftime("%Y%m%d %H%M")+"(UTC+%.2f)"%houroffset
+        print("DEBUG: running fire_spread for time:")
+        print("     : ",time_str)
                         
         ## FIRST FIGURE: 10m WIND DIR:
         plt.figure(
@@ -118,15 +127,29 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
             )
         
         plot_fire_spread(DA_sh, DA_ff, DA_u10, DA_v10)
-        
+        plotting.map_add_locations_extent(extent,hide_text=False)
         plt.title(time_str)
         
         if coastline>0 and np.min(DA_topog.values)<coastline:
             plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
                         colors='k')
         plt.gca().set_aspect("equal")
+
         # save figure
         fio.save_fig(mr,"fire_spread", time_utc, plt, subdir=subdir)
 
 
-#fire_spread("KI_run1_exploratory",coastline=5)
+if __name__ == '__main__':
+    # keep track of used zooms
+    KI_zoom = [136.5,137.5,-36.1,-35.6]
+    KI_zoom_name = "zoom1"
+    KI_zoom2 = [136.5887,136.9122,-36.047,-35.7371]
+    KI_zoom2_name = "zoom2"
+    badja_zoom=[149.4,150.0, -36.4, -35.99]
+    badja_zoom_name="zoom1"
+    
+    mr='KI_run1'
+    zoom=KI_zoom
+    zoom_name=KI_zoom_name
+
+    fire_spread(mr,zoom,zoom_name)

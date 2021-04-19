@@ -65,7 +65,7 @@ fnlist_B = [
     ]
 fnlist_C = [
     rotation_looped, 
-    multiple_transects_SN, # high resource
+    multiple_transects_SN, # ~1hrs, 37GB with 50% horizontal subsetting
     ]
 
 ## keep track of used zooms

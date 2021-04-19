@@ -77,30 +77,30 @@ def extract_extent(DS,WESN):
     """
     lon0,lon1,lat0,lat1=WESN
     
+    # make mask for lats/lons (or latitude/longitude)
     if hasattr(DS,"longitude"):
-        lats=DA_u.latitude
-        lons=DA_u.longitude
+        mask_lat = (DS.latitude >= lat0) & (DS.latitude <= lat1)
+        mask_lon = (DS.longitude >= lon0) & (DS.longitude <= lon1)
     elif hasattr(DS,"lon"):
-        lats=DA_u.lat.values
-        lons=DA_u.lon.values
+        mask_lat = (DS.lat >= lat0) & (DS.lat <= lat1)
+        mask_lon = (DS.lon >= lon0) & (DS.lon <= lon1)
     else:
-        print(DA_u)
-        print("ERROR: COULDN'T FIND L(ong/at)ITUDE")
+        print(DS)
+        print("ERROR: COULDN'T FIND dimensions (lon)gitude, or (lat)itude")
     
-    mask_lon = (lons >= lon0) & (lons <= lon1)
-    mask_lat = (lats >= lat0) & (lats <= lat1)
-    
+    # Handle staggered dims also
     if hasattr(DS,"longitude_0"):
         mask_lon = mask_lon & (DS.longitude_0 >= lon0) & (DS.longitude_0 <= lon1)
     if hasattr(DS,"latitude_0"):
         mask_lat = mask_lat & (DS.latitude_0 >= lat0) & (DS.latitude_0 <= lat1)
-        
+    
     #Finally, it is just a matter of using the where() method and specifying drop=True as an argument.
-    print("DEBUG: DS before spatial subset:")
-    print(DS.head())
+    #print("DEBUG: DS before spatial subset:")
+    #print(DS)
     cropped_ds = DS.where(mask_lon & mask_lat, drop=True)
-    print("DEBUG: DS after spatial subset:")
-    print(cropped_ds.head())
+
+    #print("DEBUG: DS after spatial subset:")
+    #print(cropped_ds)
     return cropped_ds
 
 def fire_path(mr, prefix):
