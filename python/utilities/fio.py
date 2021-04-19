@@ -137,6 +137,12 @@ def fire_paths(mr,datestr="",affix=".nc"):
     return [ffpaths, fluxpaths, fspaths, u10paths, v10paths]
 
 def make_folder(pname):
+    """
+    Create folder to hold file with path name argument
+    EG: 
+        make_folder("../data/timeseries/blah.nc")
+        will create ../data/timeseries folder
+    """
     folder = '/'.join(pname.split('/')[:-1]) + '/'
     if not os.path.exists(folder):
         print("INFO: Creating folder:",folder)
