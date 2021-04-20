@@ -56,13 +56,12 @@ from winds import rotation_looped, wind_and_heat_flux_looped
 fnlist_A = [
     wind_and_heat_flux_looped, 
     topdown_view_only,
-    fire_spread, 
+    fire_spread, # this one took a while until I started skipping some times
     weather_summary_model, # High resource
-    ] # Uses X HOURS, Y GB, 
+    ] # Uses 10.25 HOURS, 18 GB (pre fire_spread update)
 fnlist_B = [
-    fire_spread,
     multiple_transects, # high resource
-    ]
+    ] # 11 hours, 35 GB, (was running fire_spread uneccessarily)
 fnlist_C = [
     rotation_looped, 
     multiple_transects_SN, # ~1hrs, 37GB with 50% horizontal subsetting

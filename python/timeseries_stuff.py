@@ -50,7 +50,7 @@ def read_model_timeseries(mr,
         if DS is None:
             DS = DS_atmos_point.copy(deep=True)
         else:
-            DS = xr.combine_by_coords([DS,DS_atmos_point])
+            DS = xr.combine_by_coords([DS,DS_atmos_point],combine_attrs="override")
     
     # Read firefront, heatflux (W/m2), U and V winds    
     # TODO calculate firepower
@@ -90,9 +90,9 @@ def read_model_timeseries(mr,
     
 
 if __name__ == '__main__':
-    mr="badja_run1_exploratory"
+    mr="badja_run1"
     latlon=[-36.12,149.425]
-    DS = read_model_timeseries(mr,latlon,force_recreate=True)
+    DS = read_model_timeseries(mr,latlon)
     
     print (DS)
     
