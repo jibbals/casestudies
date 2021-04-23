@@ -763,7 +763,6 @@ def multiple_transects(mr,
         extent = [lons[0],lons[-1],lats[0],lats[-1]]
     
     # Read model run
-    simname=mr.split('_')[0]
     umdtimes = fio.hours_available(mr)
     dtoffset = utils.local_time_offset_from_lats_lons(lats,lons)
     
@@ -865,6 +864,10 @@ def multiple_transects(mr,
                          sh_colorbar=False,
                          )
             
+            # topdown view should be equal aspect
+            ax1.set_aspect("equal")
+            
+            # interpolate to this many points along transect (or detect automatically)
             npoints=None
             
             ### NEXT 3 ROWS: Transects
@@ -874,7 +877,7 @@ def multiple_transects(mr,
                 
 
                 ## LEFT PANEL: show H wind speed and wind streams
-                plt.subplot(4,2,3+trani*2)
+                axleft = plt.subplot(4,2,3+trani*2)
                 
                 plotting.transect_s(si, zi, lats, lons, 
                                     transect[0], 
@@ -896,7 +899,7 @@ def multiple_transects(mr,
                 
                 TW = wind_transect_struct['w']
                 Xvals = wind_transect_struct['x'][0,:]
-                
+                Yvals = wind_transect_struct['y'] # 2d array of altitudes for cross section
                 label= wind_transect_struct['xlabel']
                 plt.xticks([Xvals[0],Xvals[-1]],
                            [label[0],label[-1]],
@@ -905,6 +908,7 @@ def multiple_transects(mr,
                     plt.title("Winds (m/s)")
                 else:
                     plt.title("")
+                axleft.set_ylim(np.min(Yvals),ztop)
                 
                 ## RIGHT PANEL: T and Vert motion
                 axright=plt.subplot(4,2,4+trani*2)
@@ -916,9 +920,9 @@ def multiple_transects(mr,
                                                 topog=topog, 
                                                 sh=shi,
                                                 ztop=ztop,
-                                                contours=np.arange(295,315),
+                                                contours=np.arange(295,316),
                                                 lines=None, 
-                                                levels=np.arange(295,316),
+                                                levels=np.arange(295,317),
                                                 cmap='gist_rainbow_r',
                                                 )
                 
@@ -933,12 +937,13 @@ def multiple_transects(mr,
                 label=XRet['xlabel']
                 Xvals=XRet['x'][0,:]
                 VM_contours = [-5,-4,-3,-2,-1,1,2,3,4,5]
-                VM_colours = ['b']+['cyan']*4+['pink']*4+['r']
+                VM_colours = ['cyan']*5+['pink']*5
                 
                 plt.contour(XRet['x'],XRet['y'],XRet['transect'], 
                             VM_contours, # contour lines
                             colors=VM_colours, # contour line colours
                             )
+                plt.ylim(np.min(XRet['y']),ztop)
                 if trani==0:
                     plt.title("T$_{Potential}$ and Vert motion")
                     plt.xlabel("%.2f (km)"%(xdistance/1000.0),labelpad=-10)
@@ -951,9 +956,11 @@ def multiple_transects(mr,
                            [label[0],label[-1]],
                            rotation=5)
                 
+                axright.set_ylim(np.min(XRet['y']),ztop)
             ## SAVE FIGURE
-            print("DEBUG: LTstr",LTstr)
-            plt.suptitle(LTstr,fontsize=22)
+            #print("DEBUG: LTstr",LTstr)
+            plt.suptitle(mr + " altitudinally averaged winds " + LTstr,
+                         fontsize=22)
             fio.save_fig(mr,"multiple_transects",dtime,
                          subdir=subdir,
                          plt=plt,
@@ -975,24 +982,13 @@ if __name__ == '__main__':
     KI_zoom2_name = "zoom2"
     badja_zoom=[149.4,150.0, -36.4, -35.99]
     badja_zoom_name="zoom1"
-
-    corryong_zoom_name="check"
-
-    # settings for plots
-    mr='KI_run1'
-    zoom=KI_zoom
-    subdir=KI_zoom_name
+    belowra_zoom=[149.61, 149.8092, -36.2535, -36.0658]
+    belowra_zoom_name="Belowra"
     
-    ## Quick check for Dragana
-    if False:
-        multiple_transects("corryong_run4",
-                extent=None,
-                subdir="check",
-                start=[-35.85,147.5],
-                end=[-36.15,147.8],
-                dx=.1,
-                dy=.1,
-                )
+    # settings for plots
+    mr='badja_run2'
+    zoom=belowra_zoom
+    subdir=belowra_zoom_name
 
 
     ## Multiple transects 

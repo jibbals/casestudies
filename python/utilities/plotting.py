@@ -1195,6 +1195,13 @@ def streamplot_regridded(x,y,u,v,**kwargs):
     #plt.gca().set_xlim(xi[0],xi[-1])
     return splot
 
+def xyskip_for_quiver(lats,lons,n_arrows=23):
+    """
+    return xskip,yskip to get approx n_arrows for a quiver plot using x[::xskip],y[::yskip]
+    """
+    xskip=int(np.max([len(lons)//n_arrows-1,1]))
+    yskip=int(np.max([len(lats)//n_arrows-1,1]))
+    return xskip,yskip
 
 def utm_from_lon(lon):
     """
@@ -1207,6 +1214,7 @@ def utm_from_lon(lon):
     :rtype: int
     """
     return np.floor( ( lon + 180 ) / 6) + 1
+
 
 
 #### NOT WORKING/FINISHED ####

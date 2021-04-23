@@ -64,8 +64,7 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
         plotting.map_sensibleheat(sh,lats,lons,colorbar=False)
     
     # quiver
-    xskip=int(np.max([len(lons)//23-1,1]))
-    yskip=int(np.max([len(lats)//23-1,1]))
+    xskip,yskip=plotting.xyskip_for_quiver(lats,lons)
     #print(xskip,yskip) # 24,24 in unzoomed run of corryong output
     plt.quiver(lons[::xskip], lats[::yskip], 
                u[::yskip,::xskip], v[::yskip,::xskip],

@@ -81,7 +81,7 @@ def plot_weather_summary(U,V,W, height, lat, lon,
     # number of contours in hwind map
     nhcontours=16
     hcontours=nhcontours
-    hcmap='plasma' #plotting._cmaps_['windspeed']
+    hcmap='Blues' #plotting._cmaps_['windspeed']
     speedmax=None
     if hwind_limits is not None:
         hvmin,speedmax = hwind_limits
@@ -104,7 +104,9 @@ def plot_weather_summary(U,V,W, height, lat, lon,
         
         # wind speed contourf
         if hwind_limits is None:
-            csh = plt.contourf(lon, lat, Sr, hcontours)
+            csh = plt.contourf(lon, lat, Sr, hcontours, 
+                               cmap=hcmap,
+                               )
             # if we're not using a uniform hwind scale, add colorbars
             plt.colorbar(ticklocation=ticker.MaxNLocator(5),pad=0)
         else:
@@ -121,7 +123,7 @@ def plot_weather_summary(U,V,W, height, lat, lon,
         ##Streamplot the horizontal winds
         ## This shifts the subplot grid axes slightly!! 
         # this is seemingly to show the arrows in full where they extend outside the boundary
-        streamLW=utils.wind_speed_to_linewidth(Sr,speedmax=speedmax)
+        streamLW=utils.wind_speed_to_linewidth(Sr,lwmax=3,speedmax=speedmax)
         lax.streamplot(lon,lat,Ur,Vr, 
                        color='k',
                        linewidth=streamLW,
@@ -192,14 +194,14 @@ def weather_summary_model(mr,
                           subdir=None,
                           fdtimes=None,
                           HSkip=None,
-                          hwind_limits=None):
+                          hwind_limits=[0, 25]):
     '''
     Read model run output hour by hour, running plot_weather_summary on each
     time slice. Can subset to just show fdtimes, and can also zoom to specific 
     lat lon box, which saves into the 'zoomed' subfolder
     '''
     # font sizes etc
-    plotting.init_plots()
+    #plotting.init_plots()
     
     if fdtimes is None:
         fdtimes = fio.hours_available(mr)
@@ -614,19 +616,17 @@ if __name__=='__main__':
     KI_zoom_name = "zoom1"
 
     # settings for plots
-    mr='KI_run2'
+    mr='KI_run1_exploratory'
     zoom=KI_zoom #badja_zoom
     subdir=KI_zoom_name #badja_zoom_name
 
-    # further settings
-    # hwind limits
-    hwind_minmax = [0, 25]
+    
     # first do zoomed
     weather_summary_model(mr,
             extent=zoom,
             subdir=subdir,
             HSkip=None,
             #fdtimes=hours, 
-            hwind_limits=hwind_minmax,
+            #hwind_limits=hwind_minmax,
             )
     
