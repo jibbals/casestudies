@@ -736,6 +736,7 @@ def multiple_transects(mr,
                        dx=None,
                        dy=None,
                        SouthNorth=False,
+                       HSkip=None,
                        ):
     """
     4 rows 2 columns: 
@@ -751,9 +752,12 @@ def multiple_transects(mr,
         dx,dy: how far to stagger transect lines
             default is no stagger for lons, 20% of extent for lats
     """
-    
+    # method takes way too long if running at full resolution without any subsetting
+    if extent is None and HSkip is None:
+        HSkip=2
+
     # read topog
-    cube_topog = fio.read_topog(mr,extent=extent)
+    cube_topog = fio.read_topog(mr,extent=extent, HSkip=HSkip)
     lats = cube_topog.coord('latitude').points
     lons = cube_topog.coord('longitude').points
     topog = cube_topog.data
@@ -811,7 +815,9 @@ def multiple_transects(mr,
         cubelist = fio.read_model_run(mr, 
                                       hours=[umdtime],
                                       extent=extent,
+                                      HSkip=HSkip,
                                       )
+                                      
         # add temperature, height, destaggered wind cubes
         utils.extra_cubes(cubelist,
                           add_theta=True,
@@ -828,6 +834,7 @@ def multiple_transects(mr,
                                       extent=extent,
                                       filenames=['firefront','sensible_heat',
                                                  '10m_uwind','10m_vwind'],
+                                      HSkip=HSkip,
                                       )
         ## loop over time steps
         for ti,dtime in enumerate(dtimes):
@@ -868,7 +875,10 @@ def multiple_transects(mr,
             ax1.set_aspect("equal")
             
             # interpolate to this many points along transect (or detect automatically)
-            npoints=None
+            default_interp_points=utils.number_of_interp_points(lats,lons,transects[0][0],transects[0][1])
+            npoints=np.min([60, default_interp_points])
+            print("DEBUG: how many interp points?", npoints," default would be ", default_interp_points)
+            
             
             ### NEXT 3 ROWS: Transects
             for trani,transect in enumerate(transects):
@@ -986,9 +996,9 @@ if __name__ == '__main__':
     belowra_zoom_name="Belowra"
     
     # settings for plots
-    mr='badja_run2'
-    zoom=belowra_zoom
-    subdir=belowra_zoom_name
+    mr='KI_eve_run1'
+    zoom=None #belowra_zoom
+    subdir=None #belowra_zoom_name
 
 
     ## Multiple transects 

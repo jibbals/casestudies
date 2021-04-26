@@ -2,7 +2,7 @@
 #PBS -P en0
 #PBS -q express
 #PBS -N runstuff
-#PBS -l walltime=12:00:00
+#PBS -l walltime=16:00:00
 #PBS -l mem=120000MB
 #PBS -l cput=24:00:00
 #PBS -l wd
@@ -58,10 +58,10 @@ fnlist_A = [
     topdown_view_only,
     fire_spread, # this one took a while until I started skipping some times
     weather_summary_model, # High resource
-    ] # Uses 10.25 HOURS, 18 GB (pre fire_spread update)
+    ] # Uses 4.5 HOURS, 18 GB (50% spatial constraint)
 fnlist_B = [
     multiple_transects, # high resource
-    ] # 11 hours, 35 GB, (was running fire_spread uneccessarily)
+    ] # 3.6 hours, 15 GB, (50% spatial constraint)
 fnlist_C = [
     rotation_looped, 
     multiple_transects_SN, # ~1hrs, 37GB with 50% horizontal subsetting
@@ -83,9 +83,10 @@ subdir = None
 if 'badja' in mr:
     zoom = badja_zoom
     subdir=badja_zoom_name
-elif 'KI' in mr:
-    zoom = KI_zoom2
-    subdir=KI_zoom2_name
+elif 'KI_run' in mr:
+    zoom = KI_zoom
+    subdir=KI_zoom_name
+# KI_eve zoom?
 
 print("INFO: running methods for [mr, zoom, subdir] :",[mr, zoom, subdir])
 ## Argument list for multiple functions

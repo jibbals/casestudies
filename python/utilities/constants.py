@@ -41,8 +41,10 @@ extents['badja'] = [149.34, 150.03, -36.49, -35.99]
 #latlons['fire_badja'] = -36.17, 149.506
 latlons['Wandella'] = -36.3115, 149.8562
 latlons['Tuross Falls'] = -36.2228, 149.5358
-latlons['Belowra'] = -36.1890, 149.6871
-latlons['Yowrie'] = -36.3451, 149.7531
+latlons['Belowra'] = -36.14807, 149.71676 # updated POST GOOGLE using qgis open street map
+latlons['Yowrie'] = -36.31894, 149.73928 # Also updated with openstreet map
+latlons['Cobargo'] = -36.3866, 149.9018
+latlons['Big Belimbla Creek'] = -36.1001, 149.80365
 
 
 ## Extra locs

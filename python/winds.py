@@ -169,11 +169,8 @@ def rotation_looped(mr,
                     ):
     """
     """
-    simname=mr.split('_')[0]
-    H0 = fio.sim_info[simname]['filedates'][0]
     if dtimes is None:
-        dtimes=[H0 + timedelta(minutes=x*30) for x in range(24*2)]
-    LToffset= timedelta(hours=fio.sim_info[simname]['UTC_offset'])
+        dtimes=fio.hours_available(mr)
 
     # Read 10m winds and firefront:
     ff,u10,v10 = fio.read_fire(mr,
@@ -184,6 +181,7 @@ def rotation_looped(mr,
         )
     #print(u10)
     lat,lon = u10.coord('latitude').points,u10.coord('longitude').points
+    LToffset=utils.local_time_offset_from_lats_lons(lat,lon)
     
     # set up plotting
     cmap='gist_rainbow' # wind dir cmap
