@@ -706,6 +706,71 @@ def firepower_from_cube(shcube):
         firepower=firepower.data
     return firepower/1e9 # Watts to Gigawatts
 
+def lat_lon_grid_edges(lats,lons):
+    """
+    take lats and lons, return grid edges
+    """
+    # using diff means we don't need regular grids
+    dx = np.diff(lons) #lons[1]-lons[0]
+    dy = np.diff(lats) #lats[1]-lats[0]
+    
+    lat_edges = np.zeros(len(lats)+1)
+    # first edge is first lat - (dist to next lat) / 2.0
+    lat_edges[0] = lats[0] - dy[0]/2.0
+    # subsequent edges are orig lats - (dist to prior lat) / 2.0
+    lat_edges[1:-1] = lats[1:]-dy/2.0
+    # final edge is final lat + (dist to prior lat) / 2.0
+    lat_edges[-1] = lats[-1]+dy[-1]/2.0
+    
+    lon_edges = np.zeros(len(lons)+1)
+    lon_edges[0] = lons[0] - dx[0]/2.0
+    lon_edges[1:-1] = lons[1:]-dx/2.0
+    lon_edges[-1] = lons[-1]+dx[-1]/2.0
+    return lat_edges,lon_edges
+
+def lat_lon_grid_area(lats,lons):
+    """
+    Take lats and lons (grid centres), produce edges, return grid areas
+    lats and lons need to be in degrees
+    area returned is in square metres
+    (taken from https://www.pmel.noaa.gov/maillists/tmap/ferret_users/fu_2004/msg00023.html)
+    """
+    lat_edges,lon_edges = lat_lon_grid_edges(lats,lons)
+    lat_edges_rad = np.deg2rad(lat_edges)
+    # 6.371 million metre radius for earth
+    R = 6.3781e6
+    Area_between_lats = 2 * np.pi * R**2.0 * np.abs(
+            np.sin(lat_edges_rad[1:])-np.sin(lat_edges_rad[:-1])
+            )
+    Fraction_between_lons = np.abs(lon_edges[1:]-lon_edges[:-1])/360.0
+    # repeat lon fraction array over number of lats
+    ALon = np.tile(Fraction_between_lons,[len(lats),1]) # now [lats,lons]
+    # repeat area between lats over lon space
+    ALat = np.transpose(np.tile(Area_between_lats, [len(lons),1])) # now [lats,lons]
+    
+    # gridded area
+    grid_area = ALat * ALon
+    return grid_area
+
+def test_lat_lon_grid_area():
+    """
+    """
+    lats=np.array([1,2,3,13])
+    lons=np.array([2,3,13])
+    lat_edges,lon_edges=lat_lon_grid_edges(lats,lons)
+    print("TEST: lats, lat edges:",lats, lat_edges)
+    assert np.all(np.isclose(lat_edges,np.array([0.5,1.5,2.5,8,18]))), "lat edges are wrong"
+    print("TEST: lons, lon edges:",lons, lon_edges)
+    assert np.all(np.isclose(lon_edges,np.array([1.5,2.5,8,18]))), "lon edges are wrong"
+    area=lat_lon_grid_area(lats,lons)
+    print("TEST: area(km2)=",area/1e6)
+    print("TEST: shape(area)=",np.shape(area))
+    assert np.isclose(10*area[0,0], area[0,2]), "area[0,0] should be a 10th of area[0,2] (10 times the longitude)"
+    assert area[0,0] > area[1,0], "area[0,0] should be a greater than area[1,0] (higher latitude)"
+    print("CHECK:make sense?")
+    
+    
+
 def lat_lon_index(lat,lon,lats,lons):
     ''' lat,lon index from lats,lons    '''
     with np.errstate(invalid='ignore'):
@@ -924,7 +989,10 @@ def local_time_from_time_lats_lons(time_utc,lats,lons):
         time_utc=np.datetime64(time_utc)
         
     houroffset=local_time_offset_from_lats_lons(lats,lons)
-    time_lt=np.datetime64((time_utc+Timedelta(houroffset,'h'))).astype(datetime)
+    if hasattr(time_utc,'__iter__'):
+        time_lt = [ np.datetime64((utc+Timedelta(houroffset,'h'))).astype(datetime) for utc in time_utc]
+    else:
+        time_lt=np.datetime64((time_utc+Timedelta(houroffset,'h'))).astype(datetime)
     return time_lt
 
 def local_time_offset_from_lats_lons(lats,lons):

@@ -17,6 +17,53 @@ from matplotlib import colors
 from datetime import datetime, timedelta
 from utilities import fio, utils, plotting
 
+def isochrones(mr, extent=None, subdir=None):
+    """
+    """
+    DS_fire = fio.read_model_run_fire(mr)
+    DA_topog = fio.model_run_topography(mr)
+    
+    if extent is not None:
+        DS_fire = fio.extract_extent(DS_fire,extent)
+        print("DEBUG: Extracting topog:")
+        print(DA_topog)
+        print(extent)
+        DA_topog = fio.extract_extent(DA_topog,extent)
+        if subdir is None:
+            subdir=str(extent)
+    
+    DA_FF = DS_fire['firefront']
+    lats=DS_fire.lat.data
+    lons=DS_fire.lon.data
+    if extent is None:
+        extent=[lons[0],lons[-1],lats[0],lats[-1]]
+    
+    times=DS_fire.time.data
+    
+    ## Plot starts here, we put isochrones onto topography
+    plt.contourf(lons,lats,DA_topog,cmap='terrain')
+    # loop over timesteps after fire starts
+    hasfire=np.min(DA_FF.values,axis=(1,2)) < 0
+    for ti,time_utc in enumerate(times[hasfire][::60]):
+        
+        ## slice time
+        FF = DA_FF.sel(time=time_utc).data
+        
+        plotting.map_fire(FF,lats,lons)
+        
+    plotting.map_add_locations_extent(extent,hide_text=True)
+    
+    # title from local time at fire ignition
+    time_lt = utils.local_time_from_time_lats_lons(times,lats,lons)
+    title=time_lt[hasfire][0].strftime("Hourly fire front from %H%M")
+    plt.title(title)
+        
+    plt.gca().set_aspect("equal")
+
+    # save figure
+    fio.save_fig(mr,"isochrones", mr, plt, subdir=subdir)
+    
+
 def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
     """
     """
@@ -117,8 +164,6 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
         ## get local time
         time_lt = utils.local_time_from_time_lats_lons(time_utc,lats,lons)
         time_str=time_lt.strftime("%Y%m%d %H%M")+"(UTC+%.2f)"%houroffset
-        print("DEBUG: running fire_spread for time:")
-        print("     : ",time_str)
                         
         ## FIRST FIGURE: 10m WIND DIR:
         plt.figure(
@@ -147,8 +192,8 @@ if __name__ == '__main__':
     badja_zoom=[149.4,150.0, -36.4, -35.99]
     badja_zoom_name="zoom1"
     
-    mr='KI_run1'
+    mr='KI_run1_exploratory'
     zoom=KI_zoom
     zoom_name=KI_zoom_name
-
-    fire_spread(mr,zoom,zoom_name)
+    isochrones(mr, extent=zoom, subdir=zoom_name)
+    #fire_spread(mr,zoom,zoom_name)

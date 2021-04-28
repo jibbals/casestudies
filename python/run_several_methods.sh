@@ -49,11 +49,12 @@ python <<EOF
 ## local scripts that can be run
 from cross_sections import topdown_view_only, multiple_transects, multiple_transects_SN
 from weather_summary import weather_summary_model
-from fire_spread import fire_spread
+from fire_spread import fire_spread, isochrones
 from winds import rotation_looped, wind_and_heat_flux_looped
 
 # METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
 fnlist_A = [
+    isochrones,
     wind_and_heat_flux_looped, 
     topdown_view_only,
     fire_spread, # this one took a while until I started skipping some times
