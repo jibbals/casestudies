@@ -42,10 +42,6 @@ def wind_and_heat_flux_looped(mr,
     Figure with 2 panels: 10m wind speed, and wind direction overlaid on heat flux
     wind direction can be put onto a tiff if tiffname is set
     """
-    #dtime = datetime(2017,2,12,7,30) # 1830 LT
-    simname=mr.split('_')[0]
-    LToffset= timedelta(hours=fio.sim_info[simname]['UTC_offset'])
-
     # Read 10m winds and firefront:
     ff,fflux,u10,v10=fio.read_fire(mr,
             extent=extent,
@@ -67,7 +63,8 @@ def wind_and_heat_flux_looped(mr,
 
     lat,lon = u10.coord('latitude').points,u10.coord('longitude').points
     dtimes = utils.dates_from_iris(u10)
-    #print(dtimes)
+    localtimes=utils.local_time_from_time_lats_lons(dtimes,lat,lon)
+    
     # set up plotting
     # windspeed colormap scaling
     vmin,vmax=0,20 # m/s
@@ -81,7 +78,7 @@ def wind_and_heat_flux_looped(mr,
 
     # loop over time:
     for ii,utc in enumerate(dtimes):
-        LT = utc + LToffset
+        LT = localtimes[ii]
         ffi=ff[ii]
         u10i=u10[ii]
         v10i=v10[ii]
@@ -200,7 +197,7 @@ def rotation_looped(mr,
     #transform=u10.coord('latitude').coord_system.as_cartopy_projection()
 
     for ii,dtime in enumerate(dtimes):
-        dtimeLT = dtime+LToffset
+        dtimeLT = dtime+timedelta(hours=LToffset)
         # remove time dim:
         ffi = ff[ii]
         u10i = u10[ii]
@@ -255,7 +252,7 @@ if __name__=='__main__':
     badja_tiffname=None
 
     # settings for plots
-    mr='KI_run1'
+    mr='KI_run2'
     extent=KI_zoom
     subdir=KI_zoom_name
     tiffname=None
@@ -263,7 +260,7 @@ if __name__=='__main__':
     ### Run the stuff
     
     # CHECK LOWER LEVEL ROTATION
-    if False:
+    if True:
         rotation_looped(mr,
                 extent=extent,
                 subdir=subdir,

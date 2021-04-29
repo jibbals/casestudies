@@ -47,7 +47,7 @@ def isochrones(mr, extent=None, subdir=None):
     for ti,time_utc in enumerate(times[hasfire][::60]):
         
         ## slice time
-        FF = DA_FF.sel(time=time_utc).data
+        FF = DA_FF.sel(time=time_utc).data.T
         
         plotting.map_fire(FF,lats,lons)
         
@@ -55,7 +55,7 @@ def isochrones(mr, extent=None, subdir=None):
     
     # title from local time at fire ignition
     time_lt = utils.local_time_from_time_lats_lons(times,lats,lons)
-    title=time_lt[hasfire][0].strftime("Hourly fire front from %H%M")
+    title=np.array(time_lt)[hasfire][0].strftime("Hourly fire front from %H%M")
     plt.title(title)
         
     plt.gca().set_aspect("equal")
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     badja_zoom=[149.4,150.0, -36.4, -35.99]
     badja_zoom_name="zoom1"
     
-    mr='KI_run1_exploratory'
+    mr='KI_eve_run1'
     zoom=KI_zoom
     zoom_name=KI_zoom_name
     isochrones(mr, extent=zoom, subdir=zoom_name)

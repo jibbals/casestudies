@@ -168,15 +168,48 @@ def plot_firepower(DS):
     plt.ylabel('Gigawatts')
     plt.xlabel('local time')
 
+def plot_fireseries(mr,extent=None,subdir=None):
+    """
+    """
+    ## Read/create time series
+    DS = read_fire_time_series(mr)
+    time=DS.localtime.values
+    firepower=DS.firepower.values
+    DA_FS=DS['firespeed_quantiles']
+    FS_q95 = DA_FS.sel(quantile=0.95).values
+    FS_max = DA_FS[-1].values
+
+    ## Plot stuff
+    plt.plot_date(time,firepower,color='r',fmt='-',label='firepower')
+    plt.ylabel('Gigawatts',color='r')
+    ax2=plt.twinx()
+    plt.plot_date(time,FS_q95, color='k',fmt='-', label='fire speed (95th pctile)')
+    plt.plot_date(time,FS_max, color='k',fmt='-', label='max fire speed')
+    plt.ylabel("firespeed")
+    
+    plt.gcf().autofmt_xdate()
+    plt.xlabel('local time')
+    plt.title(mr+" fire series")
+    fio.save_fig(mr, 
+            plot_name="fire_series", 
+            plot_time="fire_series",
+            subdir=subdir,
+            plt=plt,
+            )
+
+
 if __name__ == '__main__':
-    mr="badja_run2_exploratory"
+    mr="badja_run2"
     latlon=[-36.12,149.425]
     lat,lon = latlon
     
-    DS=read_model_timeseries(mr,latlon,force_recreate=True)
-    DS_fire = read_fire_time_series(mr)
-    print(DS)
-    print(DS_fire)
-    print(DS_fire.localtime)
+    plot_fireseries(mr)
+
+    #DS=read_model_timeseries(mr,latlon)
+    #DS_fire = read_fire_time_series(mr)
+    #print(DS)
+    #print(DS_fire)
+    
+
     
 
