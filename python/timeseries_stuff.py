@@ -182,10 +182,12 @@ def plot_fireseries(mr,extent=None,subdir=None):
     ## Plot stuff
     plt.plot_date(time,firepower,color='r',fmt='-',label='firepower')
     plt.ylabel('Gigawatts',color='r')
-    ax2=plt.twinx()
+    plt.twinx()
     plt.plot_date(time,FS_q95, color='k',fmt='-', label='fire speed (95th pctile)')
     plt.plot_date(time,FS_max, color='k',fmt='-', label='max fire speed')
     plt.ylabel("firespeed")
+    # create legend 
+    
     
     plt.gcf().autofmt_xdate()
     plt.xlabel('local time')

@@ -821,6 +821,40 @@ def make_patch_spines_invisible(ax):
     for sp in ax.spines.values():
         sp.set_visible(False)
 
+def quiverwinds(lats,lons,u,v,
+                thresh_windspeed=2,
+                xskip=None,
+                yskip=None,
+                no_defaults=False,
+                **quivargs):
+        
+    #set some defaults
+    if not no_defaults:
+        if "scale_units" not in quivargs.keys() and 'scale' not in quivargs.keys():
+            # I think this makes 50m/s 1 inch 
+            quivargs['scale_units']="inches"
+            quivargs['scale']=50  
+        if "pivot" not in quivargs.keys():
+            quivargs['pivot']='mid'
+    
+    # xskip and yskip for visibility of arrows
+    if xskip is None:
+        xskip,yskip=xyskip_for_quiver(lats,lons)
+    
+    qlons=lons[::xskip]
+    qlats=lats[::yskip]
+    # wins speed used as threshhold for quiver arrows
+    qs = np.sqrt(u[::yskip,::xskip]**2+v[::yskip,::xskip]**2)
+    qu = np.ma.masked_where(qs<thresh_windspeed, 
+                            u[::yskip,::xskip])
+    qv = np.ma.masked_where(qs<thresh_windspeed, 
+                            v[::yskip,::xskip])
+    
+    plt.quiver(qlons, qlats, 
+               qu, qv, **quivargs)
+               
+               
+
 def set_spine_color(ax,color,spines=['bottom','top'], cap="butt", linewidth=2, linestyle="dashed"):
     """
         set spine color
