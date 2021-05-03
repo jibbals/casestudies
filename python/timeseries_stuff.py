@@ -168,8 +168,12 @@ def plot_firepower(DS):
     plt.ylabel('Gigawatts')
     plt.xlabel('local time')
 
-def plot_fireseries(mr,extent=None,subdir=None):
+def plot_fireseries(mr,extent=None,subdir=None,
+        GW_max=1000,):
     """
+    show model run firepower, maximum fire speed, and 95th pctile of fire speed
+    ARGS:
+        GW_max: maximum gigawatts for left y axis
     """
     ## Read/create time series
     DS = read_fire_time_series(mr)
@@ -182,10 +186,12 @@ def plot_fireseries(mr,extent=None,subdir=None):
     ## Plot stuff
     plt.plot_date(time,firepower,color='r',fmt='-',label='firepower')
     plt.ylabel('Gigawatts',color='r')
+    if np.max(firepower) > GW_max:
+        plt.ylim(0,GW_max)
     ax2=plt.twinx()
     plt.plot_date(time,FS_q95, color='k',fmt='-', label='fire speed (95th pctile)')
     plt.plot_date(time,FS_max, color='k',fmt='-', label='max fire speed')
-    plt.ylabel("firespeed")
+    plt.ylabel("firespeed (m/s)")
     
     plt.gcf().autofmt_xdate()
     plt.xlabel('local time')
@@ -199,16 +205,17 @@ def plot_fireseries(mr,extent=None,subdir=None):
 
 
 if __name__ == '__main__':
-    mr="badja_run2"
+    mr="KI_eve_run1"
     latlon=[-36.12,149.425]
     lat,lon = latlon
     
-    plot_fireseries(mr)
+    KI_zoom = [136.5,137.5,-36.1,-35.6]
+    KI_zoom_name = "zoom1"
+    #plot_fireseries(mr)
 
-    #DS=read_model_timeseries(mr,latlon)
-    #DS_fire = read_fire_time_series(mr)
-    #print(DS)
-    #print(DS_fire)
+    if True:
+        for mr in ['KI_run1','KI_run2','KI_run3']:
+            plot_fireseries(mr)
     
 
     
