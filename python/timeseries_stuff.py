@@ -180,7 +180,7 @@ def plot_fireseries(mr,extent=None,subdir=None,
     time=DS.localtime.values
     firepower=DS.firepower.values
     DA_FS=DS['firespeed_quantiles']
-    FS_q95 = DA_FS.sel(quantile=0.95).values
+    FS_q95 = DA_FS.sel(quantile=0.98).values
     FS_max = DA_FS[-1].values
 
     ## Plot stuff
@@ -188,10 +188,11 @@ def plot_fireseries(mr,extent=None,subdir=None,
     plt.ylabel('Gigawatts',color='r')
     if np.max(firepower) > GW_max:
         plt.ylim(0,GW_max)
-    ax2=plt.twinx()
-    plt.plot_date(time,FS_q95, color='k',fmt='-', label='fire speed (95th pctile)')
+    plt.twinx()
+    plt.plot_date(time,FS_q95, color='k',fmt='-', label='fire speed (98th pctile)')
     plt.plot_date(time,FS_max, color='k',fmt='-', label='max fire speed')
     plt.ylabel("firespeed (m/s)")
+    
     
     plt.gcf().autofmt_xdate()
     plt.xlabel('local time')
