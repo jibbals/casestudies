@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 import os
+from glob import glob
 from matplotlib import colors
 
 from datetime import datetime, timedelta
@@ -65,6 +66,25 @@ def lat_lon_grid_area(lats,lons):
     # gridded area
     grid_area = ALat * ALon
     return grid_area
+
+def local_time_offset_from_lats_lons(lats,lons):
+    """
+    Guess time based on mean longitude
+    Assume summer
+    return integer (hours offset from UTC+0)
+    """
+    meanlon=np.mean(lons)
+    meanlat=np.mean(lats)
+    
+    if meanlon>141:
+        # daylight savings in NSW and VIC, but not QLD
+        off=11.0 if meanlat<-29.0 else 10.0
+    elif meanlon > 129:
+        off=10.5
+    else:
+        off=8.0 #WA... should be 8.75 for daylight savings???
+        
+    return off
 
 def local_time_from_time_lats_lons(time_utc,lats,lons):
     if isinstance(time_utc,datetime):
@@ -333,7 +353,7 @@ def plot_fireseries(mr):
 
 
 if __name__ == '__main__':
-    mr="badja_run2"
+    mr="corryong_run4"
     latlon=[-36.12,149.425]
     lat,lon = latlon
     
