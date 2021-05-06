@@ -3,6 +3,11 @@
 Created on Tue Apr  6 16:51:15 2021
     Grey area where fire already burnt, 
     heat flux and 10m winds overlaid
+    Run on badja zoom1:   
+        CPU Time Used: 04:15:40  
+        Memory Used: 7.41GB    
+        Walltime Used: 04:15:54  
+
 @author: jgreensl
 """
 
@@ -17,6 +22,8 @@ from matplotlib import colors
 from datetime import datetime, timedelta
 from utilities import fio, utils, plotting
 
+
+
 def isochrones(mr, extent=None, subdir=None):
     """
     """
@@ -25,9 +32,6 @@ def isochrones(mr, extent=None, subdir=None):
     
     if extent is not None:
         DS_fire = fio.extract_extent(DS_fire,extent)
-        print("DEBUG: Extracting topog:")
-        print(DA_topog)
-        print(extent)
         DA_topog = fio.extract_extent(DA_topog,extent)
         if subdir is None:
             subdir=str(extent)
@@ -63,6 +67,45 @@ def isochrones(mr, extent=None, subdir=None):
     # save figure
     fio.save_fig(mr,"isochrones", mr, plt, subdir=subdir)
     
+def plot_fire_speed(DA_fs, DA_ff, DA_u, DA_v):
+    """
+    """
+    lats=DA_u.lat.values
+    lons=DA_u.lon.values
+    
+    # take maximum if there is time dim
+    if len(DA_fs.shape)==3:
+        DA_fs = DA_fs.max(dim='time')
+
+    if len(lats) == DA_u.shape[1]:
+        u = DA_u.values.T
+        v = DA_v.values.T
+        fs= DA_fs.values.T
+        ff= DA_ff.values.T
+    else:
+        u = DA_u.values
+        v = DA_v.values
+        fs= DA_fs.values
+        ff= DA_ff.values
+    
+    # burnt area
+    ## Do the filled contour plot
+    fspeed_levels=np.linspace(0,2,21)
+    plt.contourf(lons, lats, fs,
+                 fspeed_levels, # color levels
+                 #vmax=-.01,
+                 cmap='Purples',
+                 extend="both",
+                 #alpha=0.8,
+                 )
+    plt.colorbar()
+
+    plotting.map_fire(ff,lats,lons)
+    
+    plotting.quiverwinds(lats,lons,u,v,
+            n_arrows=20,
+            )
+    
 
 def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
     """
@@ -96,7 +139,6 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
     if np.min(ff)<-0.02:
         #    contourfargs['norm']=col.LogNorm()
         burn_levels=[-.07,-.001,0]
-        colors.Colormap
         ## Do the filled contour plot
         plt.contourf(lons, lats, ff,
                      burn_levels, # color levels
@@ -111,13 +153,7 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
         plotting.map_sensibleheat(sh,lats,lons,colorbar=False)
     
     # quiver
-    xskip,yskip=plotting.xyskip_for_quiver(lats,lons)
-    #print(xskip,yskip) # 24,24 in unzoomed run of corryong output
-    plt.quiver(lons[::xskip], lats[::yskip], 
-               u[::yskip,::xskip], v[::yskip,::xskip],
-               pivot='mid',
-               scale_units="inches",
-               scale=50,)
+    plotting.quiverwinds(lats,lons,u,v,)
     
     
 
@@ -134,9 +170,6 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
     DA_topog = fio.model_run_topography(mr)
     if extent is not None:
         DS_fire = fio.extract_extent(DS_fire,extent)
-        print("DEBUG: Extracting topog:")
-        print(DA_topog)
-        print(extent)
         DA_topog = fio.extract_extent(DA_topog,extent)
         if subdir is None:
             subdir=str(extent)
@@ -156,23 +189,25 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
         
         ## slice time
         DS_fire_slice = DS_fire.sel(time=time_utc)
-        DA_u10 = DS_fire_slice['UWIND_2']
-        DA_v10 = DS_fire_slice['VWIND_2']
-        DA_ff  = DS_fire_slice['firefront']
-        DA_sh  = DS_fire_slice['SHEAT_2']
+        DA_u10 = DS_fire_slice['UWIND_2'] # m/s east west
+        DA_v10 = DS_fire_slice['VWIND_2'] # m/s south north
+        DA_ff  = DS_fire_slice['firefront'] # na
+        DA_sh  = DS_fire_slice['SHEAT_2'] # W/m2
+        DA_fs  = DS_fire_slice['fire_speed'] # m/s
+        
+        ## also look at fire speed up until current time
+        DS_fire_slice_upto = DS_fire.isel(time=np.arange(ind_interest[ti]+1))
+        DA_fs_upto = DS_fire_slice_upto['fire_speed'] # m/s has time dim
         
         ## get local time
         time_lt = utils.local_time_from_time_lats_lons(time_utc,lats,lons)
         time_str=time_lt.strftime("%Y%m%d %H%M")+"(UTC+%.2f)"%houroffset
                         
-        ## FIRST FIGURE: 10m WIND DIR:
-        plt.figure(
-            #figsize=[14,11],
-            )
+        ## FIRST FIGURE: fire spread
         
         plot_fire_spread(DA_sh, DA_ff, DA_u10, DA_v10)
         plotting.map_add_locations_extent(extent,hide_text=False)
-        plt.title(time_str)
+        plt.title(mr+" "+time_str)
         
         if coastline>0 and np.min(DA_topog.values)<coastline:
             plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
@@ -182,6 +217,31 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
         # save figure
         fio.save_fig(mr,"fire_spread", time_utc, plt, subdir=subdir)
 
+        ## SECOND FIGURE: fire speed
+        plot_fire_speed(DA_fs, DA_ff, DA_u10, DA_v10)
+        plotting.map_add_locations_extent(extent, hide_text=False)
+        plt.title(mr+" "+time_str)
+        
+        if coastline>0 and np.min(DA_topog.values)<coastline:
+            plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
+                        colors='k')
+        plt.gca().set_aspect("equal")
+
+        # save figure
+        fio.save_fig(mr,"fire_speed", time_utc, plt, subdir=subdir)
+
+        ## Third FIGURE: fire speed maximum
+        plot_fire_speed(DA_fs_upto, DA_ff, DA_u10, DA_v10)
+        plotting.map_add_locations_extent(extent, hide_text=False)
+        plt.title(mr+" "+time_str)
+        
+        if coastline>0 and np.min(DA_topog.values)<coastline:
+            plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
+                        colors='k')
+        plt.gca().set_aspect("equal")
+
+        # save figure
+        fio.save_fig(mr,"fire_speed_max", time_utc, plt, subdir=subdir)
 
 if __name__ == '__main__':
     # keep track of used zooms
@@ -192,8 +252,11 @@ if __name__ == '__main__':
     badja_zoom=[149.4,150.0, -36.4, -35.99]
     badja_zoom_name="zoom1"
     
-    mr='KI_eve_run1'
-    zoom=KI_zoom
-    zoom_name=KI_zoom_name
-    isochrones(mr, extent=zoom, subdir=zoom_name)
-    #fire_spread(mr,zoom,zoom_name)
+    #if True:
+    #    for mr in ['KI_run1','KI_run2','KI_run3']:
+    #        isochrones(mr, extent=KI_zoom, subdir=KI_zoom_name)
+
+    mr = 'badja_run3'
+    zoom = badja_zoom
+    zoom_name=badja_zoom_name
+    fire_spread(mr,zoom,zoom_name)

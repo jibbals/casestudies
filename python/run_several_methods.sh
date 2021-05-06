@@ -24,17 +24,24 @@ if [ $# -lt 1 ] && [ -z ${mr} ]; then
     exit 0
 fi
 
+## List of methods to call
+## METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
+methods="isochrones plot_fireseries plume wind_dir_10m wind_and_heat_flux_looped fire_spread weather_summary_model multiple_transects multiple_transects_SN"
 
 # if called directly, send to queue with mr input variable set
 if [ -z ${PBS_O_LOGNAME} ] || [ -z ${mr} ]; then
     
-    echo "Sending some code to queue with mr=${1}"
-    echo "qsub -v mr=${1} -N ${1} ${0}"
-    
-    # can split script into phases if ram limit reached
-    qsub -v mr=${1},phase=1 -N ${1}_A ${0}
-    qsub -v mr=${1},phase=2 -N ${1}_B ${0}
-    qsub -v mr=${1},phase=3 -N ${1}_C ${0}
+    for method in $methods; do
+        echo "run method ${method}?"
+        select yn in "Yes" "No"; do
+            case $yn in
+                Yes ) echo "qsub -v mr=${1},method=${method} -N ${1}_${method} ${0}"; 
+                    qsub -v mr=${1},method=${method} -N ${1}_${method} ${0};
+                    break;;
+                No ) break;;
+            esac
+        done
+    done
 
     # end here if called directly
     exit 0
@@ -45,74 +52,51 @@ module load conda/analysis3
 
 python <<EOF
 
-
 ## local scripts that can be run
+## NEED TO IMPORT METHOD MATCHING NAME IN METHODS LIST
+# METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
 from cross_sections import topdown_view_only, multiple_transects, multiple_transects_SN
 from weather_summary import weather_summary_model
 from fire_spread import fire_spread, isochrones
 from winds import rotation_looped, wind_and_heat_flux_looped
+from wind_dir import wind_dir_10m
+from timeseries_stuff import plot_fireseries
+from plume import plume
 
-# METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
-fnlist_A = [
-    isochrones,
-    wind_and_heat_flux_looped, 
-    topdown_view_only,
-    fire_spread, # this one took a while until I started skipping some times
-    weather_summary_model, # High resource
-    ] # Uses 4.5 HOURS, 18 GB (50% spatial constraint)
-fnlist_B = [
-    multiple_transects, # high resource
-    ] # 3.6 hours, 15 GB, (50% spatial constraint)
-fnlist_C = [
-    rotation_looped, 
-    multiple_transects_SN, # ~1hrs, 37GB with 50% horizontal subsetting
-    ]
 
-## keep track of used zooms
-KI_zoom = [136.5,137.5,-36.1,-35.6]
-KI_zoom_name = "zoom1"
-KI_zoom2 = [136.5887,136.9122,-36.047,-35.7371]
-KI_zoom2_name = "zoom2"
-badja_zoom=[149.4,150.0, -36.4, -35.99]
-badja_zoom_name="zoom1"
+### keep track of used zooms
+KI_zooms = [[136.5,   137.5,   -36.1,   -35.6],
+            [136.5887,136.9122,-36.047,-35.7371]]
+KI_zoom_names = "zoom1","zoom2"
+badja_zooms=[[149.4,   150.0,   -36.4,   -35.99],
+             [149.5843,149.88,  -36.376, -36.223],
+             [149.5308,149.9093,-36.2862,-36.0893]]
+badja_zoom_names="zoom1","Wandella","Belowra"
 
 ## settings for plots
 mr="${mr}"
+method=${method}
 zoom = None
 subdir = None
 
 if 'badja' in mr:
-    zoom = badja_zoom
-    subdir=badja_zoom_name
+    zoom = badja_zooms[2]
+    subdir=badja_zoom_names[2]
 elif 'KI_run' in mr:
-    zoom = KI_zoom
-    subdir=KI_zoom_name
-# KI_eve zoom?
+    zoom = KI_zooms[0]
+    subdir = KI_zoom_names[0]
+elif 'KI_eve' in mr:
+    zoom = KI_zooms[0]
+    subdir=KI_zoom_names[0]
 
-print("INFO: running methods for [mr, zoom, subdir] :",[mr, zoom, subdir])
-## Argument list for multiple functions
 
-if ${phase}==1:
-    for func in fnlist_A:
-        print("INFO: Calling ",func) 
-        func(mr,zoom,subdir)
-elif ${phase}==2:
-    for func in fnlist_B:
-        print("INFO: Calling ",func) 
-        func(mr,zoom,subdir)
-elif ${phase}==3:
-    for func in fnlist_C:
-        print("INFO: Calling ",func) 
-        func(mr,zoom,subdir)
-        
+print("INFO: running [mr, zoom, subdir] :",[mr, zoom, subdir])
+print("INFO: running method:",method)
 
-## doing it in parallel Failed, and I don't understand the error messages...
-#import dask.bag as db
-#bag = db.from_sequence([mr,zoom,subdir]) 
-## list of functions to be mapped to processors
-#bag = bag.map(fnlist)
-## run functions over whatever available processors
-#bag.compute() 
+method(mr,zoom,subdir)
+
+print("INFO: DONE ",method)
+
 
 EOF
 

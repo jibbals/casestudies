@@ -399,7 +399,7 @@ def map_fire(ff,lats,lons, **contourargs):
     # May need to transpose the fire
     if (ff.shape[0] == len(lons)) and (ff.shape[0] != len(lats)):
         fflatlon = ff.T
-        print("WARNING: fire is in [lon,lat]")
+        #print("WARNING: fire is in [lon,lat]")
     # only plot if there is fire
     if np.sum(ff<0) > 0:
         fireline = plt.contour(lons,lats,fflatlon,np.array([0]),**contourargs)
@@ -823,8 +823,7 @@ def make_patch_spines_invisible(ax):
 
 def quiverwinds(lats,lons,u,v,
                 thresh_windspeed=2,
-                xskip=None,
-                yskip=None,
+                n_arrows=23,
                 no_defaults=False,
                 **quivargs):
         
@@ -838,8 +837,10 @@ def quiverwinds(lats,lons,u,v,
             quivargs['pivot']='mid'
     
     # xskip and yskip for visibility of arrows
-    if xskip is None:
-        xskip,yskip=xyskip_for_quiver(lats,lons)
+    if n_arrows is not None:
+        xskip,yskip=xyskip_for_quiver(lats,lons,n_arrows=n_arrows)
+    else:
+        xskip,yskip=1,1
     
     qlons=lons[::xskip]
     qlats=lats[::yskip]

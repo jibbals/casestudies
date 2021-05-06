@@ -12,6 +12,9 @@ iframe_figures
 # ignore pycache
 **__pycache__
 
+# ignore my nci logs
+python/logs
+
 # ignore documents for now (not sure which are not to be disclosed
 documents
 
