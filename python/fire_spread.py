@@ -67,12 +67,24 @@ def isochrones(mr, extent=None, subdir=None):
     # save figure
     fio.save_fig(mr,"isochrones", mr, plt, subdir=subdir)
     
-def plot_fire_speed(DA_fs, DA_ff, DA_u, DA_v):
+def plot_fire_speed(DA_fs, DA_ff, DA_u, DA_v, **contourfargs):
     """
+    ARGS (xr dataarrays):
+        firespeed[[t,]lat,lon],
+        firefront[lat,lon],
+        u[lat,lon],
+        v[lat,lon],
+        plt.contourf kwargs can be passed in
     """
     lats=DA_u.lat.values
     lons=DA_u.lon.values
     
+    # default contourfargs
+    if 'cmap' not in contourfargs:
+        contourfargs['cmap'] = "gist_stern_r"
+    if 'extend' not in contourfargs:
+        contourfargs['extend'] = 'both'
+
     # take maximum if there is time dim
     if len(DA_fs.shape)==3:
         DA_fs = DA_fs.max(dim='time')
@@ -90,14 +102,12 @@ def plot_fire_speed(DA_fs, DA_ff, DA_u, DA_v):
     
     # burnt area
     ## Do the filled contour plot
-    fspeed_levels=np.linspace(0,2,21)
+    fspeed_levels=np.linspace(0,1,21)
     plt.contourf(lons, lats, fs,
                  fspeed_levels, # color levels
-                 #vmax=-.01,
-                 cmap='Purples',
-                 extend="both",
-                 #alpha=0.8,
+                 **contourfargs,
                  )
+                
     plt.colorbar()
 
     plotting.map_fire(ff,lats,lons)

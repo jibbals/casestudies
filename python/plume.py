@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 import cartopy.crs as ccrs
-from matplotlib import colors
+from matplotlib import colors, ticker
 from datetime import datetime, timedelta
 from utilities import fio, utils, plotting
 
@@ -155,7 +155,7 @@ def plume(mr, extent=None, subdir=None, levels=[2,10,20,30,40, 50,60,70,90], coa
             ## get local time
             time_lt = utils.local_time_from_time_lats_lons(time_utc,lats,lons)
             houroffset = utils.local_time_offset_from_lats_lons(lats,lons)
-            time_str=time_lt.strftime("%Y%m%d %H%M")+"(UTC+%.2f)"%houroffset
+            time_str=time_lt.strftime("%dT%H:%M")+"(UTC+%.2f)"%houroffset
                             
             ## FIRST FIGURE: 10m WIND DIR:
             fig = plt.figure(
@@ -170,7 +170,7 @@ def plume(mr, extent=None, subdir=None, levels=[2,10,20,30,40, 50,60,70,90], coa
                 else:
                     in_sh = None
                     in_ff = DA_ff
-                plot_plume(DA_u[ti,li],DA_v[ti,li],DA_w[ti,li], DA_sh=in_sh, DA_ff=in_ff)
+                cs_h,cs_w = plot_plume(DA_u[ti,li],DA_v[ti,li],DA_w[ti,li], DA_sh=in_sh, DA_ff=in_ff)
                 # add model level height average to each subplot
                 plt.text(0.01,0.01, # bottom left using axes coords
                         "%.2f m"%DS_atmos.level_height[level].values,
@@ -184,13 +184,29 @@ def plume(mr, extent=None, subdir=None, levels=[2,10,20,30,40, 50,60,70,90], coa
                 #plt.gca().set_aspect("equal")
                 plt.gca().set(xticks=[],yticks=[],aspect="equal")
     
-            plt.suptitle(time_str)
+            plt.suptitle(mr+" "+time_str)
 
-            
-            plt.tight_layout()
             plt.subplots_adjust(
                     wspace = 0.0,  # the amount of width reserved for space between subplots,
                     hspace = 0.0,
+                    )
+            plt.tight_layout()
+            
+            # add space in specific area, then add vert wind colourbar
+            cbar_ax = fig.add_axes([0.05, 0.975, 0.25, 0.015]) # X Y Width Height
+            fig.colorbar(cs_h, 
+                    cax=cbar_ax, 
+                    format=ticker.ScalarFormatter(), 
+                    pad=0,
+                    orientation='horizontal',
+                    )
+            # Add horizontal wind colourbar (if uniform)
+            cbar_ax2 = fig.add_axes([0.7, 0.975, 0.25, 0.015]) #XYWH
+            fig.colorbar(cs_w, 
+                    cax=cbar_ax2, 
+                    format=ticker.ScalarFormatter(),
+                    pad=0,
+                    orientation='horizontal',
                     )
     
             # save figure

@@ -28,6 +28,15 @@ fi
 ## METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
 methods="isochrones plot_fireseries plume wind_dir_10m wind_and_heat_flux_looped fire_spread weather_summary_model multiple_transects multiple_transects_SN"
 
+#some runs have multiple interesting extents
+extent_inds="0"
+if [[ ${1}  == *"KI"* ]]; then
+    extent_inds="0 1 2"
+elif [[ ${1} == *"badja"* ]]; then
+    extent_inds="0 1 2"
+fi
+
+
 # if called directly, send to queue with mr input variable set
 if [ -z ${PBS_O_LOGNAME} ] || [ -z ${mr} ]; then
     
@@ -35,8 +44,10 @@ if [ -z ${PBS_O_LOGNAME} ] || [ -z ${mr} ]; then
         echo "run method ${method}?"
         select yn in "Yes" "No"; do
             case $yn in
-                Yes ) echo "qsub -v mr=${1},method=${method} -N ${1}_${method} ${0}"; 
-                    qsub -v mr=${1},method=${method} -N ${1}_${method} ${0};
+                Yes ) echo "qsub -v mr=${1},method=${method},extent_ind=N -N ${1}_${method} ${0}";
+                    for ex_ind in $extent_inds; do
+                        qsub -v mr=${1},method=${method},extent_ind=${ex_ind} -N ${1}_${method} ${0};
+                    done
                     break;;
                 No ) break;;
             esac
@@ -65,9 +76,10 @@ from plume import plume
 
 
 ### keep track of used zooms
-KI_zooms = [[136.5,   137.5,   -36.1,   -35.6],
+KI_zooms = [None,
+            [136.5,   137.5,   -36.1,   -35.6],
             [136.5887,136.9122,-36.047,-35.7371]]
-KI_zoom_names = "zoom1","zoom2"
+KI_zoom_names = None,"zoom1","zoom2"
 badja_zooms=[[149.4,   150.0,   -36.4,   -35.99],
              [149.5843,149.88,  -36.376, -36.223],
              [149.5308,149.9093,-36.2862,-36.0893]]
@@ -76,19 +88,18 @@ badja_zoom_names="zoom1","Wandella","Belowra"
 ## settings for plots
 mr="${mr}"
 method=${method}
-zoom = None
-subdir = None
+zooms = [None]
+subdirs = [None]
 
 if 'badja' in mr:
-    zoom = badja_zooms[2]
-    subdir=badja_zoom_names[2]
-elif 'KI_run' in mr:
-    zoom = KI_zooms[0]
-    subdir = KI_zoom_names[0]
-elif 'KI_eve' in mr:
-    zoom = KI_zooms[0]
-    subdir=KI_zoom_names[0]
+    zooms = badja_zooms
+    subdirs = badja_zoom_names
+elif 'KI_' in mr:
+    zooms = KI_zooms
+    subdirs = KI_zoom_names
 
+zoom = zooms[${extent_ind}]
+subdir = subdirs[${extent_ind}]
 
 print("INFO: running [mr, zoom, subdir] :",[mr, zoom, subdir])
 print("INFO: running method:",method)
