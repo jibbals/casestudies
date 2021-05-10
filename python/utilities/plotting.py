@@ -68,6 +68,17 @@ def init_plots():
     # rcParams["figure.dpi"] 
     #matplotlib.rcParams["figure.dpi"] = 200           # DEFAULT DPI for plot output
 
+def cmap_with_white_range(cmap, n=50, x=0.5):
+    """
+    
+    """
+    lower = cmap(np.linspace(0, x, n))
+    white = cmap(np.ones(n)*x)
+    upper = cmap(np.linspace(1-x, 1, n))
+    splitcolors = np.vstack((lower, white, upper))
+    tmap = col.LinearSegmentedColormap.from_list('map_split_white', splitcolors)
+    return tmap
+
 def wind_dir_color_ring():
     """
     return struct with 'cmap' and 'norm' for building color ring
@@ -825,6 +836,7 @@ def quiverwinds(lats,lons,u,v,
                 thresh_windspeed=2,
                 n_arrows=23,
                 no_defaults=False,
+                add_quiver_key=True,
                 **quivargs):
         
     #set some defaults
@@ -851,9 +863,11 @@ def quiverwinds(lats,lons,u,v,
     qv = np.ma.masked_where(qs<thresh_windspeed, 
                             v[::yskip,::xskip])
     
-    plt.quiver(qlons, qlats, 
+    Q = plt.quiver(qlons, qlats, 
                qu, qv, **quivargs)
-               
+    
+    if add_quiver_key:
+        plt.quiverkey(Q, 0.1, 1.05, 5, r'$15 \frac{m}{s}$', labelpos='W', fontproperties={'weight': 'bold'})
                
 
 def set_spine_color(ax,color,spines=['bottom','top'], cap="butt", linewidth=2, linestyle="dashed"):

@@ -69,6 +69,10 @@ def isochrones(mr, extent=None, subdir=None):
     
 def plot_fire_speed(DA_fs, DA_ff, DA_u, DA_v, **contourfargs):
     """
+    Note from Harvey:
+        The speed will be zero before the fire start. 
+        And its minimum will be 0.001 (I think) after the fire start. 
+        I believe the issue is not harmful, but worth fixing.
     ARGS (xr dataarrays):
         firespeed[[t,]lat,lon],
         firefront[lat,lon],

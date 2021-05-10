@@ -1027,7 +1027,6 @@ def locations_from_extent(extent):
             latlons.append(v)
     return names,latlons
 
-
 def vorticity(u,v,lats,lons,nans_to_zeros=False):
     """
     

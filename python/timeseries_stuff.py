@@ -102,6 +102,10 @@ def read_fire_time_series(mr, force_recreate=False):
     """
     Read/save model run time series for fire metrics, using 5 number summary and mean:
         fire power, fire speed, heat flux, (10m wind speeds?), 
+    Note from Harvey:
+        The speed will be zero before the fire start. 
+        And its minimum will be 0.001 (I think) after the fire start. 
+        I believe the issue is not harmful, but worth fixing.
     """
     fname = "../data/timeseries/"+mr+"_fire.nc"
     if os.path.isfile(fname) and not force_recreate:
@@ -129,6 +133,7 @@ def read_fire_time_series(mr, force_recreate=False):
     # fire_speed in m/s?
     # min val is .008...
     # so no zeros need to be masked out (I guess nans are in there)
+    ## TODO: MASK OUT VALUES BELOW .001
     DA_FS = DS_fire['fire_speed'] # [t, lons, lats]
     DA_FS.load() # need to load for quantile
     # quantiles have shape [q, time]
