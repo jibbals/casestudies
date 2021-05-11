@@ -10,7 +10,7 @@ import numpy as np
 from datetime import datetime,timedelta
 
 # interpolation package
-from scipy import interpolate
+from scipy import interpolate, signal
 from pandas import Timedelta
 
 import iris
@@ -1027,6 +1027,45 @@ def locations_from_extent(extent):
             latlons.append(v)
     return names,latlons
 
+def dragana_vorticity(lat,lon,u_wind,v_wind, smoothing=False):
+    """
+    From dragana's script
+    """
+    # Necessary for vorticity calculation
+    lon2 = lon[np.newaxis,:]
+    lat2 = lat[:,np.newaxis]
+    lon2_rad = np.radians(lon2)
+    lat2_rad = np.radians(lat2)
+    re = 6370e3 # m
+    ##### For Coriolis parameter (planetary vort.)
+    #omega = 7.292115e-5 # 1/s
+    #R = 287
+    #cor_term = 2 * omega * np.sin(lat2_rad)
+    
+    # looks like u and v need to be [lat,lon]
+    if u_wind.shape[0] == len(lon):
+        u_wind = u_wind.T
+        v_wind = v_wind.T
+        
+    rel_vor = np.zeros(u_wind.shape,dtype=np.float32)
+
+    rel_vor[1:-1,1:-1] = ( (v_wind[1:-1,2:]-v_wind[1:-1,:-2])/( (lon2_rad[:,2:]-lon2_rad[:,:-2])*re*np.cos(lat2_rad[1:-1,:])) )-\
+                               ( (u_wind[2:,1:-1]-u_wind[:-2,1:-1])/( (lat2_rad[2:,:]-lat2_rad[:-2,:])*re) ) +\
+                               ((u_wind[1:-1,1:-1]/re) * np.tan(lat2_rad[1:-1,:]))
+
+    # Setup for smoothing
+    if smoothing:
+        m2 = 5 #convrad
+        m = 2*m2+1
+        y = np.zeros((m,m))
+        [y1,y2] = np.meshgrid(np.arange(0,m)-m2,np.arange(0,m)-m2)
+        yr = np.hypot(y1,y2)
+        y[yr <= m2] = 1
+        y /= y.sum()
+        rel_vor = signal.fftconvolve(rel_vor,y,mode='full')[m2:-m2,m2:-m2]
+    
+    return rel_vor
+
 def vorticity(u,v,lats,lons,nans_to_zeros=False):
     """
     
@@ -1095,6 +1134,7 @@ def vorticity(u,v,lats,lons,nans_to_zeros=False):
     if nans_to_zeros:
         OWZ[np.isnan(OWZ)]=0 
         OW_norm[np.isnan(OW_norm)]=0 
+        
     return zeta, OW, OW_norm, OWZ
 
 def wind_dir_from_uv(u,v):

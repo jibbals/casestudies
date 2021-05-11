@@ -47,6 +47,11 @@ latlons['Cobargo'] = -36.3866, 149.9018
 latlons['Big Belimbla Creek'] = -36.1001, 149.80365
 
 
+####### Corryong ###############
+latlons['Lightwood'] = -35.94174, 147.63655 # Lightowood, location of FGV and truck incident
+latlons['Karumba'] = -36.00827, 147.69578
+latlons['Corryong'] = -36.196, 147.902
+
 ## Extra locs
 latlons['sydney']    = -33.8688, 151.2093
 latlons['brisbane']  = -27.4698, 153.0251
