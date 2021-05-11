@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 import cartopy.crs as ccrs
-from matplotlib import colors, ticker
+from matplotlib import colors, ticker, cm
 from datetime import datetime, timedelta
 from utilities import fio, utils, plotting
 
@@ -53,7 +53,9 @@ def plot_plume(DA_u, DA_v, DA_w,
         plotting.map_sensibleheat(sh,
                                   DA_sh.lat.values,
                                   DA_sh.lon.values,
-                                  colorbar=False)
+                                  colorbar=False,
+                                  zorder=3,
+                                  )
     
     # fire front
     if DA_ff is not None:
@@ -61,7 +63,9 @@ def plot_plume(DA_u, DA_v, DA_w,
         plotting.map_fire(ff,
                           DA_ff.lat.values,
                           DA_ff.lon.values,
-                          alpha=0.6,)
+                          alpha=0.6,
+                          zorder=3,
+                          )
     
     # hwinds in Blues
     hwind_vmin,hwind_vmax=hwind_limits
@@ -74,12 +78,14 @@ def plot_plume(DA_u, DA_v, DA_w,
             levels=hcontours,
             cmap="Blues", 
             norm=hwind_norm,
+            zorder=1, # under fire stuff, other stuff 
             )
     
     
     # zwinds in contour pygs
     zwind_norm=colors.SymLogNorm(0.25,base=2.) # linear to +- 0.25, then log scale
-    zwind_min,zwind_max = -1,5 # 2**-1 up to 2**-5
+    zwind_cmap="PiYG_r"
+    zwind_min,zwind_max = 0,5 # 2**0 up to 2**-5
     zwind_contours=np.union1d( #np.union1d(
                     2.0**np.arange(zwind_min,zwind_max+1),
                     -1*(2.0**np.arange(zwind_min,zwind_max+1))
@@ -87,19 +93,23 @@ def plot_plume(DA_u, DA_v, DA_w,
     zwind_cs = plt.contour(
             lons, lats, w, 
             levels=zwind_contours, 
-            cmap="PiYG_r", 
+            cmap=zwind_cmap, 
             norm=zwind_norm,
+            zorder=4, # above all but quivers
+            alpha=0.85,
             )
-    
+    # make nicer scalarmappable object for colorbars:
+    zwind_scalarmappable=cm.ScalarMappable(norm=zwind_norm, cmap=zwind_cmap)
     # quiver/barbs
     plotting.quiverwinds(
             lats,lons,u,v, 
             thresh_windspeed=thresh_windspeed,
-            n_arrows=15,
-            alpha=0.6,
+            n_arrows=12,
+            alpha=0.5,
+            zorder=5, # above all
             )
     
-    return hwind_cs, zwind_cs
+    return hwind_cs, zwind_scalarmappable
     
 
 def plume(mr, extent=None, subdir=None, levels=[2,10,20,30,40, 50,60,70,90], coastline=2):
@@ -159,7 +169,7 @@ def plume(mr, extent=None, subdir=None, levels=[2,10,20,30,40, 50,60,70,90], coa
                             
             ## FIRST FIGURE: 10m WIND DIR:
             fig = plt.figure(
-                figsize=[12,12],
+                figsize=[11,11],
                 )
             #fig_grid = fig.add_gridspec(3, 3, wspace=0, hspace=0)
             for li,level in enumerate(levels):
@@ -176,6 +186,7 @@ def plume(mr, extent=None, subdir=None, levels=[2,10,20,30,40, 50,60,70,90], coa
                         "%.2f m"%DS_atmos.level_height[level].values,
                         fontsize=9,
                         transform=plt.gca().transAxes,# bottom left using axes coords
+                        zorder=10,
                         )
                 plotting.map_add_locations_extent(extent,hide_text=True)
                 if coastline>0 and np.min(DA_topog.values)<coastline:
@@ -190,7 +201,7 @@ def plume(mr, extent=None, subdir=None, levels=[2,10,20,30,40, 50,60,70,90], coa
                     wspace = 0.0,  # the amount of width reserved for space between subplots,
                     hspace = 0.0,
                     )
-            plt.tight_layout()
+            #plt.tight_layout()
             
             # add space in specific area, then add vert wind colourbar
             cbar_ax = fig.add_axes([0.05, 0.975, 0.25, 0.015]) # X Y Width Height
@@ -202,12 +213,15 @@ def plume(mr, extent=None, subdir=None, levels=[2,10,20,30,40, 50,60,70,90], coa
                     )
             # Add horizontal wind colourbar (if uniform)
             cbar_ax2 = fig.add_axes([0.7, 0.975, 0.25, 0.015]) #XYWH
-            fig.colorbar(cs_w, 
+            cb_w = fig.colorbar(cs_w, 
                     cax=cbar_ax2, 
                     format=ticker.ScalarFormatter(),
                     pad=0,
                     orientation='horizontal',
                     )
+            cb_w_ticks = [-32,-8,-2,0,2,8,32]
+            cb_w.set_ticks(cb_w_ticks)
+            cb_w.set_ticklabels([str(val) for val in cb_w_ticks])
     
             # save figure
             fio.save_fig(mr,"plume", time_utc, plt, subdir=subdir)
@@ -222,8 +236,8 @@ if __name__ == '__main__':
     badja_zoom=[149.4,150.0, -36.4, -35.99]
     badja_zoom_name="zoom1"
     
-    mr='KI_run2'
-    zoom=KI_zoom2
-    zoom_name=KI_zoom2_name
+    mr='badja_run3'
+    zoom=badja_zoom
+    zoom_name=badja_zoom_name
 
     plume(mr,zoom,zoom_name)

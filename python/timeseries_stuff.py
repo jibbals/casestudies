@@ -206,15 +206,21 @@ def plot_fireseries(mr,extent=None,subdir=None,
 
 
 if __name__ == '__main__':
-    mr="KI_eve_run1"
-    latlon=[-36.12,149.425]
-    lat,lon = latlon
     
-    KI_zoom = [136.5,137.5,-36.1,-35.6]
-    KI_zoom_name = "zoom1"
-    #plot_fireseries(mr)
+    mr="badja_run3"
+
+    badja_latlon=[-36.12,149.425]
+    KI_latlon=[]
+    
+    if "badja" in mr:
+        latlon=badja_latlon
+    if "KI" in mr:
+        latlon=KI_latlon
 
     if True:
+        read_model_timeseries(mr, latlon)
+
+    if False:
         for mr in ['KI_run1','KI_run2','KI_run3']:
             plot_fireseries(mr)
     

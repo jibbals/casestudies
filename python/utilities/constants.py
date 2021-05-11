@@ -24,10 +24,6 @@ cloud_threshold = 0.01 # g/kg cloud boundary of liquid + ice /kg air
 latlons, extents={},{}
 
 ####### Kangaroo Island extents##########
-# main area
-extents['KI'] = [136.56,137,-36,-35.66]
-# zoomed area
-extents['KIz'] = [136.6,136.9,-35.9,-35.7]
 # towns...
 latlons['Parndana'] = -35.79, 137.262
 #latlons['Cape Torrens'] = -35.74,136.75
@@ -37,8 +33,6 @@ latlons['Cape Borda'] = -35.76191,136.594
 # show ignition area (roughly)
 
 ####### Badja extents ###############
-extents['badja'] = [149.34, 150.03, -36.49, -35.99]
-#latlons['fire_badja'] = -36.17, 149.506
 latlons['Wandella'] = -36.3115, 149.8562
 latlons['Tuross Falls'] = -36.2228, 149.5358
 latlons['Belowra'] = -36.14807, 149.71676 # updated POST GOOGLE using qgis open street map
