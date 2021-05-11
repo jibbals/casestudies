@@ -191,7 +191,7 @@ def hours_available(mr):
     datetimes=[datetime.strptime(f, "umnsaa_%Y%m%d%H_mdl_th1.nc") for f in files]
     return np.array(datetimes)
 
-def read_model_run_hour(mr, hour=0):
+def read_model_run_hour(mr, extent=None, hour=0):
     """
     Read wind,temperature,pressure,altitude data from model run
     ARGUMENTS:
@@ -214,26 +214,21 @@ def read_model_run_hour(mr, hour=0):
     print("    :",hourfiles)
     
     DS = xr.open_mfdataset(hourfiles,compat=COMPAT)
-    #lats = DS['latitude'].values
-    #lons = DS['longitude']
-    #topog=DS["surface_altitude"].values
-    #print(DS.head())
+    
+    if extent is not None:
+        DS = extract_extent(DS,extent)
+    
     return DS
     
-def read_model_run_fire(mr):
+def read_model_run_fire(mr, extent=None):
     """
     """
     fdir=DATADIR+mr+"/fire/"
     firepaths=glob(fdir+"*00Z.nc")
     DS = xr.open_mfdataset(firepaths,compat=COMPAT)
-    #print(DS)
-    #    if datetimes is not None:
-    #        dt64=datetimes
-    #        if isinstance(datetimes[0],datetime):
-    #            dt64 = [np.datetime64(dt) for dt in datetimes]
-    #        print(dt64)
-    #        print(DS.time)
-    #        DS = DS.loc[dict(time=dt64)]
+    
+    if extent is not None:
+        DS = extract_extent(DS,extent)
         
     return(DS)
     
