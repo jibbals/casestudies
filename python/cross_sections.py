@@ -11,7 +11,7 @@ import matplotlib
 
 # plotting stuff
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FormatStrFormatter,LinearLocator, LogFormatter
+from matplotlib.ticker import FormatStrFormatter,LinearLocator, LogFormatter, ScalarFormatter
 import matplotlib.patheffects as PathEffects
 import numpy as np
 import warnings
@@ -125,6 +125,7 @@ def transect_winds(u,v,w,z,
                   transect,
                   ztop=5000,
                   npoints=None,
+                  streamplot=False,
                   wind_contourargs={},
                   ):
     """
@@ -174,16 +175,23 @@ def transect_winds(u,v,w,z,
     retdict['v'] = transect_winds_struct['transect_v']
     retdict['yscale'] = Yscale
     # Streamplot
-    print("INFO: streamplotting transect winds: ")
-    print("    : xdistance=%.2fm, zheight=%.2fm, SCALING VERT MOTION BY factor of %.6f"%(transect_winds_struct['xdistance'][-1],ztop,Yscale))
-    plotting.streamplot_regridded(slicex,slicez,transect_s,transect_w*Yscale,
-                                  density=(.5,.5), 
-                                  color='darkslategrey',
-                                  zorder=1,
-                                  #linewidth=np.hypot(sliceu,slicew), # too hard to see what's going on
-                                  minlength=0.2, # longer minimum stream length (axis coords: ?)
-                                  arrowsize=1.5, # arrow size multiplier
-                                  )
+    if streamplot:
+        print("INFO: streamplotting transect winds: ")
+        print("    : xdistance=%.2fm, zheight=%.2fm, SCALING VERT MOTION BY factor of %.6f"%(transect_winds_struct['xdistance'][-1],ztop,Yscale))
+        plotting.streamplot_regridded(slicex,slicez,transect_s,transect_w*Yscale,
+                                      density=(.5,.5), 
+                                      color='darkslategrey',
+                                      zorder=1,
+                                      #linewidth=np.hypot(sliceu,slicew), # too hard to see what's going on
+                                      minlength=0.2, # longer minimum stream length (axis coords: ?)
+                                      arrowsize=1.5, # arrow size multiplier
+                                      )
+    else:
+        plotting.quiverwinds(slicez,slicex,transect_s,transect_w*Yscale,
+                             n_arrows=30,
+                             add_quiver_key=False,
+                             alpha=0.7,
+                             )
     plt.xlim(np.min(slicex),np.max(slicex))
     plt.ylim(np.min(slicez),ztop)
     
@@ -730,7 +738,7 @@ def multiple_transects(mr,
                        extent=None,
                        subdir=None,
                        hours=None,
-                       ztop=5000,
+                       ztop=3000,
                        start=None,
                        end=None,
                        dx=None,
@@ -752,10 +760,26 @@ def multiple_transects(mr,
         dx,dy: how far to stagger transect lines
             default is no stagger for lons, 20% of extent for lats
     """
-    # method takes way too long if running at full resolution without any subsetting
-    if extent is None and HSkip is None:
+    # method takes way too long for compute node if running at full resolution without any subsetting
+    if (extent is None) and (HSkip is None) and ("exploratory" not in mr):
         HSkip=2
-
+        
+    # theta contours/color levels
+    theta_min,theta_max=295,316
+    theta_contours = np.arange(theta_min,theta_max),
+    theta_levels = np.arange(theta_min,theta_max+1)
+    theta_cmap = 'gist_rainbow_r'
+    theta_norm = matplotlib.colors.Normalize(vmin=theta_min, vmax=theta_max) 
+    # create a scalarmappable from the colormap
+    theta_sm = matplotlib.cm.ScalarMappable(cmap=theta_cmap, norm=theta_norm)
+    # hwind contours/color levels
+    hwind_min,hwind_max = 0,25
+    hwind_contours = np.arange(hwind_min,hwind_max,2.5)
+    hwind_cmap = "Blues"
+    hwind_norm = matplotlib.colors.Normalize(vmin=hwind_min, vmax=hwind_max) 
+    # create a scalarmappable from the colormap
+    hwind_sm = matplotlib.cm.ScalarMappable(cmap=hwind_cmap, norm=hwind_norm)
+    
     # read topog
     cube_topog = fio.read_topog(mr,extent=extent, HSkip=HSkip)
     lats = cube_topog.coord('latitude').points
@@ -897,7 +921,9 @@ def multiple_transects(mr,
                                     sh=shi,
                                     ztop=ztop,
                                     lines=None, 
-                                    cmap='Blues',
+                                    contours=hwind_contours,
+                                    cmap=hwind_cmap,
+                                    colorbar=False,
                                     )
                 
                 wind_transect_struct = transect_winds(ui, vi, wi, zi, lats, lons, 
@@ -930,10 +956,10 @@ def multiple_transects(mr,
                                                 topog=topog, 
                                                 sh=shi,
                                                 ztop=ztop,
-                                                contours=np.arange(295,316),
+                                                contours=theta_contours,
                                                 lines=None, 
-                                                levels=np.arange(295,317),
-                                                cmap='gist_rainbow_r',
+                                                levels=theta_levels,
+                                                cmap=theta_cmap,
                                                 )
                 
                 ## Add vert motion contours
@@ -969,7 +995,20 @@ def multiple_transects(mr,
                 axright.set_ylim(np.min(XRet['y']),ztop)
             ## SAVE FIGURE
             #print("DEBUG: LTstr",LTstr)
-            plt.suptitle(mr + " altitudinally averaged winds " + LTstr,
+            # add space in specific area, then add Hwinds colorbar
+            cbar_ax1 = fig.add_axes([0.905, 0.4, 0.01, 0.2]) # X Y Width Height
+            cbar1 = fig.colorbar(hwind_sm, 
+                                 cax=cbar_ax1, 
+                                 format=ScalarFormatter(), 
+                                 pad=0)
+            
+            # Add Tpot colorbar
+            cbar_ax2 = fig.add_axes([0.48, 0.4, 0.01, 0.2]) #XYWH
+            cbar2 = fig.colorbar(theta_sm, cax=cbar_ax2, 
+                                 format=ScalarFormatter(),
+                                 pad=0,
+                                 )
+            plt.suptitle(mr + " wind transects " + LTstr,
                          fontsize=22)
             fio.save_fig(mr,"multiple_transects",dtime,
                          subdir=subdir,
@@ -994,19 +1033,20 @@ if __name__ == '__main__':
     badja_zoom_name="zoom1"
     belowra_zoom=[149.61, 149.8092, -36.2535, -36.0658]
     belowra_zoom_name="Belowra"
-    
+    KI_jetrun_zoom=[136.6,136.9,-35.79,-36.08]
+    KI_jetrun_name="KI_earlyjet"
     # settings for plots
-    mr='KI_eve_run1'
-    zoom=None #belowra_zoom
-    subdir=None #belowra_zoom_name
+    mr='KI_run1_exploratory'
+    zoom=KI_jetrun_zoom #belowra_zoom
+    subdir=KI_jetrun_zoom #belowra_zoom_name
 
     ## Multiple transects 
     if True:
         ## north_south transects
-        multiple_transects_SN(mr,
-                extent=zoom, 
-                subdir=subdir,
-                )
+        #multiple_transects_SN(mr,
+        #        extent=zoom, 
+        #        subdir=subdir,
+        #        )
         ## 
         multiple_transects(mr,
                 extent=zoom,
