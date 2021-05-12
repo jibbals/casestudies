@@ -15,6 +15,22 @@ from matplotlib import colors
 from datetime import datetime, timedelta
 from utilities import fio, utils, plotting
 
+def read_AWS_timeseries(name_or_path):
+    """
+    read all AWS csv files
+    select those within [W,E,S,N]
+    """
+    import pandas
+    ddir="../data/AWS/"
+    AWS_files_dict = {
+            "cape borda":"HM01X_Data_022823_50100929963887",
+            }
+    if not os.path.isfile(name_or_path):
+        filepath=ddir + AWS_files_dict[str.lower(name_or_path)]
+    AWS_file = pandas.read_csv(filepath)
+    print(AWS_file)
+    
+
 def read_model_timeseries(mr, 
                           latlon,
                           force_recreate=False,
@@ -211,17 +227,88 @@ def plot_fireseries(mr,extent=None,subdir=None,
 
 
 if __name__ == '__main__':
-    mr="KI_eve_run1"
-    latlon=[-36.12,149.425]
-    lat,lon = latlon
+    import pandas
     
-    KI_zoom = [136.5,137.5,-36.1,-35.6]
-    KI_zoom_name = "zoom1"
-    #plot_fireseries(mr)
-
-    if True:
-        for mr in ['KI_run1','KI_run2','KI_run3']:
-            plot_fireseries(mr)
+    name_or_path="Cape Borda"
+    
+    ddir="../data/AWS/"
+    AWS_files_dict = {
+            "cape borda":"HM01X_Data_022823_50100929963887.txt",
+            }
+    AWS_drop_columns=['hm','Station Number',
+                      "Precipitation in last 10 minutes in mm",
+                      "Quality of precipitation in last 10 minutes",
+                      "Precipitation since 9am local time in mm",
+                      "Quality of precipitation since 9am local time",
+                      "Quality of air temperature",
+                      "Quality of Wet bulb temperature",
+                      "Quality of relative humidity",
+                      "Vapour pressure in hPa",
+                      "Quality of vapour pressure",
+                      "Saturated vapour pressure in hPa",
+                      "Quality of saturated vapour pressure",
+                      "Wind speed quality",
+                      "Wind direction quality",
+                      "Quality of speed of maximum windgust in last 10 minutes",
+                      "Quality of mean sea level pressure",
+                      "Quality of station level pressure",
+                      "QNH pressure in hPa",
+                      "Quality of QNH pressure",
+                      "AWS Flag","Error Flag","#"
+                      ]
+    AWS_rename_columns = {
+            "Latitude to four decimal places in degrees":"latitude",
+            "Longitude to four decimal places in degrees":"longitude",
+            "Day/Month/Year Hour24:Minutes in DD/MM/YYYY HH24:MI format in Local time":"localtime",
+            "Day/Month/Year Hour24:Minutes in DD/MM/YYYY HH24:MI format in Universal coordinated time":"utc",
+            #"Precipitation in last 10 minutes in mm":,
+            #"Quality of precipitation in last 10 minutes",
+            #"Precipitation since 9am local time in mm",
+            #"Quality of precipitation since 9am local time",
+            "Air Temperature in degrees C":"temperature",
+            #"Quality of air temperature":,
+            "Wet bulb temperature in degrees C":"temperature_bulb",
+            #"Quality of Wet bulb temperature",
+            "Dew point temperature in degrees C":"temperature_dew",
+            #"Quality of dew point temperature,
+            "Relative humidity in percentage %":"RH",
+            #"Quality of relative humidity",
+            #"Vapour pressure in hPa",Quality of vapour pressure,
+            #Saturated vapour pressure in hPa,Quality of saturated vapour pressure,
+            "Wind speed in m/s":"windspeed_mps",
+            #Wind speed quality,
+            "Wind direction in degrees true":"winddir",
+            #Wind direction quality,
+            "Speed of maximum windgust in last 10 minutes in m/s":"wind_gust_10minute_mps",
+            #Quality of speed of maximum windgust in last 10 minutes
+            "Mean sea level pressure in hPa":"mslp_hPa",
+            #Quality of mean sea level pressure,
+            "Station level pressure in hPa":"pressure_hPa",
+            #Quality of station level pressure,
+            #QNH pressure in hPa,
+            #Quality of QNH pressure,
+            #AWS Flag,Error Flag,#
+            }
+    if not os.path.isfile(name_or_path):
+        filepath=ddir + AWS_files_dict[str.lower(name_or_path)]
+    DF_AWS = pandas.read_csv(filepath)
+    DF_AWS.rename(columns=AWS_rename_columns,inplace = True)
+    DF_AWS.drop(AWS_drop_columns, 
+                axis=1, 
+                inplace=True)
+    print(DF_AWS)
+    
+#    mr="KI_eve_run1"
+#    latlon=[-36.12,149.425]
+#    lat,lon = latlon
+#    
+#    KI_zoom = [136.5,137.5,-36.1,-35.6]
+#    KI_zoom_name = "zoom1"
+#    #plot_fireseries(mr)
+#
+#    if True:
+#        for mr in ['KI_run1','KI_run2','KI_run3']:
+#            plot_fireseries(mr)
     
 
     
