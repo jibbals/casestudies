@@ -85,7 +85,7 @@ def plot_plume(DA_u, DA_v, DA_w,
     # zwinds in contour pygs
     zwind_norm=colors.SymLogNorm(0.25,base=2.) # linear to +- 0.25, then log scale
     zwind_cmap="PiYG_r"
-    zwind_min,zwind_max = 0,5 # 2**0 up to 2**-5
+    zwind_min,zwind_max = -1,5 # 2**0 up to 2**5
     zwind_contours=np.union1d( #np.union1d(
                     2.0**np.arange(zwind_min,zwind_max+1),
                     -1*(2.0**np.arange(zwind_min,zwind_max+1))

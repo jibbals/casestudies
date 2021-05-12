@@ -26,12 +26,12 @@ fi
 
 ## List of methods to call
 ## METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
-methods="isochrones plot_fireseries plume wind_dir_10m wind_and_heat_flux_looped fire_spread weather_summary_model multiple_transects multiple_transects_SN"
+methods="isochrones plot_fireseries vorticity_10m plume wind_dir_10m fire_spread weather_summary_model multiple_transects multiple_transects_SN"
 
 #some runs have multiple interesting extents
 extent_inds="0"
 if [[ ${1}  == *"KI"* ]]; then
-    extent_inds="0 1 2"
+    extent_inds="0 1 2 3"
 elif [[ ${1} == *"badja"* ]]; then
     extent_inds="0 1 2"
 fi
@@ -73,13 +73,15 @@ from winds import rotation_looped, wind_and_heat_flux_looped
 from wind_dir import wind_dir_10m
 from timeseries_stuff import plot_fireseries
 from plume import plume
-
+from vorticity import vorticity_10m
 
 ### keep track of used zooms
 KI_zooms = [None,
             [136.5,   137.5,   -36.1,   -35.6],
-            [136.5887,136.9122,-36.047,-35.7371]]
-KI_zoom_names = None,"zoom1","zoom2"
+            [136.5887,136.9122,-36.047,-35.7371],
+            [136.6,136.9,-36.08,-35.79],
+           ]
+KI_zoom_names = None,"zoom1","zoom2","early_run"
 badja_zooms=[[149.4,   150.0,   -36.4,   -35.99],
              [149.5843,149.88,  -36.376, -36.223],
              [149.5308,149.9093,-36.2862,-36.0893]]

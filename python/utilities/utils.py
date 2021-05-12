@@ -529,8 +529,8 @@ def transect_winds(u,v,lats,lons,start,end,nx=None,z=None):
     # signed angle in radians for transect line
     theta_rads=np.arctan2(lat1-lat0,lon1-lon0)
     theta_degs=np.rad2deg(theta_rads)
-    print("CHECK: angle between", start, end)
-    print("     : is ",theta_degs, "degrees?")
+    #print("CHECK: angle between", start, end)
+    #print("     : is ",theta_degs, "degrees?")
     # base interp points on grid size
     if nx is None:
         nx = number_of_interp_points(lats,lons,start,end)

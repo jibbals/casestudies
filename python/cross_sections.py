@@ -187,10 +187,12 @@ def transect_winds(u,v,w,z,
                                       arrowsize=1.5, # arrow size multiplier
                                       )
     else:
+        print("INFO: quiver plotting transect winds: ")
+        print("    : xdistance=%.2fm, zheight=%.2fm, SCALING VERT MOTION BY factor of %.6f"%(transect_winds_struct['xdistance'][-1],ztop,Yscale))
         plotting.quiverwinds(slicez,slicex,transect_s,transect_w*Yscale,
-                             n_arrows=30,
+                             n_arrows=20,
                              add_quiver_key=False,
-                             alpha=0.7,
+                             alpha=0.5,
                              )
     plt.xlim(np.min(slicex),np.max(slicex))
     plt.ylim(np.min(slicez),ztop)
@@ -765,7 +767,7 @@ def multiple_transects(mr,
         HSkip=2
         
     # theta contours/color levels
-    theta_min,theta_max=295,316
+    theta_min,theta_max=290,316
     theta_contours = np.arange(theta_min,theta_max),
     theta_levels = np.arange(theta_min,theta_max+1)
     theta_cmap = 'gist_rainbow_r'
@@ -878,7 +880,7 @@ def multiple_transects(mr,
             Ti=theta[ti].data
             
             ## Set up figure
-            fig = plt.figure(figsize=(12,16))
+            fig = plt.figure(figsize=(8,14))
             
             ### FIRST ROW: 10m HWINDS AND VWINDS, AND STREAMS
             ax1 = plt.subplot(4,1,1)
@@ -901,13 +903,13 @@ def multiple_transects(mr,
             # interpolate to this many points along transect (or detect automatically)
             default_interp_points=utils.number_of_interp_points(lats,lons,transects[0][0],transects[0][1])
             npoints=np.min([60, default_interp_points])
-            print("DEBUG: how many interp points?", npoints," default would be ", default_interp_points)
+            #print("DEBUG: how many interp points?", npoints," default would be ", default_interp_points)
             
             
             ### NEXT 3 ROWS: Transects
             for trani,transect in enumerate(transects):
                 # add transect to topdown map
-                ax1.plot([transect[0][1],transect[1][1]],[transect[0][0],transect[1][0]],'--k')
+                ax1.plot([transect[0][1],transect[1][1]],[transect[0][0],transect[1][0]],'--k',linewidth=2)
                 
 
                 ## LEFT PANEL: show H wind speed and wind streams
@@ -939,7 +941,7 @@ def multiple_transects(mr,
                 label= wind_transect_struct['xlabel']
                 plt.xticks([Xvals[0],Xvals[-1]],
                            [label[0],label[-1]],
-                           rotation=5)
+                           rotation=10)
                 if trani==0:
                     plt.title("Winds (m/s)")
                 else:
@@ -960,6 +962,7 @@ def multiple_transects(mr,
                                                 lines=None, 
                                                 levels=theta_levels,
                                                 cmap=theta_cmap,
+                                                colorbar=False,
                                                 )
                 
                 ## Add vert motion contours
@@ -990,20 +993,20 @@ def multiple_transects(mr,
                 
                 plt.xticks([Xvals[0],Xvals[-1]],
                            [label[0],label[-1]],
-                           rotation=5)
+                           rotation=10)
                 
                 axright.set_ylim(np.min(XRet['y']),ztop)
             ## SAVE FIGURE
             #print("DEBUG: LTstr",LTstr)
             # add space in specific area, then add Hwinds colorbar
-            cbar_ax1 = fig.add_axes([0.905, 0.4, 0.01, 0.2]) # X Y Width Height
+            cbar_ax1 = fig.add_axes([0.06, 0.74, 0.01, 0.2]) # X Y Width Height
             cbar1 = fig.colorbar(hwind_sm, 
                                  cax=cbar_ax1, 
                                  format=ScalarFormatter(), 
                                  pad=0)
             
             # Add Tpot colorbar
-            cbar_ax2 = fig.add_axes([0.48, 0.4, 0.01, 0.2]) #XYWH
+            cbar_ax2 = fig.add_axes([0.92, 0.74, 0.01, 0.2]) #XYWH
             cbar2 = fig.colorbar(theta_sm, cax=cbar_ax2, 
                                  format=ScalarFormatter(),
                                  pad=0,
@@ -1033,12 +1036,12 @@ if __name__ == '__main__':
     badja_zoom_name="zoom1"
     belowra_zoom=[149.61, 149.8092, -36.2535, -36.0658]
     belowra_zoom_name="Belowra"
-    KI_jetrun_zoom=[136.6,136.9,-35.79,-36.08]
+    KI_jetrun_zoom=[136.6,136.9,-36.08,-35.79]
     KI_jetrun_name="KI_earlyjet"
     # settings for plots
-    mr='KI_run1_exploratory'
+    mr='KI_run2'
     zoom=KI_jetrun_zoom #belowra_zoom
-    subdir=KI_jetrun_zoom #belowra_zoom_name
+    subdir=KI_jetrun_name #belowra_zoom_name
 
     ## Multiple transects 
     if True:

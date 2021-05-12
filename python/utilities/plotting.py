@@ -854,15 +854,19 @@ def quiverwinds(lats,lons,u,v,
     else:
         xskip,yskip=1,1
     
-    qlons=lons[::xskip]
-    qlats=lats[::yskip]
+    # may use 2d lats/lons
+    if len(lats.shape)==2:
+        qlats=lats[::yskip,::xskip]
+        qlons=lons[::yskip,::xskip]
+    else:
+        qlons=lons[::xskip]
+        qlats=lats[::yskip]
     # wins speed used as threshhold for quiver arrows
     qs = np.sqrt(u[::yskip,::xskip]**2+v[::yskip,::xskip]**2)
     qu = np.ma.masked_where(qs<thresh_windspeed, 
                             u[::yskip,::xskip])
     qv = np.ma.masked_where(qs<thresh_windspeed, 
                             v[::yskip,::xskip])
-    
     Q = plt.quiver(qlons, qlats, 
                qu, qv, **quivargs)
     
