@@ -12,24 +12,11 @@ import xarray as xr
 import os
 from matplotlib import colors
 
+import pandas
+from glob import glob
 from datetime import datetime, timedelta
 from utilities import fio, utils, plotting
 
-def read_AWS_timeseries(name_or_path):
-    """
-    read all AWS csv files
-    select those within [W,E,S,N]
-    """
-    import pandas
-    ddir="../data/AWS/"
-    AWS_files_dict = {
-            "cape borda":"HM01X_Data_022823_50100929963887",
-            }
-    if not os.path.isfile(name_or_path):
-        filepath=ddir + AWS_files_dict[str.lower(name_or_path)]
-    AWS_file = pandas.read_csv(filepath)
-    print(AWS_file)
-    
 
 def read_model_timeseries(mr, 
                           latlon,
@@ -105,6 +92,8 @@ def read_model_timeseries(mr,
                       dims=Q.dims, coords=Q.coords)
     RH.attrs["formulation"] = "es =  6.112 * np.exp((17.67 * tempC)/(tempC + 243.5)); e  = qair * press / (0.378 * qair + 0.622);    rh = e / es;    rh[rh > 1] = 1;    rh[rh < 0] = 0"
     DS["relative_humidity"] = RH
+    
+    # ADD local time
     utc=Temp.time.values
     localtime = utils.local_time_from_time_lats_lons(utc,[lat],[lon])
     DS_plus_lt=DS.assign_coords(localtime=("time",localtime))
@@ -114,7 +103,10 @@ def read_model_timeseries(mr,
     print("INFO: SAVED NETCDF:",fname)
     return DS_plus_lt
 
-def read_fire_time_series(mr, force_recreate=False):
+def read_fire_time_series(mr, 
+                          latlon=None, 
+                          force_recreate=False,
+                          interp_method="nearest"):
     """
     Read/save model run time series for fire metrics, using 5 number summary and mean:
         fire power, fire speed, heat flux, (10m wind speeds?), 
@@ -123,10 +115,25 @@ def read_fire_time_series(mr, force_recreate=False):
         And its minimum will be 0.001 (I think) after the fire start. 
         I believe the issue is not harmful, but worth fixing.
     """
-    fname = "../data/timeseries/"+mr+"_fire.nc"
+    if latlon is None:
+        fname = "../data/timeseries/"+mr+"_fire.nc"
+    else:
+        lat,lon = latlon
+        fname = "../data/timeseries/"+mr+str(lat)+","+str(lon)+".nc"
+        
     if os.path.isfile(fname) and not force_recreate:
         print("INFO: Reading already created netcdf fire timeseries:",fname)
         return xr.open_dataset(fname)
+    
+    fire_rename_dict={
+            "HUMID_2":"surface_RH",
+            "LHEAT_2":"latent_heat",
+            "SHEAT_2":"sensible_heat",
+            "TEMPE_2":"surface_temperature",
+            "UWIND_2":"u_10m",
+            "VWIND_2":"v_10m",
+            }
+    
     
     DS_fire = fio.read_model_run_fire(mr)
     lats = DS_fire.lat.values
@@ -147,19 +154,50 @@ def read_fire_time_series(mr, force_recreate=False):
     #DA_LH =  DS_fire['LHEAT_2'] # [t, lons, lats] 
     
     # fire_speed in m/s?
-    # min val is .008...
-    # so no zeros need to be masked out (I guess nans are in there)
-    ## TODO: MASK OUT VALUES BELOW .001
+    # min val is .001
+    ## MASK OUT VALUES BELOW .00105
     DA_FS = DS_fire['fire_speed'] # [t, lons, lats]
     DA_FS.load() # need to load for quantile
     # quantiles have shape [q, time]
-    DA_FS_quantiles=DA_FS.quantile([0,.25,.5,.6,.7,.8,.9,.95,.96,.97,.98,.99,1],dim=("lat","lon"))
+    #plt.figure()
+    #plt.plot(DA_FS.quantile(0.5,dim=("lat","lon")),label="median")
+    #plt.plot(DA_FS.quantile(0.95,dim=("lat","lon")),label="95th pctile")
+    #plt.plot(DA_FS.where(DA_FS.values>0.00105).quantile(0.5,dim=("lat","lon")),label="median (masked)")
+    #plt.plot(DA_FS.where(DA_FS.values>0.00105).quantile(0.95,dim=("lat","lon")),label="95th pctile (masked)")
+    #plt.legend()
+    #plt.savefig("firespeed_masking_check")
+    #plt.close()
+    #print("DEBUG: saved figure:","firespeed_masking_check")
+    DA_FS_quantiles=DA_FS.where(DA_FS.values>0.00105).quantile([0,.25,.5,.6,.7,.8,.9,.95,.96,.97,.98,.99,1],dim=("lat","lon"))
     
+    ## If we have a latlon we add 10m winds
+    DS_fire_timeseries=xr.Dataset()
+    if latlon is not None:
+
+        # will interpolate onto new dimension "latlon" with associated coordinate
+        DA_lat = xr.DataArray([lat], dims="latlon", coords={"lat":lat,"lon":lon})
+        DA_lon = xr.DataArray([lon], dims="latlon", coords={"lat":lat,"lon":lon})
+        
+        DS_fire_timeseries=DS_fire.interp(
+                lat=DA_lat,
+                lon=DA_lon,
+                method=interp_method,
+                )
+        DS_fire_timeseries = DS_fire_timeseries.rename_vars(fire_rename_dict)
+        u = DS_fire_timeseries.u_10m.values
+        v = DS_fire_timeseries.v_10m.values
+        wdir = utils.wind_dir_from_uv(u,v)
+        DS_fire_timeseries["wdir_10m"] = xr.DataArray(wdir,
+                          dims=DS_fire_timeseries.u_10m.dims,
+                          coords=DS_fire_timeseries.u_10m.coords)
     
-    DS_fire_timeseries = xr.Dataset({"firespeed_quantiles":DA_FS_quantiles, 
-                                     "firepower":DA_firepower,})
+    DS_fire_timeseries["firespeed_quantiles"]=DA_FS_quantiles
+    DS_fire_timeseries["firepower"]=DA_firepower
+    
     DS_fire_timeseries_plus_lt=DS_fire_timeseries.assign_coords(localtime=("time",time))
     
+    
+    ## Save file
     fio.make_folder(fname)
     DS_fire_timeseries_plus_lt.to_netcdf(fname)
     print("INFO: SAVED NETCDF:",fname)
@@ -225,17 +263,30 @@ def plot_fireseries(mr,extent=None,subdir=None,
             plt=plt,
             )
 
-
-if __name__ == '__main__':
+def DF_subset_time(DF, dt0=None, dt1=None, timename='localtime'):
+    """
+    subset AWS to time window dt0,dt1
+    can do utc if you change timename to 'utc'
+    """
+    if dt0 is not None:
+        time_mask = DF[timename] >= dt0
+        DF = DF.loc[time_mask]
     
-    import pandas
+    if dt1 is not None:
+        time_mask = DF[timename] <= dt1
+        DF = DF.loc[time_mask]
     
-    name_or_path="Cape Borda"
-    
+    return DF
+def read_AWS(extent=None,station_name=None, lt0=None, lt1=None):
+    """
+    Read all AWS data
+    can subset to extent: [W,E,S,N]
+    can subset to single station
+    can subset to date window [lt0, lt1]
+    """
     ddir="../data/AWS/"
-    AWS_files_dict = {
-            "cape borda":"HM01X_Data_022823_50100929963887.txt",
-            }
+    AWS_allfiles=glob(ddir+"HM01X_Data*")
+    
     AWS_drop_columns=['hm','Station Number',
                       "Precipitation in last 10 minutes in mm",
                       "Quality of precipitation in last 10 minutes",
@@ -276,11 +327,11 @@ if __name__ == '__main__':
             #"Quality of relative humidity",
             #"Vapour pressure in hPa",Quality of vapour pressure,
             #Saturated vapour pressure in hPa,Quality of saturated vapour pressure,
-            "Wind speed in m/s":"windspeed_mps",
+            "Wind speed in m/s":"windspeed_ms-1",
             #Wind speed quality,
             "Wind direction in degrees true":"winddir",
             #Wind direction quality,
-            "Speed of maximum windgust in last 10 minutes in m/s":"wind_gust_10minute_mps",
+            "Speed of maximum windgust in last 10 minutes in m/s":"wind_gust_10minute_ms-1",
             #Quality of speed of maximum windgust in last 10 minutes
             "Mean sea level pressure in hPa":"mslp_hPa",
             #Quality of mean sea level pressure,
@@ -290,14 +341,149 @@ if __name__ == '__main__':
             #Quality of QNH pressure,
             #AWS Flag,Error Flag,#
             }
-    if not os.path.isfile(name_or_path):
-        filepath=ddir + AWS_files_dict[str.lower(name_or_path)]
-    DF_AWS = pandas.read_csv(filepath)
+    
+    li = []
+    for filename in AWS_allfiles:
+        df = pandas.read_csv(filename, index_col=None, header=0)
+        li.append(df)
+    DF_AWS = pandas.concat(li, axis=0, ignore_index=True)
+    #DF_AWS = pandas.read_csv(AWS_allfiles)
     DF_AWS.rename(columns=AWS_rename_columns,inplace = True)
     DF_AWS.drop(AWS_drop_columns, 
                 axis=1, 
                 inplace=True)
-    print(DF_AWS)
+    
+    # convert the 'Date' column to datetime format
+    for dtcolumn in ["localtime","utc"]:
+        DF_AWS[dtcolumn] = pandas.to_datetime(DF_AWS[dtcolumn],dayfirst=True)
+    
+    ## Select by station name
+    #df.loc[(df['column_name'] >= A) & (df['column_name'] <= B)]
+    #DF_Parndana = DF_AWS.loc[DF_AWS['Station Name'].str.contains("PARNDANA")]
+    #lat,lon = DF_Parndana.latitude.values[0], DF_Parndana.longitude.values[0]
+    
+    if station_name is not None:
+        DF_AWS = DF_AWS.loc[DF_AWS['Station Name'].str.contains(str.upper(station_name))]
+    
+    if extent is not None:
+        lon0,lon1,lat0,lat1 = extent
+        DF_AWS = DF_AWS.loc[(DF_AWS["latitude"] > lat0) & (DF_AWS["latitude"] < lat1)]
+        DF_AWS = DF_AWS.loc[(DF_AWS["longitude"] > lon0) & (DF_AWS["longitude"] < lon1)]
+    
+    if (lt0 is not None) or (lt1 is not None):
+        DF_AWS = DF_subset_time(DF_AWS,dt0=lt0,dt1=lt1,timename='localtime')
+    
+    return DF_AWS
+    
+
+def AWS_compare_10m(mr, station_name, buffer_hours=1):
+    """
+    """
+    
+    ## READ AWS
+    DF_AWS = read_AWS(station_name=station_name)
+    lat = DF_AWS.latitude.values[0]
+    lon = DF_AWS.longitude.values[0]
+    
+    ## Read fire series at that spot
+    DS_fire = read_fire_time_series(mr,latlon=[lat,lon],)
+    lt_fire = DS_fire.localtime.values
+    firepower = DS_fire.firepower.values # [t] GWatts
+    fire_u10 = DS_fire['u_10m'].values.squeeze()
+    fire_v10 = DS_fire['v_10m'].values.squeeze()
+    fire_s10 = np.hypot(fire_u10,fire_v10)
+    fire_wdir10 = DS_fire['wdir_10m'].values.squeeze()
+    fire_t_surf = DS_fire['surface_temperature'].values.squeeze() # [t] Celcius
+    fire_RH_surf = DS_fire['surface_RH'].values.squeeze() # [t] %
+    
+    lt0 = lt_fire[0]-pandas.Timedelta(buffer_hours,'h')
+    lt1 = lt_fire[-1]+pandas.Timedelta(buffer_hours,'h')
+    
+    ## subset to model output +- buffer time
+    DF_AWS = DF_subset_time(DF_AWS, dt0=lt0,dt1=lt1,timename='localtime')
+    AWS_s = DF_AWS['windspeed_ms-1'].values
+    AWS_gusts = DF_AWS['wind_gust_10minute_ms-1'].values
+    AWS_wdir = DF_AWS['winddir'].values
+    AWS_RH = DF_AWS['RH'].values
+    AWS_T = DF_AWS['temperature'].values # Celcius
+    lt_AWS = DF_AWS.localtime.values
+    
+    
+    ## Plot stuff
+    mc='darkgreen' # model colour
+    dc='k' # data colour
+    fig,axes = plt.subplots(nrows=3,ncols=1,sharex=True,sharey=False)
+    # first plot shows wind speed and fire power
+    plt.sca(axes[0])
+    plt.plot_date(lt_fire,fire_s10, color=mc, fmt='-', 
+                  label='model (10 metre)')
+    plt.plot_date(lt_AWS, AWS_s, color=dc,fmt='-', 
+                  label='AWS')
+    plt.plot_date(lt_AWS, AWS_gusts, color=dc,fmt='x', alpha=0.7,
+                  label='AWS gusts (10 minute)')
+    #plt.legend()
+    plt.ylabel("wind speed (m/s)")
+    # other side axis for firepower
+    plt.twinx()
+    plt.plot_date(lt_fire,firepower, color='r',fmt='-',label='firepower')
+    plt.ylabel('Fire power (Gigawatts)',color='r')
+    plt.xticks([],[])
+    
+    # wind direction
+    plt.sca(axes[1])
+    plt.plot_date(lt_fire,fire_wdir10, color=mc, fmt='o', label='model (10m)')
+    plt.plot_date(lt_AWS, AWS_wdir, color=dc,fmt='o', label='AWS')
+    plt.ylabel("wind direction (deg)")
+    # other side axis for RH
+    plt.twinx()
+    plt.plot_date(lt_fire,fire_RH_surf, color=mc,fmt='--',
+                  label='model (surface)')
+    plt.plot_date(lt_AWS, AWS_RH, color=dc,fmt='--', 
+                  label='AWS')
+    #plt.legend()
+    plt.ylabel('Relative Humidity (%)')
+    plt.xticks([],[])
+    
+    ## temperature, pressure
+    plt.sca(axes[2])
+    plt.plot_date(lt_fire, fire_t_surf, color=mc, fmt='-', label='model (surface)')
+    plt.plot_date(lt_AWS, AWS_T, color=dc,fmt='-', label='AWS')
+    plt.ylabel("temperature (C)")
+    #plt.legend()
+    
+    # fix date formatting
+    plt.gcf().autofmt_xdate()
+    plt.xlabel('local time')
+    plt.suptitle(mr+" vs "+station_name)
+    plt.subplots_adjust(hspace=0.0)
+    fio.save_fig(mr, 
+            plot_name="AWS_vs_station", 
+            plot_time=station_name,
+            plt=plt,
+            )
+    
+
+if __name__ == '__main__':
+    
+
+    #parnd=read_AWS(station_name="parndana")
+    #parnd = DF_subset_time(parnd, dt0=datetime(2020,1,1),dt1=datetime(2020,1,4))
+    ## Maybe date is wrong... DAYFIRST=TRUE!!
+    #plt.plot_date(parnd.localtime.values,parnd.temperature.values)
+    #parnd.localtime.values[-1]
+    
+    
+    #ds_ts=read_fire_time_series("KI_run1_exploratory",
+    #                            latlon=(-35.7916,137.2496),
+    #                            force_recreate=True,
+    #                           )
+    #print(ds_ts)
+    #ds_ts.close()
+    AWS_compare_10m("KI_run1_exploratory",'Parndana')
+    
+    
+    
+    #DF_AWS.groupby("Station Name").head()
     
 #    mr="KI_eve_run1"
 #    latlon=[-36.12,149.425]
