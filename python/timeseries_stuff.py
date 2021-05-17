@@ -479,23 +479,13 @@ if __name__ == '__main__':
     #                           )
     #print(ds_ts)
     #ds_ts.close()
-    AWS_compare_10m("KI_run1_exploratory",'Parndana')
     
     
     
-    #DF_AWS.groupby("Station Name").head()
-    
-#    mr="KI_eve_run1"
-#    latlon=[-36.12,149.425]
-#    lat,lon = latlon
-#    
-#    KI_zoom = [136.5,137.5,-36.1,-35.6]
-#    KI_zoom_name = "zoom1"
-#    #plot_fireseries(mr)
-#
-#    if True:
-#        for mr in ['KI_run1','KI_run2','KI_run3']:
-#            plot_fireseries(mr)
+    if True:
+        for mr in ['KI_run1','KI_run2','KI_run3']:
+            AWS_compare_10m(mr,'Parndana')
+            #plot_fireseries(mr)
     
 
     
