@@ -462,30 +462,42 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1):
             plt=plt,
             )
     
+def AWS_sites(mr=None, WESN=None):
+    """
+        return name,lat,lon for all sites
+        optionally subset to those within a particular model run inner nest
+        optionally subset to within a [WESN] boundary
+    """
+    aws=read_AWS()
+    station_names= [str.strip(name) for name in aws["Station Name"].unique()]
+    
+    if (mr is not None) and (WESN is None):
+        topog = fio.model_run_topography(mr)
+        WESN = topog.longitude.values[0],topog.longitude.values[-1],topog.latitude.values[0],topog.latitude.values[-1],
+    
+    #print(station_names)
+    namelatlon = []
+    for station_name in station_names:
+        df = aws.loc[aws['Station Name'].str.contains(str.upper(station_name))]
+        lat,lon = df.latitude.values[0],df.longitude.values[0]
+        if WESN is not None:
+            if (WESN[0]<lon) and (WESN[1]>lon) and (WESN[2]<lat) and (WESN[3]>lat):
+                namelatlon.append([station_name,lat,lon])
+            else:
+                continue
+        else:
+            namelatlon.append([station_name,lat,lon])
+        
+    return namelatlon
+        
 
 if __name__ == '__main__':
     
-
-    #parnd=read_AWS(station_name="parndana")
-    #parnd = DF_subset_time(parnd, dt0=datetime(2020,1,1),dt1=datetime(2020,1,4))
-    ## Maybe date is wrong... DAYFIRST=TRUE!!
-    #plt.plot_date(parnd.localtime.values,parnd.temperature.values)
-    #parnd.localtime.values[-1]
-    
-    
-    #ds_ts=read_fire_time_series("KI_run1_exploratory",
-    #                            latlon=(-35.7916,137.2496),
-    #                            force_recreate=True,
-    #                           )
-    #print(ds_ts)
-    #ds_ts.close()
-    
-    
-    
     if True:
-        for mr in ['KI_run1','KI_run2','KI_run3']:
-            AWS_compare_10m(mr,'Parndana')
-            #plot_fireseries(mr)
+        for mr in ['KI_run1','KI_run2',]:
+            for site in ['CAPE WILLOUGHBY','CAPE BORDA','KINGSCOTE AERO','PARNDANA CFS AWS']:
+                AWS_compare_10m(mr,site)
+                #plot_fireseries(mr)
     
 
     
