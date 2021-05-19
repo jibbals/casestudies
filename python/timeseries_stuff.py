@@ -145,9 +145,16 @@ def read_fire_time_series(mr,
     
     ## firepower in W/m2
     DA_SH =  DS_fire['SHEAT_2'] # [t, lons, lats]
+    DA_u = DS_fire['UWIND_2'] # [t, lons, lats]
+    DA_v = DS_fire['UWIND_2'] # [t, lons, lats]
+    DA_s = xr.DataArray(np.hypot(DA_u.values,DA_v.values), coords=DA_v.coords, dims=DA_v.dims, name="windspeed_10m")
+    print("debug:", DA_s)
+    DA_s_quantiles = DA_s.quantile([0,.25,.5,.6,.7,.75,.8,.9,.95,.96,.97,.98,.99,1],dim=("lat","lon"))
+    
     # [t, lons, lats] broadcasts with [lons,lats] to repeat along time dim
     firepower = np.sum(DA_SH.values * area.T * 1e-9,axis=(1,2)) # W/m2 * m2 * GW/W
     DA_firepower = xr.DataArray(firepower, dims=["time"],coords=[DS_fire.time])
+    
     
     # LHEAT_2 comes from water_vapour output (units???)
     # less than SH by 6 magnitudes
@@ -168,7 +175,7 @@ def read_fire_time_series(mr,
     #plt.savefig("firespeed_masking_check")
     #plt.close()
     #print("DEBUG: saved figure:","firespeed_masking_check")
-    DA_FS_quantiles=DA_FS.where(DA_FS.values>0.00105).quantile([0,.25,.5,.6,.7,.8,.9,.95,.96,.97,.98,.99,1],dim=("lat","lon"))
+    DA_FS_quantiles=DA_FS.where(DA_FS.values>0.00105).quantile([0,.25,.5,.6,.7,.75,.8,.9,.95,.96,.97,.98,.99,1],dim=("lat","lon"))
     
     ## If we have a latlon we add 10m winds
     DS_fire_timeseries=xr.Dataset()
@@ -191,6 +198,7 @@ def read_fire_time_series(mr,
                           dims=DS_fire_timeseries.u_10m.dims,
                           coords=DS_fire_timeseries.u_10m.coords)
     
+    DS_fire_timeseries["windspeed_10m_quantiles"]=DA_s_quantiles
     DS_fire_timeseries["firespeed_quantiles"]=DA_FS_quantiles
     DS_fire_timeseries["firepower"]=DA_firepower
     
@@ -203,32 +211,9 @@ def read_fire_time_series(mr,
     print("INFO: SAVED NETCDF:",fname)
     return DS_fire_timeseries_plus_lt
     
-def plot_firespeed(DS):
-    """
-    """
-    # read fire speed timeseries
-    DA_FS_quantiles=DS['firespeed_quantiles']
-    time = DS.localtime.values
-    quantiles = DA_FS_quantiles['quantile'].values
-    for qi,q in enumerate(quantiles[5:]):
-        plt.plot_date(time, DA_FS_quantiles[qi], label=q, fmt='-',color=plt.cm.Reds(q))
-    plt.legend(title='quantiles')
-    plt.title("fire speed (m/s?)")
-    plt.gcf().autofmt_xdate()
 
-def plot_firepower(DS):
-    """
-    """
-    time=DS.localtime.values
-    firepower=DS.firepower.values
-    plt.plot_date(time,firepower,color='r',fmt='-',label='firepower')
-    
-    plt.gcf().autofmt_xdate()
-    plt.ylabel('Gigawatts')
-    plt.xlabel('local time')
-
-def plot_fireseries(mr,extent=None,subdir=None,
-        GW_max=1000,):
+def fireseries(mr,extent=None,subdir=None,
+        GW_max=None,):
     """
     show model run firepower, maximum fire speed, and 95th pctile of fire speed
     ARGS:
@@ -239,23 +224,51 @@ def plot_fireseries(mr,extent=None,subdir=None,
     time=DS.localtime.values
     firepower=DS.firepower.values
     DA_FS=DS['firespeed_quantiles']
-    FS_q95 = DA_FS.sel(quantile=0.98).values
-    FS_max = DA_FS[-1].values
-
+    DA_WS=DS['windspeed_10m_quantiles']
+    
     ## Plot stuff
+    ## Two subplots, top is fire power and fire speed
+    ## bottom is wind speed distribution at 10m altitude
+    fig,axes = plt.subplots(nrows=2,ncols=1,sharex=True,sharey=False)
+    plt.sca(axes[0])
+    
     plt.plot_date(time,firepower,color='r',fmt='-',label='firepower')
     plt.ylabel('Gigawatts',color='r')
-    if np.max(firepower) > GW_max:
+    if (GW_max is not None) and (np.max(firepower) > GW_max):
         plt.ylim(0,GW_max)
     plt.twinx()
-    plt.plot_date(time,FS_q95, color='k',fmt='-', label='fire speed (98th pctile)')
-    plt.plot_date(time,FS_max, color='k',fmt='-', label='max fire speed')
-    plt.ylabel("firespeed (m/s)")
+    for pctile,fscolor in zip([ .95, .99, 1.0],['grey','grey','k']):
+        plt.plot_date(time, DA_FS.sel(quantile=pctile).values * 3.6, 
+                      color=fscolor,
+                      fmt='-',
+                      label=pctile*100,
+                      )
+    plt.legend(title="percentile",
+               prop={'size': 4},
+               )
+    plt.ylabel("firespeed (km/h)")
+    plt.xticks([],[])
+    plt.title(mr+" fire")
     
+    ## second subplot
+    plt.sca(axes[1])
+    for pctile,wscolor in zip([0.5,0.75,0.9,1.00],['grey','grey','grey','k']):
+        plt.plot_date(time, DA_WS.sel(quantile=pctile).values*3.6,
+                      color=wscolor,
+                      fmt='-',
+                      label=pctile*100,
+                      )
+    plt.legend(
+        prop={'size': 5},
+        #title="percentile",
+        )
+    plt.ylabel("10m wind speed (km/h)")
+    plt.ylim(0,150)
+    plt.yticks([0,30,60,90,120],[0,30,60,90,120])
     
     plt.gcf().autofmt_xdate()
     plt.xlabel('local time')
-    plt.title(mr+" fire series")
+    plt.subplots_adjust(hspace=0.0)
     fio.save_fig(mr, 
             plot_name="fire_series", 
             plot_time="fire_series",
@@ -277,6 +290,8 @@ def DF_subset_time(DF, dt0=None, dt1=None, timename='localtime'):
         DF = DF.loc[time_mask]
     
     return DF
+
+
 def read_AWS(extent=None,station_name=None, lt0=None, lt1=None):
     """
     Read all AWS data
@@ -512,7 +527,11 @@ def AWS_sites(mr=None, WESN=None):
 
 if __name__ == '__main__':
     
+    
     if True:
+        fireseries("KI_run1_exploratory",)
+    
+    if False:
         for mr in ['badja_run3','badja_run1','badja_run2']:
             AWS_compare_10m(mr,'Moruya')
 
@@ -520,7 +539,7 @@ if __name__ == '__main__':
         for mr in ['KI_run1','KI_run2',]:
             for site in ['CAPE WILLOUGHBY','CAPE BORDA','KINGSCOTE AERO','PARNDANA CFS AWS']:
                 AWS_compare_10m(mr,site)
-                #plot_fireseries(mr)
+                #fireseries(mr)
     
 
     
