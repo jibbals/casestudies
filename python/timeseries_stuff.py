@@ -356,6 +356,13 @@ def read_AWS(extent=None,station_name=None, lt0=None, lt1=None):
     # convert the 'Date' column to datetime format
     for dtcolumn in ["localtime","utc"]:
         DF_AWS[dtcolumn] = pandas.to_datetime(DF_AWS[dtcolumn],dayfirst=True)
+
+    # Ensure numerical columns are numerical
+    for numcolumn in ["temperature","temperature_bulb","temperature_dew","RH","windspeed_ms-1","winddir",
+            "wind_gust_10minute_ms-1","mslp_hPa","pressure_hPa"]:
+        DF_AWS[numcolumn] = pandas.to_numeric(DF_AWS[numcolumn],errors='coerce')
+        # errors='coerce' turns bad strings into NaN
+
     
     ## Select by station name
     #df.loc[(df['column_name'] >= A) & (df['column_name'] <= B)]
@@ -408,7 +415,13 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1):
     AWS_T = DF_AWS['temperature'].values # Celcius
     lt_AWS = DF_AWS.localtime.values
     
-    
+    #print("DEBUG: timeseries stuff")
+    #print("     : model t0, t1",lt_fire[0],lt_fire[-1])
+    #print("     : AWS t0, t1",lt_AWS[0], lt_AWS[-1])
+    #for test_aws in [AWS_s,AWS_gusts,AWS_wdir,AWS_RH,AWS_T]:
+    #    print("     :", test_aws, " min, max, mean:")
+    #    print("     :", np.min(test_aws),np.max(test_aws),np.mean(test_aws))
+
     ## Plot stuff
     mc='darkgreen' # model colour
     dc='k' # data colour
@@ -426,14 +439,17 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1):
     # other side axis for firepower
     plt.twinx()
     plt.plot_date(lt_fire,firepower, color='r',fmt='-',label='firepower')
-    plt.ylabel('Fire power (Gigawatts)',color='r')
+    plt.ylabel('FP (GW)',color='r')
     plt.xticks([],[])
     
     # wind direction
     plt.sca(axes[1])
     plt.plot_date(lt_fire,fire_wdir10, color=mc, fmt='o', label='model (10m)')
     plt.plot_date(lt_AWS, AWS_wdir, color=dc,fmt='o', label='AWS')
-    plt.ylabel("wind direction (deg)")
+    plt.ylabel("WDir (deg)")
+    plt.ylim(0,360) # ylimits should be 0 to 360 for wdir
+    wdir_ticks=[90,180,270]
+    plt.yticks(wdir_ticks,wdir_ticks)
     # other side axis for RH
     plt.twinx()
     plt.plot_date(lt_fire,fire_RH_surf, color=mc,fmt='--',
@@ -441,14 +457,17 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1):
     plt.plot_date(lt_AWS, AWS_RH, color=dc,fmt='--', 
                   label='AWS')
     #plt.legend()
-    plt.ylabel('Relative Humidity (%)')
+    plt.ylabel('RH (%) (dashed)')
+    rh_ticks = [25,50,75]
+    plt.ylim(0,100) # ylimits should be 0 to 100 for RH
+    plt.yticks(rh_ticks,rh_ticks)
     plt.xticks([],[])
     
     ## temperature, pressure
     plt.sca(axes[2])
     plt.plot_date(lt_fire, fire_t_surf, color=mc, fmt='-', label='model (surface)')
     plt.plot_date(lt_AWS, AWS_T, color=dc,fmt='-', label='AWS')
-    plt.ylabel("temperature (C)")
+    plt.ylabel("T (C)")
     #plt.legend()
     
     # fix date formatting
@@ -494,6 +513,10 @@ def AWS_sites(mr=None, WESN=None):
 if __name__ == '__main__':
     
     if True:
+        for mr in ['badja_run3','badja_run1','badja_run2']:
+            AWS_compare_10m(mr,'Moruya')
+
+    if False:
         for mr in ['KI_run1','KI_run2',]:
             for site in ['CAPE WILLOUGHBY','CAPE BORDA','KINGSCOTE AERO','PARNDANA CFS AWS']:
                 AWS_compare_10m(mr,site)

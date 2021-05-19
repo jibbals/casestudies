@@ -25,7 +25,8 @@ def plot_plume(DA_u, DA_v, DA_w,
                      DA_sh=None, 
                      DA_ff=None,
                      thresh_windspeed=2,
-                     hwind_limits=[0,26]):
+                     hwind_limits=[0,26],
+                     add_quiver_key=False):
     """
     Plot showing Hwind contourf, Vert motion contour, firefront or sens heat optionally
     INPUTS:
@@ -107,12 +108,13 @@ def plot_plume(DA_u, DA_v, DA_w,
             n_arrows=12,
             alpha=0.5,
             zorder=5, # above all
+            add_quiver_key=add_quiver_key,
             )
     
     return hwind_cs, zwind_scalarmappable
     
 
-def plume(mr, extent=None, subdir=None, levels=[2,10,20,30,40, 50,60,70,90], coastline=2):
+def plume(mr, extent=None, subdir=None, levels=[3,10,20,30,40, 50,60,70,90], coastline=2):
     """
     ARGS:
         mr: model run name
@@ -180,7 +182,11 @@ def plume(mr, extent=None, subdir=None, levels=[2,10,20,30,40, 50,60,70,90], coa
                 else:
                     in_sh = None
                     in_ff = DA_ff
-                cs_h,cs_w = plot_plume(DA_u[ti,li],DA_v[ti,li],DA_w[ti,li], DA_sh=in_sh, DA_ff=in_ff)
+                cs_h,cs_w = plot_plume(DA_u[ti,li],DA_v[ti,li],DA_w[ti,li], 
+                        DA_sh=in_sh, 
+                        DA_ff=in_ff, 
+                        add_quiver_key=(li==0),
+                        )
                 # add model level height average to each subplot
                 plt.text(0.01,0.01, # bottom left using axes coords
                         "%.2f m"%DS_atmos.level_height[level].values,
