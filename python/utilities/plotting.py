@@ -68,13 +68,36 @@ def init_plots():
     # rcParams["figure.dpi"] 
     #matplotlib.rcParams["figure.dpi"] = 200           # DEFAULT DPI for plot output
 
-def cmap_with_white_range(cmap, n=50, x=0.5):
+def topography_colouring(vmin,vmax,sealevel=0.05, nsea=50, nland=200):
+    """
+    based on input topography, get colormap levels and norm
+    
+    RETURN colormap, colorlevels, colornorm
+        
     """
     
+    colors_undersea = plt.cm.terrain(np.linspace(0,0.17,nsea))
+    colors_land = plt.cm.terrain(np.linspace(0.25, 1, nland))
+    # combine them and build a new colormap
+    colors_terr = np.vstack((colors_undersea, colors_land))
+    cut_terrain_map = matplotlib.colors.LinearSegmentedColormap.from_list('cut_terrain', colors_terr)
+    
+    if vmin < sealevel:
+        print("TODO:")
+    
+    norm = matplotlib.colors.Normalize(vmin=vmin,vmax=vmax)
+    levels=np.linspace(vmin, vmax, num=nland+nsea+1)
+    return cut_terrain_map,levels,norm
+
+def cmap_with_white_range(cmap, ncolour=50, nwhite=50, x=0.5):
     """
-    lower = cmap(np.linspace(0, x, n))
-    white = cmap(np.ones(n)*x)
-    upper = cmap(np.linspace(1-x, 1, n))
+    ncolour levels, nwhite levels, ncolor levels
+    0 to x will be lower colours
+    x to 1 will be upper levels
+    """
+    lower = cmap(np.linspace(0, x, ncolour))
+    white = cmap(np.ones(nwhite)*x)
+    upper = cmap(np.linspace(1-x, 1, ncolour))
     splitcolors = np.vstack((lower, white, upper))
     tmap = col.LinearSegmentedColormap.from_list('map_split_white', splitcolors)
     return tmap
@@ -806,24 +829,21 @@ def map_add_nice_text(ax, latlons, texts=None, markers=None,
             # Add background (outline)
             txt.set_path_effects(text_effects)
     
-def map_topography(topog,lat,lon,title="Topography", cbar=True, **contourfargs):
+def map_topography(topog,lats,lons, cbar=False, **contourfargs):
     '''
     Show topography map matching extents
     '''
-    # some defaults
-    if 'cmap' not in contourfargs:
-        contourfargs['cmap'] = plt.cm.get_cmap("terrain")
-    # set colorbar arguments
-    cbar_args={
-        'format':tick.ScalarFormatter(),
-        'label':'m',
-        }
-    if not cbar:
-        cbar_args={}
-
-    return map_contourf(topog, lat, lon, 
-            title=title, cbargs=cbar_args,
-            **contourfargs)
+    vmax=np.max(topog)
+    # defaults
+    contourfargs["norm"] = matplotlib.colors.Normalize(-150,np.max(topog))
+    contourfargs["cmap"] = "terrain"
+    contourfargs["levels"] = np.union1d(np.array([-1,0]), np.linspace(0.05,vmax,num=200))
+    
+    #topo_cmap, topo_levels, topo_norm = topography_colouring(DA_topog.values)
+    #levels = np.linspace(-150,np.max(topog),300,endpoint=True)
+    
+    plt.contourf(lons,lats,topog,
+                 **contourfargs)
     
 
 def make_patch_spines_invisible(ax):
@@ -833,20 +853,25 @@ def make_patch_spines_invisible(ax):
         sp.set_visible(False)
 
 def quiverwinds(lats,lons,u,v,
-                thresh_windspeed=2,
+                thresh_windspeed=10,
                 n_arrows=23,
                 no_defaults=False,
                 add_quiver_key=True,
                 **quivargs):
-        
+    """
+    u, v in metres/second
+    arrows and labels converted into km/h
+    
+    """
+    
     #set some defaults
     if not no_defaults:
         if "scale_units" not in quivargs.keys() and 'scale' not in quivargs.keys():
             # I think this makes 50m/s 1 inch 
             quivargs['scale_units']="inches"
-            quivargs['scale']=50  
+            quivargs['scale']=50*3.6  
         if "pivot" not in quivargs.keys():
-            quivargs['pivot']='mid'
+            quivargs['pivot']='tail'
     
     # xskip and yskip for visibility of arrows
     if n_arrows is not None:
@@ -862,17 +887,35 @@ def quiverwinds(lats,lons,u,v,
         qlons=lons[::xskip]
         qlats=lats[::yskip]
     # wins speed used as threshhold for quiver arrows
-    qs = np.sqrt(u[::yskip,::xskip]**2+v[::yskip,::xskip]**2)
+    qs = np.sqrt(u[::yskip,::xskip]**2+v[::yskip,::xskip]**2) * 3.6 # km/h
     qu = np.ma.masked_where(qs<thresh_windspeed, 
-                            u[::yskip,::xskip])
+                            u[::yskip,::xskip]) * 3.6
     qv = np.ma.masked_where(qs<thresh_windspeed, 
-                            v[::yskip,::xskip])
+                            v[::yskip,::xskip]) * 3.6
+    
+    ## color quivers above 90km/h
+    #cmap = matplotlib.colors.ListedColormap(['black', 'magenta'])
+    #bounds=[0,90,1000]
+    #norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
+    
     Q = plt.quiver(qlons, qlats, 
-               qu, qv, **quivargs)
+               qu, qv, 
+               #color=cmap(norm(qs.data)), #doesn't work!?
+               **quivargs)
     
     if add_quiver_key:
-        plt.quiverkey(Q, 0.1, 1.05, 5, r'$15 \frac{m}{s}$', labelpos='W', fontproperties={'weight': 'bold'})
-               
+        plt.quiverkey(Q, 0.1, 1.05, 50, r'$50 \frac{km}{h}$', labelpos='W', fontproperties={'weight': 'bold'})
+    
+    ## overlay quivers above thresh for clarity
+    qu2 = np.ma.masked_where(qs<90, 
+                            u[::yskip,::xskip]) * 3.6
+    qv2 = np.ma.masked_where(qs<90, 
+                            v[::yskip,::xskip]) * 3.6
+    Q2 = plt.quiver(qlons, qlats, 
+                qu2, qv2,
+                color="magenta",
+                **quivargs)
+    
 
 def set_spine_color(ax,color,spines=['bottom','top'], cap="butt", linewidth=2, linestyle="dashed"):
     """

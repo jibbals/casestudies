@@ -11,20 +11,79 @@ Created on Tue Apr  6 16:51:15 2021
 @author: jgreensl
 """
 
-#import matplotlib
+import matplotlib
 #matplotlib.use("Agg")
 
 import numpy as np
 import matplotlib.pyplot as plt
-import xarray as xr
-import cartopy.crs as ccrs
-from matplotlib import colors
-from datetime import datetime, timedelta
+
+#import xarray as xr
+#import cartopy.crs as ccrs
+#from matplotlib import colors
+#from datetime import datetime, timedelta
 from utilities import fio, utils, plotting
 
 
+def isochrone_comparison(mrs, extent=None, subdir=None):
+    """
+    """
+    colors = plt.cm.gist_rainbow(np.linspace(0,1,num=len(mrs)))
+    
+    DS_fires = {mr:fio.read_model_run_fire(mr) for mr in mrs}
+    DA_topog = fio.model_run_topography(mrs[0])
+    
+    if extent is not None:
+        for mr in mrs:
+            DS_fires[mr] = fio.extract_extent(DS_fires[mr],extent)
+        DA_topog = fio.extract_extent(DA_topog,extent)
+        if subdir is None:
+            subdir=str(extent)
+    
+    DA_FFs = {mr:DS_fires[mr]['firefront'] for mr in mrs}
+    lats=DS_fires[mr[0]].lat.data
+    lons=DS_fires[mr[0]].lon.data
+    if extent is None:
+        extent=[lons[0],lons[-1],lats[0],lats[-1]]
+    
+    times=DS_fires[mr[0]].time.data
+    # title from local time at fire ignition
+    time_lt = utils.local_time_from_time_lats_lons(times,lats,lons)
+    
+    ## Plot starts here, we put isochrones onto topography
+    plotting.map_topography(DA_topog.values,lats,lons)
+    
+    # loop over timesteps after fire starts
+    hasfire=np.min(DA_FFs[mr[0]].values,axis=(1,2)) < 0
+    for ti,time_utc in enumerate(times[hasfire][::240]): # every 4 hours once fire starts
+        
+        for mr, color in zip(mrs,colors):
+            
+            DA_FF = DA_FFs[mr]
+            
+            ## slice time
+            FF = DA_FF.sel(time=time_utc).data.T
+            
+            #ffcontour = 
+            plotting.map_fire(FF,lats,lons, 
+                              linewidths=1,
+                              colors=color,
+                              )
+    
+    # Add legend
+    lines = [matplotlib.lines.Line2D([0], [0], color=c, linewidth=2, linestyle='-') for c in colors]
+    plt.legend(lines, mrs)
+    
+    plotting.map_add_locations_extent(extent,hide_text=False)
+    
+    title=np.array(time_lt)[hasfire][0].strftime("Fire isochrones (first at %H%M)")
+    plt.title(title)
+        
+    plt.gca().set_aspect("equal")
 
-def isochrones(mr, extent=None, subdir=None):
+    # save figure
+    fio.save_fig(mr,"isochrones", mr, plt, subdir=subdir)
+
+def isochrones(mr, extent=None, subdir=None, labels=False):
     """
     """
     DS_fire = fio.read_model_run_fire(mr)
@@ -43,9 +102,12 @@ def isochrones(mr, extent=None, subdir=None):
         extent=[lons[0],lons[-1],lats[0],lats[-1]]
     
     times=DS_fire.time.data
+    # title from local time at fire ignition
+    time_lt = utils.local_time_from_time_lats_lons(times,lats,lons)
     
     ## Plot starts here, we put isochrones onto topography
-    plt.contourf(lons,lats,DA_topog,cmap='terrain')
+    plotting.map_topography(DA_topog.values,lats,lons)
+    
     # loop over timesteps after fire starts
     hasfire=np.min(DA_FF.values,axis=(1,2)) < 0
     for ti,time_utc in enumerate(times[hasfire][::60]):
@@ -53,13 +115,18 @@ def isochrones(mr, extent=None, subdir=None):
         ## slice time
         FF = DA_FF.sel(time=time_utc).data.T
         
-        plotting.map_fire(FF,lats,lons)
+        #ffcontour = 
+        plotting.map_fire(FF,lats,lons, linewidths=0.5+((ti%4)==0))
         
-    plotting.map_add_locations_extent(extent,hide_text=True)
+        #if labels and ((ti%4) == 0):
+        #    lt_stamp0=utils.local_time_from_time_lats_lons(time_utc,lats,lons)
+        #    lt_stamp=lt_stamp0.strftime("%H%M")
+        #    plt.clabel(ffcontour, fmt=lt_stamp, colors='k', inline=True)
+                
+                
+    plotting.map_add_locations_extent(extent,hide_text=False)
     
-    # title from local time at fire ignition
-    time_lt = utils.local_time_from_time_lats_lons(times,lats,lons)
-    title=np.array(time_lt)[hasfire][0].strftime("Hourly fire front from %H%M")
+    title=np.array(time_lt)[hasfire][0].strftime("Fire isochrones (first at %H%M)")
     plt.title(title)
         
     plt.gca().set_aspect("equal")
@@ -152,7 +219,7 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
     # burnt area
     if np.min(ff)<-0.02:
         #    contourfargs['norm']=col.LogNorm()
-        burn_levels=[-.07,-.001,0]
+        burn_levels=[-.07,-.0001,0]
         ## Do the filled contour plot
         plt.contourf(lons, lats, ff,
                      burn_levels, # color levels
@@ -171,7 +238,7 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
     
     
 
-def fire_spread(mr, extent=None, subdir=None, coastline=5):
+def fire_spread(mr, extent=None, subdir=None, coastline=2):
     """
     ARGS:
         mr: model run name
@@ -197,8 +264,13 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
     houroffset=utils.local_time_offset_from_lats_lons(lats,lons)
     # loop over timesteps
     # interesting times don't begin before 3 hours in any run
-    ind_interest = np.union1d([0,30,60,90,120,150,180],np.arange(181,24*60-1,5))
-    times_of_interest=[times[i] for i in ind_interest]
+    if "exploratory" in mr:
+        ind_interest = np.arange(0,len(times),10)
+        times_of_interest=times[::10]
+    else:
+        ind_interest = np.union1d([0,30,60,90,120,150,180],np.arange(181,24*60-1,5))
+        times_of_interest=[times[i] for i in ind_interest]
+        
     for ti,time_utc in enumerate(times_of_interest):
         
         ## slice time
@@ -215,13 +287,14 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
         
         ## get local time
         time_lt = utils.local_time_from_time_lats_lons(time_utc,lats,lons)
-        time_str=time_lt.strftime("%Y%m%d %H%M")+"(UTC+%.2f)"%houroffset
-                        
+        #time_str=time_lt.strftime("%Y%m%d %H%M")+"(UTC+%.2f)"%houroffset
+        time_str=time_lt.strftime("%d %H%M")+"(UTC+%.2f)"%houroffset
+        title = mr+"\n"+time_str
         ## FIRST FIGURE: fire spread
         
         plot_fire_spread(DA_sh, DA_ff, DA_u10, DA_v10)
         plotting.map_add_locations_extent(extent,hide_text=False)
-        plt.title(mr+" "+time_str)
+        plt.title(title)
         
         if coastline>0 and np.min(DA_topog.values)<coastline:
             plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
@@ -234,7 +307,7 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
         ## SECOND FIGURE: fire speed
         plot_fire_speed(DA_fs, DA_ff, DA_u10, DA_v10)
         plotting.map_add_locations_extent(extent, hide_text=False)
-        plt.title(mr+" "+time_str)
+        plt.title(title)
         
         if coastline>0 and np.min(DA_topog.values)<coastline:
             plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
@@ -247,7 +320,7 @@ def fire_spread(mr, extent=None, subdir=None, coastline=5):
         ## Third FIGURE: fire speed maximum
         plot_fire_speed(DA_fs_upto, DA_ff, DA_u10, DA_v10)
         plotting.map_add_locations_extent(extent, hide_text=False)
-        plt.title(mr+" "+time_str)
+        plt.title(title)
         
         if coastline>0 and np.min(DA_topog.values)<coastline:
             plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
@@ -266,11 +339,21 @@ if __name__ == '__main__':
     badja_zoom=[149.4,150.0, -36.4, -35.99]
     badja_zoom_name="zoom1"
     
-    #if True:
-    #    for mr in ['KI_run1','KI_run2','KI_run3']:
-    #        isochrones(mr, extent=KI_zoom, subdir=KI_zoom_name)
-
-    mr = 'badja_run3'
-    zoom = badja_zoom
-    zoom_name=badja_zoom_name
-    fire_spread(mr,zoom,zoom_name)
+    if True:
+        mrs=["badja_run1","badja_run2","badja_run3"]
+        extent=badja_zoom
+        subdir=badja_zoom_name
+        isochrone_comparison(mrs,extent=extent,subdir=subdir)
+        for mr in mrs:
+            #fire_spread(mr,)
+            isochrones(mr)
+        
+    
+    if False:
+        for mr in ['KI_run1','KI_run2','KI_run3']:
+            isochrones(mr, extent=KI_zoom, subdir=KI_zoom_name)
+    
+    #mr = 'badja_run3'
+    #zoom = badja_zoom
+    #zoom_name=badja_zoom_name
+    #fire_spread(mr,zoom,zoom_name)
