@@ -15,6 +15,9 @@ iframe_figures
 # ignore my nci logs
 python/logs
 
+# ignore log files in general
+**.o[0-9]*
+
 # ignore documents for now (not sure which are not to be disclosed
 documents
 

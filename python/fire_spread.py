@@ -16,6 +16,7 @@ import matplotlib
 
 import numpy as np
 import matplotlib.pyplot as plt
+import dask # for a warning blocker
 
 #import xarray as xr
 #import cartopy.crs as ccrs
@@ -27,7 +28,8 @@ from utilities import fio, utils, plotting
 def isochrone_comparison(mrs, extent=None, subdir=None):
     """
     """
-    colors = plt.cm.gist_rainbow(np.linspace(0,1,num=len(mrs)))
+    # colours from first 80% of gnuplot
+    colors = plt.cm.gnuplot(np.linspace(0,0.8,num=len(mrs)))
     
     DS_fires = {mr:fio.read_model_run_fire(mr) for mr in mrs}
     DA_topog = fio.model_run_topography(mrs[0])
@@ -40,12 +42,12 @@ def isochrone_comparison(mrs, extent=None, subdir=None):
             subdir=str(extent)
     
     DA_FFs = {mr:DS_fires[mr]['firefront'] for mr in mrs}
-    lats=DS_fires[mr[0]].lat.data
-    lons=DS_fires[mr[0]].lon.data
+    lats=DS_fires[mrs[0]].lat.data
+    lons=DS_fires[mrs[0]].lon.data
     if extent is None:
         extent=[lons[0],lons[-1],lats[0],lats[-1]]
     
-    times=DS_fires[mr[0]].time.data
+    times=DS_fires[mrs[0]].time.data
     # title from local time at fire ignition
     time_lt = utils.local_time_from_time_lats_lons(times,lats,lons)
     
@@ -53,35 +55,55 @@ def isochrone_comparison(mrs, extent=None, subdir=None):
     plotting.map_topography(DA_topog.values,lats,lons)
     
     # loop over timesteps after fire starts
-    hasfire=np.min(DA_FFs[mr[0]].values,axis=(1,2)) < 0
+    # This suppresses a warning when reading large arrays
+    with dask.config.set(**{'array.slicing.split_large_chunks': False}):
+        hasfire=np.min(DA_FFs[mrs[0]].values,axis=(1,2)) < 0
+
     for ti,time_utc in enumerate(times[hasfire][::240]): # every 4 hours once fire starts
         
         for mr, color in zip(mrs,colors):
             
             DA_FF = DA_FFs[mr]
-            
-            ## slice time
-            FF = DA_FF.sel(time=time_utc).data.T
-            
-            #ffcontour = 
+            with dask.config.set(**{'array.slicing.split_large_chunks': False}):
+                FF = DA_FF.sel(time=time_utc).data.T
             plotting.map_fire(FF,lats,lons, 
                               linewidths=1,
-                              colors=color,
+                              colors=[color],
+                              linestyles='--',
                               )
+
+    # Finally do last timestep
+    for mr, color in zip(mrs,colors):
+        DA_FF = DA_FFs[mr]
+            
+        ## slice time
+        with dask.config.set(**{'array.slicing.split_large_chunks': False}):
+            FF = DA_FF.sel(time=times[-1]).data.T
+        plotting.map_fire(FF,lats,lons, 
+                          linewidths=2,
+                          colors=[color],
+                          )
     
     # Add legend
     lines = [matplotlib.lines.Line2D([0], [0], color=c, linewidth=2, linestyle='-') for c in colors]
-    plt.legend(lines, mrs)
+    plt.legend(lines, mrs, 
+            bbox_to_anchor=(.01, 1.01), # put legend top left (above figure)
+            loc='lower left', # for bbox connection
+            handlelength=1, # default is 2, line length in legend is too long
+            )
     
     plotting.map_add_locations_extent(extent,hide_text=False)
     
-    title=np.array(time_lt)[hasfire][0].strftime("Fire isochrones (first at %H%M)")
+    title=np.array(time_lt)[hasfire][0].strftime("Isochrones from %H%M")
     plt.title(title)
         
     plt.gca().set_aspect("equal")
 
     # save figure
-    fio.save_fig(mr,"isochrones", mr, plt, subdir=subdir)
+    locstr = mrs[0].split("_")[0]
+    if subdir is not None:
+        locstr = locstr+subdir
+    fio.save_fig_to_path("../figures/isochrone_comparison/"+locstr+".png", plt)
 
 def isochrones(mr, extent=None, subdir=None, labels=False):
     """
@@ -336,7 +358,7 @@ if __name__ == '__main__':
     KI_zoom_name = "zoom1"
     KI_zoom2 = [136.5887,136.9122,-36.047,-35.7371]
     KI_zoom2_name = "zoom2"
-    badja_zoom=[149.4,150.0, -36.4, -35.99]
+    badja_zoom=[149.4,150.12, -36.47, -35.99]
     badja_zoom_name="zoom1"
     
     if True:
@@ -344,9 +366,9 @@ if __name__ == '__main__':
         extent=badja_zoom
         subdir=badja_zoom_name
         isochrone_comparison(mrs,extent=extent,subdir=subdir)
-        for mr in mrs:
+        #for mr in mrs:
             #fire_spread(mr,)
-            isochrones(mr)
+            #isochrones(mr)
         
     
     if False:

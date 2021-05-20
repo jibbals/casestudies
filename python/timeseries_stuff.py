@@ -148,7 +148,6 @@ def read_fire_time_series(mr,
     DA_u = DS_fire['UWIND_2'] # [t, lons, lats]
     DA_v = DS_fire['UWIND_2'] # [t, lons, lats]
     DA_s = xr.DataArray(np.hypot(DA_u.values,DA_v.values), coords=DA_v.coords, dims=DA_v.dims, name="windspeed_10m")
-    print("debug:", DA_s)
     DA_s_quantiles = DA_s.quantile([0,.25,.5,.6,.7,.75,.8,.9,.95,.96,.97,.98,.99,1],dim=("lat","lon"))
     
     # [t, lons, lats] broadcasts with [lons,lats] to repeat along time dim
@@ -528,9 +527,14 @@ def AWS_sites(mr=None, WESN=None):
 if __name__ == '__main__':
     
     
-    if True:
+    if False:
         fireseries("KI_run1_exploratory",)
     
+    if True:
+        for mr in ['KI_run1','KI_run2','badja_run1','badja_run2','badja_run3']:
+            #read_fire_time_series(mr, force_recreate=True)
+            fireseries(mr)
+
     if False:
         for mr in ['badja_run3','badja_run1','badja_run2']:
             AWS_compare_10m(mr,'Moruya')
