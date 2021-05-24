@@ -54,15 +54,15 @@ _latlons_               = constants.latlons
 
 
 def init_plots():
-    matplotlib.rcParams['font.size'] = 14.0
+    matplotlib.rcParams['font.size'] = 13.0
     matplotlib.rcParams["text.usetex"]      = False     # I forget what this is for, maybe allows latex labels?
     matplotlib.rcParams["legend.numpoints"] = 1         # one point for marker legends
     matplotlib.rcParams["figure.figsize"]   = (9, 7)    # Default figure size
     matplotlib.rcParams["axes.titlesize"]   = 17        # title font size
     matplotlib.rcParams["figure.titlesize"] = 20        # figure suptitle size
     matplotlib.rcParams["axes.labelsize"]   = 14        #
-    matplotlib.rcParams["xtick.labelsize"]  = 11        #
-    matplotlib.rcParams["ytick.labelsize"]  = 11        #
+    matplotlib.rcParams["xtick.labelsize"]  = 12        #
+    matplotlib.rcParams["ytick.labelsize"]  = 12        #
     matplotlib.rcParams['image.cmap'] = 'plasma'        # Colormap default
     matplotlib.rcParams['axes.formatter.useoffset'] = False # another one I've forgotten the purpose of
     # rcParams["figure.dpi"] 
@@ -772,7 +772,7 @@ def map_quiver(u, v, lats, lons, nquivers=13, **quiver_kwargs):
 
 
 def map_add_nice_text(ax, latlons, texts=None, markers=None, 
-                      fontsizes=12, fontcolors='wheat', 
+                      fontsizes=10, fontcolors='wheat', 
                       markercolors='grey', markersizes=None,
                       outlinecolors='k', transform=None):
     '''
@@ -783,6 +783,7 @@ def map_add_nice_text(ax, latlons, texts=None, markers=None,
         markers: iterable of characters, optional
         transform: if using geoaxes instance (non platecarree map) then set this to ccrs.Geodetic() or PlateCarree()?
     '''
+    fontname='Helvetica'
     ## Adding to a map using latlons can use the geodetic transform
     #geodetic_CRS = ccrs.Geodetic()
     transformargs = {}
@@ -824,7 +825,10 @@ def map_add_nice_text(ax, latlons, texts=None, markers=None,
         
         if len(text)>0:
             # Add text to map
-            txt = ax.text(lon, lat, text, fontsize=fsize, color=fcolor,
+            txt = ax.text(lon, lat, text, 
+                          fontsize=fsize, 
+                          color=fcolor,
+                          fontname=fontname,
                           **transformargs)
             # Add background (outline)
             txt.set_path_effects(text_effects)
