@@ -187,9 +187,14 @@ def transect_winds(u,v,w,z,
                                       arrowsize=1.5, # arrow size multiplier
                                       )
     else:
-        print("INFO: quiver plotting transect winds: ")
-        print("    : xdistance=%.2fm, zheight=%.2fm, SCALING VERT MOTION BY factor of %.6f"%(transect_winds_struct['xdistance'][-1],ztop,Yscale))
-        plotting.quiverwinds(slicez,slicex,transect_s,transect_w*Yscale,
+        #print("INFO: quiver plotting transect winds: ")
+        #print("    : xdistance=%.2fm, zheight=%.2fm, SCALING VERT MOTION BY factor of %.6f"%(transect_winds_struct['xdistance'][-1],ztop,Yscale))
+        #plotting.quiverwinds(slicez,slicex,transect_s,transect_w*Yscale,
+        #                     n_arrows=20,
+        #                     add_quiver_key=False,
+        #                     alpha=0.5,
+        #                     )
+        plotting.quiverwinds(slicez,slicex,transect_s,transect_w,
                              n_arrows=20,
                              add_quiver_key=False,
                              alpha=0.5,

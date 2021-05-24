@@ -15,7 +15,7 @@ from matplotlib import colors
 import pandas
 from glob import glob
 from datetime import datetime, timedelta
-from utilities import fio, utils, plotting
+from utilities import fio, utils, plotting,constants
 
 
 AWS_rename_columns = {
@@ -459,47 +459,48 @@ def read_AWS(extent=None,station_name=None, lt0=None, lt1=None):
     return DF_AWS
     
 
-def AWS_compare_10m(mr, station_name, buffer_hours=1):
+def AWS_compare_10m(mr, station_name, buffer_hours=1,
+                    no_model=False,
+                    no_aws=False,
+                    latlon=None,):
     """
     """
     
     ## READ AWS
     if "PAWS_Belowra" in station_name:
         DF_AWS = read_PAWS_belowra()
-    else:
+    elif not no_aws:
         DF_AWS = read_AWS(station_name=station_name)
-    lat = DF_AWS.latitude.values[0]
-    lon = DF_AWS.longitude.values[0]
     
-    ## Read fire series at that spot
-    DS_fire = read_fire_time_series(mr,latlon=[lat,lon],)
-    lt_fire = DS_fire.localtime.values
-    firepower = DS_fire.firepower.values # [t] GWatts
-    fire_u10 = DS_fire['u_10m'].values.squeeze()
-    fire_v10 = DS_fire['v_10m'].values.squeeze()
-    fire_s10 = np.hypot(fire_u10,fire_v10)
-    fire_wdir10 = DS_fire['wdir_10m'].values.squeeze()
-    fire_t_surf = DS_fire['surface_temperature'].values.squeeze() # [t] Celcius
-    fire_RH_surf = DS_fire['surface_RH'].values.squeeze() # [t] %
+    if no_aws:
+        lat,lon = latlon
+    else:
+        lat = DF_AWS.latitude.values[0]
+        lon = DF_AWS.longitude.values[0]
     
-    lt0 = lt_fire[0]-pandas.Timedelta(buffer_hours,'h')
-    lt1 = lt_fire[-1]+pandas.Timedelta(buffer_hours,'h')
-    
-    ## subset to model output +- buffer time
-    DF_AWS = DF_subset_time(DF_AWS, dt0=lt0,dt1=lt1,timename='localtime')
-    AWS_s = DF_AWS['windspeed_ms-1'].values
-    AWS_gusts = DF_AWS['wind_gust_10minute_ms-1'].values
-    AWS_wdir = DF_AWS['winddir'].values
-    AWS_RH = DF_AWS['RH'].values
-    AWS_T = DF_AWS['temperature'].values # Celcius
-    lt_AWS = DF_AWS.localtime.values
-    
-    #print("DEBUG: timeseries stuff")
-    #print("     : model t0, t1",lt_fire[0],lt_fire[-1])
-    #print("     : AWS t0, t1",lt_AWS[0], lt_AWS[-1])
-    #for test_aws in [AWS_s,AWS_gusts,AWS_wdir,AWS_RH,AWS_T]:
-    #    print("     :", test_aws, " min, max, mean:")
-    #    print("     :", np.min(test_aws),np.max(test_aws),np.mean(test_aws))
+    if not no_model:
+        ## Read fire series at that spot
+        DS_fire = read_fire_time_series(mr,latlon=[lat,lon],)
+        lt_fire = DS_fire.localtime.values
+        firepower = DS_fire.firepower.values # [t] GWatts
+        fire_u10 = DS_fire['u_10m'].values.squeeze()
+        fire_v10 = DS_fire['v_10m'].values.squeeze()
+        fire_s10 = np.hypot(fire_u10,fire_v10)
+        fire_wdir10 = DS_fire['wdir_10m'].values.squeeze()
+        fire_t_surf = DS_fire['surface_temperature'].values.squeeze() # [t] Celcius
+        fire_RH_surf = DS_fire['surface_RH'].values.squeeze() # [t] %
+        
+        lt0 = lt_fire[0]-pandas.Timedelta(buffer_hours,'h')
+        lt1 = lt_fire[-1]+pandas.Timedelta(buffer_hours,'h')
+        
+        ## subset to model output +- buffer time
+        DF_AWS = DF_subset_time(DF_AWS, dt0=lt0,dt1=lt1,timename='localtime')
+        AWS_s = DF_AWS['windspeed_ms-1'].values
+        AWS_gusts = DF_AWS['wind_gust_10minute_ms-1'].values
+        AWS_wdir = DF_AWS['winddir'].values
+        AWS_RH = DF_AWS['RH'].values
+        AWS_T = DF_AWS['temperature'].values # Celcius
+        lt_AWS = DF_AWS.localtime.values
 
     ## Plot stuff
     mc='darkgreen' # model colour
@@ -507,34 +508,42 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1):
     fig,axes = plt.subplots(nrows=3,ncols=1,sharex=True,sharey=False)
     # first plot shows wind speed and fire power
     plt.sca(axes[0])
-    plt.plot_date(lt_fire,fire_s10, color=mc, fmt='-', 
-                  label='model (10 metre)')
-    plt.plot_date(lt_AWS, AWS_s, color=dc,fmt='-', 
-                  label='AWS')
-    plt.plot_date(lt_AWS, AWS_gusts, color=dc,fmt='x', alpha=0.7,
-                  label='AWS gusts (10 minute)')
+    if not no_model:
+        plt.plot_date(lt_fire,fire_s10, color=mc, fmt='-', 
+                      label='model (10 metre)')
+    if not no_aws:
+        plt.plot_date(lt_AWS, AWS_s, color=dc,fmt='-', 
+                      label='AWS')
+        plt.plot_date(lt_AWS, AWS_gusts, color=dc,fmt='x', alpha=0.7,
+                      label='AWS gusts (10 minute)')
     #plt.legend()
     plt.ylabel("wind speed (m/s)")
-    # other side axis for firepower
-    plt.twinx()
-    plt.plot_date(lt_fire,firepower, color='r',fmt='-',label='firepower')
-    plt.ylabel('FP (GW)',color='r')
+    if not no_model:
+        # other side axis for firepower
+        plt.twinx()
+        plt.plot_date(lt_fire,firepower, color='r',fmt='-',label='firepower')
+        plt.ylabel('FP (GW)',color='r')
     plt.xticks([],[])
     
     # wind direction
     plt.sca(axes[1])
-    plt.plot_date(lt_fire,fire_wdir10, color=mc, fmt='o', label='model (10m)')
-    plt.plot_date(lt_AWS, AWS_wdir, color=dc,fmt='o', label='AWS')
+    if not no_model:
+        plt.plot_date(lt_fire,fire_wdir10, color=mc, fmt='o', label='model (10m)')
+    if not no_aws:
+        plt.plot_date(lt_AWS, AWS_wdir, color=dc,fmt='o', label='AWS')
+    
     plt.ylabel("WDir (deg)")
     plt.ylim(0,360) # ylimits should be 0 to 360 for wdir
     wdir_ticks=[90,180,270]
     plt.yticks(wdir_ticks,wdir_ticks)
     # other side axis for RH
     plt.twinx()
-    plt.plot_date(lt_fire,fire_RH_surf, color=mc,fmt='--',
-                  label='model (surface)')
-    plt.plot_date(lt_AWS, AWS_RH, color=dc,fmt='--', 
-                  label='AWS')
+    if not no_model:
+        plt.plot_date(lt_fire,fire_RH_surf, color=mc,fmt='--',
+                      label='model (surface)')
+    if not no_aws:
+        plt.plot_date(lt_AWS, AWS_RH, color=dc,fmt='--', 
+                      label='AWS')
     #plt.legend()
     plt.ylabel('RH (%) (dashed)')
     rh_ticks = [25,50,75]
@@ -544,8 +553,10 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1):
     
     ## temperature, pressure
     plt.sca(axes[2])
-    plt.plot_date(lt_fire, fire_t_surf, color=mc, fmt='-', label='model (surface)')
-    plt.plot_date(lt_AWS, AWS_T, color=dc,fmt='-', label='AWS')
+    if not no_model:
+        plt.plot_date(lt_fire, fire_t_surf, color=mc, fmt='-', label='model (surface)')
+    if not no_aws:
+        plt.plot_date(lt_AWS, AWS_T, color=dc,fmt='-', label='AWS')
     plt.ylabel("T (C)")
     #plt.legend()
     
@@ -605,8 +616,10 @@ if __name__ == '__main__':
 
     if True:
         for mr in ['badja_run3','badja_run1','badja_run2']:
-            AWS_compare_10m(mr,'PAWS_Belowra')
+            AWS_compare_10m(mr, "Belowra",no_aws=True,latlon=constants.latlons['Belowra'])
+            AWS_compare_10m(mr,'PAWS_Belowra',no_model=True)
             AWS_compare_10m(mr,'Moruya')
+            
 
     if False:
         for mr in ['KI_run1','KI_run2',]:
