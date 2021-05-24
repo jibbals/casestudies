@@ -18,6 +18,66 @@ from datetime import datetime, timedelta
 from utilities import fio, utils, plotting
 
 
+AWS_rename_columns = {
+            "Latitude to four decimal places in degrees":"latitude",
+            "Longitude to four decimal places in degrees":"longitude",
+            "Day/Month/Year Hour24:Minutes in DD/MM/YYYY HH24:MI format in Local time":"localtime",
+            "Day/Month/Year Hour24:Minutes in DD/MM/YYYY HH24:MI format in Universal coordinated time":"utc",
+            #"Precipitation in last 10 minutes in mm":,
+            #"Quality of precipitation in last 10 minutes",
+            #"Precipitation since 9am local time in mm",
+            #"Quality of precipitation since 9am local time",
+            "Air Temperature in degrees C":"temperature",
+            #"Quality of air temperature":,
+            "Wet bulb temperature in degrees C":"temperature_bulb",
+            #"Quality of Wet bulb temperature",
+            "Dew point temperature in degrees C":"temperature_dew",
+            #"Quality of dew point temperature,
+            "Relative humidity in percentage %":"RH",
+            #"Quality of relative humidity",
+            #"Vapour pressure in hPa",Quality of vapour pressure,
+            #Saturated vapour pressure in hPa,Quality of saturated vapour pressure,
+            "Wind speed in m/s":"windspeed_ms-1",
+            #Wind speed quality,
+            "Wind direction in degrees true":"winddir",
+            #Wind direction quality,
+            "Speed of maximum windgust in last 10 minutes in m/s":"wind_gust_10minute_ms-1",
+            #Quality of speed of maximum windgust in last 10 minutes
+            "Mean sea level pressure in hPa":"mslp_hPa",
+            #Quality of mean sea level pressure,
+            "Station level pressure in hPa":"pressure_hPa",
+            #Quality of station level pressure,
+            #QNH pressure in hPa,
+            #Quality of QNH pressure,
+            #AWS Flag,Error Flag,#
+#            }
+#PAWS_rename_columns = {
+    #Station Name	
+    "UTC DateTime":"utc",
+    "EDST Date Time":"localtime",
+    "Dew Point Temp C":"temperature_dew",
+    #Day
+    #latitude
+    #longitude
+    "Temp C":"temperature",
+    "Calc RH %":"RH",
+    #"Direct RH %"
+    "Wind Direction (Average 10min)":"winddir",
+    "10 Metre Wind 10min Average (Km/h)":"windspeed_kmh-1",
+    "2 Metre Wind 10min Average (Km/h)":"windspeed_2metre_kmh-1",
+    #Wind 10min Average (Knots)	"Rain to 0900am mm"
+    #Rain mm 
+    #Rain 10min mm
+    #Solar Radiation  W/m2
+    #Wind Gust (knots)
+    #2m Wind Gust km/h
+    "10m Wind Gust km/h":"wind_gust_10minute_kmh-1",
+    #Battery Voltage Volts
+    #Internal Temp C
+    "FDI Forest McArthur":"FFDI",
+    }
+
+
 def read_model_timeseries(mr, 
                           latlon,
                           force_recreate=False,
@@ -291,6 +351,40 @@ def DF_subset_time(DF, dt0=None, dt1=None, timename='localtime'):
     return DF
 
 
+def read_PAWS_belowra(lt0=None, lt1=None):
+    """
+    Read PAWS data
+    can subset to date window [lt0, lt1]
+    """
+    ddir="../data/AWS/"
+    #AWS_allfiles=glob(ddir+"PAWS*")
+    paws_file=ddir+"PAWS_belowra.csv"
+    
+    
+    DF_PAWS = pandas.read_csv(paws_file, index_col=None, header=0)
+    DF_PAWS.rename(columns=AWS_rename_columns,inplace = True)
+    
+    # convert the 'Date' column to datetime format
+    for dtcolumn in ["localtime","utc"]:
+        DF_PAWS[dtcolumn] = pandas.to_datetime(DF_PAWS[dtcolumn],dayfirst=True)
+
+    # Ensure numerical columns are numerical
+    for numcolumn in ["temperature","temperature_dew","RH","windspeed_kmh-1","winddir",
+            "wind_gust_10minute_kmh-1"]:
+        DF_PAWS[numcolumn] = pandas.to_numeric(DF_PAWS[numcolumn],errors='coerce')
+        # errors='coerce' turns bad strings into NaN
+    for kmh,ms in zip(['windspeed_kmh-1','wind_gust_10minute_kmh-1'],
+                       ['windspeed_ms-1','wind_gust_10minute_ms-1']):
+        DF_PAWS[ms] = DF_PAWS[kmh] / 3.6 # add new ms-1 column to match AWS outputs
+    
+    # if station_name is not None:
+    #     DF_PAWS = DF_PAWS.loc[DF_AWS['Station Name'].str.contains(str.upper(station_name))]
+    
+    if (lt0 is not None) or (lt1 is not None):
+        DF_PAWS = DF_subset_time(DF_PAWS,dt0=lt0,dt1=lt1,timename='localtime')
+    
+    return DF_PAWS
+
 def read_AWS(extent=None,station_name=None, lt0=None, lt1=None):
     """
     Read all AWS data
@@ -322,39 +416,7 @@ def read_AWS(extent=None,station_name=None, lt0=None, lt1=None):
                       "Quality of QNH pressure",
                       "AWS Flag","Error Flag","#"
                       ]
-    AWS_rename_columns = {
-            "Latitude to four decimal places in degrees":"latitude",
-            "Longitude to four decimal places in degrees":"longitude",
-            "Day/Month/Year Hour24:Minutes in DD/MM/YYYY HH24:MI format in Local time":"localtime",
-            "Day/Month/Year Hour24:Minutes in DD/MM/YYYY HH24:MI format in Universal coordinated time":"utc",
-            #"Precipitation in last 10 minutes in mm":,
-            #"Quality of precipitation in last 10 minutes",
-            #"Precipitation since 9am local time in mm",
-            #"Quality of precipitation since 9am local time",
-            "Air Temperature in degrees C":"temperature",
-            #"Quality of air temperature":,
-            "Wet bulb temperature in degrees C":"temperature_bulb",
-            #"Quality of Wet bulb temperature",
-            "Dew point temperature in degrees C":"temperature_dew",
-            #"Quality of dew point temperature,
-            "Relative humidity in percentage %":"RH",
-            #"Quality of relative humidity",
-            #"Vapour pressure in hPa",Quality of vapour pressure,
-            #Saturated vapour pressure in hPa,Quality of saturated vapour pressure,
-            "Wind speed in m/s":"windspeed_ms-1",
-            #Wind speed quality,
-            "Wind direction in degrees true":"winddir",
-            #Wind direction quality,
-            "Speed of maximum windgust in last 10 minutes in m/s":"wind_gust_10minute_ms-1",
-            #Quality of speed of maximum windgust in last 10 minutes
-            "Mean sea level pressure in hPa":"mslp_hPa",
-            #Quality of mean sea level pressure,
-            "Station level pressure in hPa":"pressure_hPa",
-            #Quality of station level pressure,
-            #QNH pressure in hPa,
-            #Quality of QNH pressure,
-            #AWS Flag,Error Flag,#
-            }
+    
     
     li = []
     for filename in AWS_allfiles:
@@ -402,7 +464,10 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1):
     """
     
     ## READ AWS
-    DF_AWS = read_AWS(station_name=station_name)
+    if "PAWS_Belowra" in station_name:
+        DF_AWS = read_PAWS_belowra()
+    else:
+        DF_AWS = read_AWS(station_name=station_name)
     lat = DF_AWS.latitude.values[0]
     lon = DF_AWS.longitude.values[0]
     
@@ -527,16 +592,20 @@ def AWS_sites(mr=None, WESN=None):
 if __name__ == '__main__':
     
     
+    #DF=read_PAWS_belowra()
+    #print(DF)
+    
     if False:
         fireseries("KI_run1_exploratory",)
     
-    if True:
+    if False:
         for mr in ['KI_run1','KI_run2','badja_run1','badja_run2','badja_run3']:
             #read_fire_time_series(mr, force_recreate=True)
             fireseries(mr)
 
-    if False:
+    if True:
         for mr in ['badja_run3','badja_run1','badja_run2']:
+            AWS_compare_10m(mr,'PAWS_Belowra')
             AWS_compare_10m(mr,'Moruya')
 
     if False:
