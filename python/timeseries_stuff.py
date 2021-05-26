@@ -311,7 +311,7 @@ def fireseries(mr,extent=None,subdir=None,
     
     ## second subplot
     plt.sca(axes[1])
-    for pctile,wscolor in zip([0.5,0.75,0.9,1.00],['grey','grey','grey','k']):
+    for pctile,wscolor in zip([0.5,0.75,0.9,0.95,1.00],['grey','grey','grey','grey','k']):
         plt.plot_date(time, DA_WS.sel(quantile=pctile).values*3.6,
                       color=wscolor,
                       fmt='-',
@@ -322,8 +322,30 @@ def fireseries(mr,extent=None,subdir=None,
         #title="percentile",
         )
     plt.ylabel("10m wind speed (km/h)")
-    plt.ylim(0,150)
-    plt.yticks([0,30,60,90,120],[0,30,60,90,120])
+    windspeed_max=DA_WS.sel(quantile=1.0).values*3.6
+    windmax=np.max([136.3636, 
+                    np.max(windspeed_max),
+                    ])
+    # annotate maximum value
+    ymax = np.max(windspeed_max)
+    xpos, = np.where(windspeed_max==ymax)
+    xmax = time[xpos]
+    plt.annotate("%.2f"%ymax,
+        xy=(xmax, ymax), 
+        xytext=(xmax, ymax*1.02),
+        fontsize=7,
+        )
+    
+
+    plt.ylim(0,windmax*1.1)
+    if windmax > 180:
+        windticks = [0,30,60,90,120, 150, 180]
+    elif windmax > 150:
+        windticks = [0,30,60,90,120, 150]
+    else:
+        windticks = [0,30,60,90,120]
+    
+    plt.yticks(windticks,windticks)
     
     plt.gcf().autofmt_xdate()
     plt.xlabel('local time')
@@ -492,7 +514,13 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1,
         
         lt0 = lt_fire[0]-pandas.Timedelta(buffer_hours,'h')
         lt1 = lt_fire[-1]+pandas.Timedelta(buffer_hours,'h')
+    else:
+        avail_times=fio.hours_available(mr)
+        avail_lt = utils.local_time_from_time_lats_lons(avail_times,[lat],[lon])
+        lt0 = avail_lt[0]
+        lt1 = avail_lt[-1]
         
+    if not no_aws:
         ## subset to model output +- buffer time
         DF_AWS = DF_subset_time(DF_AWS, dt0=lt0,dt1=lt1,timename='localtime')
         AWS_s = DF_AWS['windspeed_ms-1'].values
@@ -609,8 +637,8 @@ if __name__ == '__main__':
     if False:
         fireseries("KI_run1_exploratory",)
     
-    if False:
-        for mr in ['KI_run1','KI_run2','badja_run1','badja_run2','badja_run3']:
+    if True:
+        for mr in ['KI_run1','KI_run2','badja_run3','badja_run1','badja_run2',]:
             #read_fire_time_series(mr, force_recreate=True)
             fireseries(mr)
 
