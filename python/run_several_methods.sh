@@ -26,7 +26,7 @@ fi
 
 ## List of methods to call
 ## METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
-methods="isochrones fireseries vorticity_10m plume wind_dir_10m fire_spread weather_summary_model multiple_transects multiple_transects_SN"
+methods="isochrones fireseries vorticity_10m plume wind_dir_10m fire_spread weather_summary_model multiple_transects multiple_transects_SN multiple_transects_vertmotion multiple_transects_vertmotion_SN"
 
 #some runs have multiple interesting extents
 extent_inds="0"
@@ -66,7 +66,7 @@ python <<EOF
 ## local scripts that can be run
 ## NEED TO IMPORT METHOD MATCHING NAME IN METHODS LIST
 # METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
-from cross_sections import topdown_view_only, multiple_transects, multiple_transects_SN
+from cross_sections import topdown_view_only, multiple_transects, multiple_transects_SN, multiple_transects_vertmotion, multiple_transects_vertmotion_SN
 from weather_summary import weather_summary_model
 from fire_spread import fire_spread, isochrones
 from winds import rotation_looped, wind_and_heat_flux_looped
