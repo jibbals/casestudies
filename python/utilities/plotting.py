@@ -783,7 +783,7 @@ def map_add_nice_text(ax, latlons, texts=None, markers=None,
         markers: iterable of characters, optional
         transform: if using geoaxes instance (non platecarree map) then set this to ccrs.Geodetic() or PlateCarree()?
     '''
-    fontname='Helvetica'
+    fontname='Arial'
     ## Adding to a map using latlons can use the geodetic transform
     #geodetic_CRS = ccrs.Geodetic()
     transformargs = {}

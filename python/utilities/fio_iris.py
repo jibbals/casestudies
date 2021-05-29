@@ -311,10 +311,6 @@ def read_fire(model_run,
         
     return cubelist
 
-
-    
-
-
 def read_model_run(mr,
                    hours=None, extent=None, constraints=None, HSkip=None):
     '''

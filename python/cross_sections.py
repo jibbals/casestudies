@@ -741,278 +741,6 @@ def map_and_transects(mr,
                 fio.save_fig(mr, "map_and_transect_winds", dtime, 
                              plt=plt)
 
-
-# def multiple_transects_vertmotion(mr,
-#                        extent=None,
-#                        subdir=None,
-#                        hours=None,
-#                        ztop=3000,
-#                        start=None,
-#                        end=None,
-#                        dx=None,
-#                        dy=None,
-#                        SouthNorth=False,
-#                        HSkip=None,
-#                        ):
-#     """
-#     4 rows 2 columns: 
-#         first row: top down winds at 10m and 2500m? and transect lines
-#         2nd, 3rd, 4th rows: transect of heat/winds, transect of vert motion
-#     ARGUMENTS:
-#         mr: model run name
-#         hours: optional run for subset of model hours
-#         extent: subset extent
-#         ztop: transect height in metres
-#         start,end: [lat,lon] of start, end points for transect
-#             default is middle of plot, left to right 80% extent coverage
-#         dx,dy: how far to stagger transect lines
-#             default is no stagger for lons, 20% of extent for lats
-#     """
-#     # method takes way too long for compute node if running at full resolution without any subsetting
-#     if (extent is None) and (HSkip is None) and ("exploratory" not in mr):
-#         HSkip=2
-        
-#     # theta contours/color levels
-#     theta_min,theta_max=290,316
-#     theta_contours = np.arange(theta_min,theta_max),
-#     theta_levels = np.arange(theta_min,theta_max+1)
-    
-#     # read topog
-#     cube_topog = fio.read_topog(mr,extent=extent, HSkip=HSkip)
-#     lats = cube_topog.coord('latitude').points
-#     lons = cube_topog.coord('longitude').points
-#     topog = cube_topog.data
-    
-#     # set extent to whole space if extent is not specified
-#     if extent is None:
-#         extent = [lons[0],lons[-1],lats[0],lats[-1]]
-    
-#     # Read model run
-#     umdtimes = fio.hours_available(mr)
-#     dtoffset = utils.local_time_offset_from_lats_lons(lats,lons)
-    
-#     # hours input can be datetimes or integers
-#     if hours is not None:
-#         if not isinstance(hours[0],datetime):
-#             umdtimes=umdtimes[hours]
-#         else:
-#             umdtimes = hours
-#     if not hasattr(umdtimes,"__iter__"):
-#         umdtimes = [umdtimes]
-    
-#     ## Default start/end/dx/dy is east-west transects
-#     if start is None or end is None:
-#         start = np.mean(lats), np.mean(lons)-0.4*(lons[-1]-lons[0])
-#         end = np.mean(lats), np.mean(lons)+0.4*(lons[-1]-lons[0])
-#     if dy is None and dx is None:
-#         dy=0.3 * (lats[-1]-lats[0])
-#         dx=0.0
-#     if dx is None:
-#         dx = 0 
-#     if dy is None:
-#         dy = 0
-
-#     ## Different defaults if SouthNorth is set to True
-#     if SouthNorth:
-#         start=np.mean(lats)-0.4*(lats[-1]-lats[0]), np.mean(lons)
-#         end=np.mean(lats)+0.4*(lats[-1]-lats[0]), np.mean(lons)
-#         dx=0.3*(lons[-1]-lons[0])
-#         dy=0.0
-#         if subdir is None:
-#             subdir="SouthNorth"
-#         else:
-#             subdir=subdir+"_SouthNorth"
-
-
-#     # 3 transects, shifted by dy and dx # order will be top left to bottom right
-#     transects = [ [[start[0]+dy,start[1]-dx], [end[0]+dy,end[1]-dx]],
-#                  [start, end],
-#                  [[start[0]-dy,start[1]+dx], [end[0]-dy,end[1]+dx]],
-#                  ]
-    
-#     ## Loop over hours
-#     for umdtime in umdtimes:
-#         # read cube list
-#         cubelist = fio.read_model_run(mr, 
-#                                       hours=[umdtime],
-#                                       extent=extent,
-#                                       HSkip=HSkip,
-#                                       )
-                                      
-#         # add temperature, height, destaggered wind cubes
-#         utils.extra_cubes(cubelist,
-#                           add_theta=True,
-#                           add_z=True,
-#                           add_winds=True,)
-#         theta, = cubelist.extract('potential_temperature')
-#         u,v,w = cubelist.extract(['u','v','upward_air_velocity'])
-#         zcube, = cubelist.extract(['z_th'])
-#         dtimes = utils.dates_from_iris(theta)
-        
-#         # read fire front, sens heat, 10m winds
-#         ff,sh,u10,v10 = fio.read_fire(model_run=mr,
-#                                       dtimes=dtimes, 
-#                                       extent=extent,
-#                                       filenames=['firefront','sensible_heat',
-#                                                  '10m_uwind','10m_vwind'],
-#                                       HSkip=HSkip,
-#                                       )
-#         ## loop over time steps
-#         for ti,dtime in enumerate(dtimes):
-#             LT = dtime+timedelta(hours=dtoffset)
-#             LTstr = LT.strftime("%H%M (UTC+"+"%.2f)"%dtoffset)
-            
-#             # Get time step data from cubes
-#             ffi=ff[ti].data
-#             shi=sh[ti].data
-#             u10i=u10[ti].data
-#             v10i=v10[ti].data
-#             ui=u[ti].data
-#             vi=v[ti].data
-#             si=np.hypot(ui,vi) # horizontal wind speed
-#             wi=w[ti].data
-#             zi=zcube[ti].data
-#             Ti=theta[ti].data
-            
-#             ## Set up figure
-#             fig = plt.figure(figsize=(8,11))
-            
-#             ### FIRST ROW: 10m HWINDS AND VWINDS, AND STREAMS
-#             ax1 = plt.subplot(4,1,1)
-            
-#             topdown_view(extent,
-#                          fig=fig,
-#                          ax=ax1,
-#                          lats=lats,lons=lons,
-#                          topog=topog,
-#                          ff=ffi,
-#                          sh=shi,
-#                          u10=u10i,
-#                          v10=v10i,
-#                          sh_colorbar=False,
-#                          )
-            
-#             # topdown view should be equal aspect
-#             ax1.set_aspect("equal")
-            
-#             # interpolate to this many points along transect (or detect automatically)
-#             default_interp_points=utils.number_of_interp_points(lats,lons,transects[0][0],transects[0][1])
-#             npoints=np.min([60, default_interp_points])
-#             #print("DEBUG: how many interp points?", npoints," default would be ", default_interp_points)
-            
-            
-#             ### NEXT 3 ROWS: Transects
-#             for trani,transect in enumerate(transects):
-#                 # add transect to topdown map
-#                 ax1.plot([transect[0][1],transect[1][1]],[transect[0][0],transect[1][0]],'--k',linewidth=2)
-                
-
-#                 ## LEFT PANEL: show H wind speed and wind streams
-#                 axleft = plt.subplot(4,2,3+trani*2)
-                
-#                 plotting.transect_s(si, zi, lats, lons, 
-#                                     transect[0], 
-#                                     transect[1],
-#                                     npoints=npoints,
-#                                     topog=topog, 
-#                                     sh=shi,
-#                                     ztop=ztop,
-#                                     lines=None, 
-#                                     contours=hwind_contours,
-#                                     cmap=hwind_cmap,
-#                                     colorbar=False,
-#                                     )
-                
-#                 wind_transect_struct = transect_winds(ui, vi, wi, zi, lats, lons, 
-#                                                       transect,
-#                                                       ztop=ztop,
-#                                                       npoints=npoints,
-#                                                       #topog=topog,
-#                                                       )
-                
-#                 TW = wind_transect_struct['w']
-#                 Xvals = wind_transect_struct['x'][0,:]
-#                 Yvals = wind_transect_struct['y'] # 2d array of altitudes for cross section
-#                 label= wind_transect_struct['xlabel']
-#                 plt.xticks([Xvals[0],Xvals[-1]],
-#                            [label[0],label[-1]],
-#                            rotation=10)
-#                 if trani==0:
-#                     plt.title("Winds (m/s)")
-#                 else:
-#                     plt.title("")
-#                 axleft.set_ylim(np.min(Yvals),ztop)
-                
-#                 ## RIGHT PANEL: T and Vert motion
-#                 axright=plt.subplot(4,2,4+trani*2)
-                
-#                 TT,TX,TY = plotting.transect_theta(Ti, zi, lats, lons, 
-#                                                 start=transect[0], 
-#                                                 end=transect[1],
-#                                                 npoints=npoints,
-#                                                 topog=topog, 
-#                                                 sh=shi,
-#                                                 ztop=ztop,
-#                                                 contours=theta_contours,
-#                                                 lines=None, 
-#                                                 levels=theta_levels,
-#                                                 cmap=theta_cmap,
-#                                                 colorbar=False,
-#                                                 )
-                
-#                 ## Add vert motion contours
-#                 XRet = utils.transect(wi, lats, lons, 
-#                                       transect[0], transect[1], 
-#                                       nx=npoints, 
-#                                       z=zi)
-                
-#                 xdistance=XRet['xdistance'][-1]
-                
-#                 label=XRet['xlabel']
-#                 Xvals=XRet['x'][0,:]
-#                 VM_contours = [-5,-4,-3,-2,-1,-.5,.5,1,2,3,4,5]
-#                 VM_colours = ['cyan']*6+['pink']*6
-                
-#                 plt.contour(XRet['x'],XRet['y'],XRet['transect'], 
-#                             VM_contours, # contour lines
-#                             colors=VM_colours, # contour line colours
-#                             )
-#                 plt.ylim(np.min(XRet['y']),ztop)
-#                 if trani==0:
-#                     plt.title("T$_{Potential}$ and Vert motion")
-#                     plt.xlabel("%.2f (km)"%(xdistance/1000.0),labelpad=-10)
-#                 else:
-#                     plt.title("")
-                
-#                 label= wind_transect_struct['xlabel']
-                
-#                 plt.xticks([Xvals[0],Xvals[-1]],
-#                            [label[0],label[-1]],
-#                            rotation=10)
-                
-#                 axright.set_ylim(np.min(XRet['y']),ztop)
-#             ## SAVE FIGURE
-#             #print("DEBUG: LTstr",LTstr)
-#             # add space in specific area, then add Hwinds colorbar
-#             cbar_ax1 = fig.add_axes([0.06, 0.74, 0.01, 0.2]) # X Y Width Height
-#             cbar1 = fig.colorbar(hwind_sm, 
-#                                  cax=cbar_ax1, 
-#                                  format=ScalarFormatter(), 
-#                                  pad=0)
-            
-#             # Add Tpot colorbar
-#             cbar_ax2 = fig.add_axes([0.92, 0.74, 0.01, 0.2]) #XYWH
-#             cbar2 = fig.colorbar(theta_sm, cax=cbar_ax2, 
-#                                  format=ScalarFormatter(),
-#                                  pad=0,
-#                                  )
-#             plt.suptitle(mr + " wind transects " + LTstr,
-#                          fontsize=22)
-#             fio.save_fig(mr,"multiple_transects",dtime,
-#                          subdir=subdir,
-#                          plt=plt,
-#                          )
-
             
 def multiple_transects(mr,
                        extent=None,
@@ -1296,12 +1024,271 @@ def multiple_transects(mr,
                          plt=plt,
                          )
     
+def multiple_transects_vertmotion(mr,
+                        extent=None,
+                        subdir=None,
+                        hours=None,
+                        ztop=3000,
+                        start=None,
+                        end=None,
+                        dx=None,
+                        dy=None,
+                        SouthNorth=False,
+                        HSkip=None,
+                        ):
+    """
+    4 rows 2 columns: 
+        first row: top down winds at 10m and 2500m? and transect lines
+        2nd, 3rd, 4th rows: transect of heat/winds, transect of vert motion
+    ARGUMENTS:
+        mr: model run name
+        hours: optional run for subset of model hours
+        extent: subset extent
+        ztop: transect height in metres
+        start,end: [lat,lon] of start, end points for transect
+            default is middle of plot, left to right 80% extent coverage
+        dx,dy: how far to stagger transect lines
+            default is no stagger for lons, 20% of extent for lats
+    """
+    # method takes way too long for compute node if running at full resolution without any subsetting
+    if (extent is None) and (HSkip is None) and ("exploratory" not in mr):
+        HSkip=2
+        
+    # theta contours/color levels
+    #theta_min,theta_max=290,316
+    #theta_contours = np.arange(theta_min,theta_max),
+    theta_levels = np.arange(288,400,2)
+    
+    w_cmap = plotting._cmaps_['verticalvelocity']
+    w_norm = matplotlib.colors.SymLogNorm(0.25,base=2.0, vmin=-16,vmax=16,)
+    w_contours = np.union1d(np.union1d(2.0**np.arange(-2,5),-1*(2.0**np.arange(-2,5))),np.array([0]))
+    w_ticks = [-16,-4, 0, 4, 16] 
+    w_sm = matplotlib.cm.ScalarMappable(cmap=w_cmap, norm=w_norm)
+    
+    # read topog
+    cube_topog = fio.read_topog(mr,extent=extent, HSkip=HSkip)
+    lats = cube_topog.coord('latitude').points
+    lons = cube_topog.coord('longitude').points
+    topog = cube_topog.data
+    
+    # set extent to whole space if extent is not specified
+    if extent is None:
+        extent = [lons[0],lons[-1],lats[0],lats[-1]]
+    
+    # Read model run
+    umdtimes = fio.hours_available(mr)
+    dtoffset = utils.local_time_offset_from_lats_lons(lats,lons)
+    
+    # hours input can be datetimes or integers
+    if hours is not None:
+        if not isinstance(hours[0],datetime):
+            umdtimes=umdtimes[hours]
+        else:
+            umdtimes = hours
+    if not hasattr(umdtimes,"__iter__"):
+        umdtimes = [umdtimes]
+    
+    ## Default start/end/dx/dy is east-west transects
+    if start is None or end is None:
+        start = np.mean(lats), np.mean(lons)-0.4*(lons[-1]-lons[0])
+        end = np.mean(lats), np.mean(lons)+0.4*(lons[-1]-lons[0])
+    if dy is None and dx is None:
+        dy=0.3 * (lats[-1]-lats[0])
+        dx=0.0
+    if dx is None:
+        dx = 0 
+    if dy is None:
+        dy = 0
+
+    ## Different defaults if SouthNorth is set to True
+    if SouthNorth:
+        start=np.mean(lats)-0.4*(lats[-1]-lats[0]), np.mean(lons)
+        end=np.mean(lats)+0.4*(lats[-1]-lats[0]), np.mean(lons)
+        dx=0.3*(lons[-1]-lons[0])
+        dy=0.0
+        if subdir is None:
+            subdir="SouthNorth"
+        else:
+            subdir=subdir+"_SouthNorth"
+
+
+    # 3 transects, shifted by dy and dx # order will be top left to bottom right
+    transects = [ [[start[0]+dy,start[1]-dx], [end[0]+dy,end[1]-dx]],
+                  [start, end],
+                  [[start[0]-dy,start[1]+dx], [end[0]-dy,end[1]+dx]],
+                  ]
+    
+    ## Loop over hours
+    for umdtime in umdtimes:
+        # read cube list
+        cubelist = fio.read_model_run(mr, 
+                                      hours=[umdtime],
+                                      extent=extent,
+                                      HSkip=HSkip,
+                                      )
+                                      
+        # add temperature, height, destaggered wind cubes
+        utils.extra_cubes(cubelist,
+                          add_theta=True,
+                          add_z=True,
+                          add_winds=True,)
+        theta, = cubelist.extract('potential_temperature')
+        u,v,w = cubelist.extract(['u','v','upward_air_velocity'])
+        zcube, = cubelist.extract(['z_th'])
+        dtimes = utils.dates_from_iris(theta)
+        
+        # read fire front, sens heat, 10m winds
+        ff,sh,u10,v10 = fio.read_fire(model_run=mr,
+                                      dtimes=dtimes, 
+                                      extent=extent,
+                                      filenames=['firefront','sensible_heat',
+                                                  '10m_uwind','10m_vwind'],
+                                      HSkip=HSkip,
+                                      )
+        ## loop over time steps
+        for ti, dtime in enumerate(dtimes):
+            LT = dtime+timedelta(hours=dtoffset)
+            LTstr = LT.strftime("%H%M (UTC+"+"%.2f)"%dtoffset)
+            
+            # Get time step data from cubes
+            ffi=ff[ti].data
+            shi=sh[ti].data
+            u10i=u10[ti].data
+            v10i=v10[ti].data
+            ui = u[ti].data
+            vi = v[ti].data
+            wi= w[ti].data
+            zi=zcube[ti].data
+            Ti=theta[ti].data
+            
+            ## Set up figure
+            fig = plt.figure(figsize=(8,11))
+            
+            ### FIRST ROW: 10m HWINDS AND VWINDS, AND STREAMS
+            ax1 = plt.subplot(4,1,1)
+            
+            topdown_view(extent,
+                          fig=fig,
+                          ax=ax1,
+                          lats=lats,lons=lons,
+                          topog=topog,
+                          ff=ffi,
+                          sh=shi,
+                          u10=u10i,
+                          v10=v10i,
+                          sh_colorbar=False,
+                          )
+            
+            # topdown view should be equal aspect
+            ax1.set_aspect("equal")
+            
+            # interpolate to this many points along transect (or detect automatically)
+            default_interp_points=utils.number_of_interp_points(lats,lons,transects[0][0],transects[0][1])
+            # For visual clarity, more than 60 points is overkill
+            npoints=np.min([60, default_interp_points])
+            #print("DEBUG: how many interp points?", npoints," default would be ", default_interp_points)
+            
+            ### NEXT 3 ROWS: Transects
+            for trani,[starti, endi] in enumerate(transects):
+                # add transect to topdown map
+                ax1.plot([starti[1],endi[1]],[starti[0],endi[0]],'--k',linewidth=2)
+
+                ## LEFT PANEL: show H wind speed and wind streams
+                row_axis = plt.subplot(4,1, 2+trani) # row 2,3,4
+                #print("DEBUG: ")
+                #[print(type(thing),np.shape(thing)) for thing in [wi,zi,lats,lons,starti,endi,topog,shi]]
+                plotting.transect_w(wi,zi,lats,lons,
+                                    start=starti,
+                                    end=endi,
+                                    ztop=ztop,
+                                    npoints=npoints,
+                                    topog=topog,
+                                    lines=None,
+                                    sh=shi,
+                                    colorbar=False,
+                                    cmap = w_cmap,
+                                    norm = w_norm,
+                                    contours = w_contours,
+                                    )
+                theta_transect_struct = utils.transect(Ti,lats,lons,
+                                                      start=starti,
+                                                      end=endi,
+                                                      nx=npoints,
+                                                      z=zi)
+                theta_transect = theta_transect_struct['transect']
+                
+                Xvals = theta_transect_struct['x'] # nrows repeated distance from left axis
+                Yvals = theta_transect_struct['y'] # 2d array of altitudes for cross section
+                label= theta_transect_struct['xlabel']
+                
+                # add theta_transect contours
+                theta_contours = plt.contour(Xvals,Yvals, theta_transect, 
+                            levels=theta_levels,
+                            alpha=0.3,
+                            )
+                plt.clabel(theta_contours, theta_contours.levels[::5])
+                
+                # # quiverwinds
+                # # need transect windspeed and directions
+                # w_transect_struct = utils.transect(wi,lats,lons,
+                #                                    start=starti,
+                #                                    end=endi,
+                #                                    nx=npoints,
+                #                                    z=zi)
+                # transect_w = w_transect_struct['transect']
+                # transect_winds_struct = utils.transect_winds(ui,vi,lats,lons,
+                #                                              start=starti,
+                #                                              end=endi,
+                #                                              nx=npoints,
+                #                                              z=zi)
+                # transect_s = transect_winds_struct['transect_wind']
+                # slicex = transect_winds_struct['x']
+                # slicez = transect_winds_struct['y']
+                
+                # plotting.quiverwinds(slicez,slicex,transect_s,transect_w,
+                #              n_arrows=25,
+                #              add_quiver_key=(trani==0),
+                #              alpha=0.35,
+                #              )
+                
+                plt.xticks([Xvals[0,0],Xvals[-3,0]],
+                            [label[0],label[-3]],
+                            rotation=0)
+                plt.title("")
+                
+                row_axis.set_ylim(np.min(Yvals),ztop)
+                
+                
+            ## SAVE FIGURE
+            # add space in specific area, then add vert motion colorbar
+            cbar_ax1 = fig.add_axes([0.06, 0.74, 0.01, 0.2]) # X Y Width Height
+            cbar1 = fig.colorbar(w_sm, 
+                                 cax=cbar_ax1, 
+                                 ticks=w_ticks, 
+                                 pad=0)
+            cbar1.set_ticks(w_ticks)
+            cbar1.ax.set_yticklabels(w_ticks,rotation=23)
+
+            plt.suptitle(mr + "\n vertical motion " + LTstr,
+                          fontsize=20)
+            fio.save_fig(mr,"multiple_transects_vertmotion",dtime,
+                          subdir=subdir,
+                          plt=plt,
+                          )    
+    
 def multiple_transects_SN(*args,**kwargs):
     """
         run multiple transects method with southnorth flag
     """
     kwargs['SouthNorth']=True
     return multiple_transects(*args,**kwargs)
+
+def multiple_transects_vertmotion_SN(*args,**kwargs):
+    """
+        run multiple transects method with southnorth flag
+    """
+    kwargs['SouthNorth']=True
+    return multiple_transects_vertmotion(*args,**kwargs)
 
 if __name__ == '__main__':
     latlontimes=firefront_centres["KI_run1"]['latlontimes']
@@ -1322,8 +1309,11 @@ if __name__ == '__main__':
     zoom=KI_jetrun_zoom #belowra_zoom
     subdir=KI_jetrun_name #belowra_zoom_name
     
-    ## Special wandella transects
     if True:
+        multiple_transects_vertmotion("KI_run2_exploratory",ztop=5000,)
+    
+    ## Special wandella transects
+    if False:
         wandella_zoom=[149.5843,  149.88, -36.376, -36.223]
         wandella_zoom_name="Wandella"
         wandella_transect = [[-36.250,149.65],[-36.35,149.80]]
