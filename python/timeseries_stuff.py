@@ -638,11 +638,17 @@ if __name__ == '__main__':
         fireseries("KI_run1_exploratory",)
     
     if True:
+        #for mr in ["yanchep_run3", "yanchep_run4","stanthorpe_run1","stanthorpe_run2"]:
+        #for mr in ["corryong_run4", "corryong_run4_fix","green_valley_run2","gren_valley_run2_fix"]:
+        for mr in ["green_valley_run2_fix"]:
+            fireseries(mr)
+
+    if False:
         for mr in ['KI_run1','KI_run2','badja_run3','badja_run1','badja_run2',]:
             #read_fire_time_series(mr, force_recreate=True)
             fireseries(mr)
 
-    if True:
+    if False:
         for mr in ['badja_run3','badja_run1','badja_run2']:
             AWS_compare_10m(mr, "Belowra",no_aws=True,latlon=constants.latlons['Belowra'])
             AWS_compare_10m(mr,'PAWS_Belowra',no_model=True)

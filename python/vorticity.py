@@ -282,13 +282,13 @@ if __name__ == '__main__':
     badja_zoom_name="zoom1"
     
     if True:
-        mr = "KI_run2_exploratory"
+        mr = "KI_run2"
         zoom=KI_zoom2
         zoom_name=KI_zoom2_name
         vorticity(mr,
                   extent=zoom,
                   subdir=zoom_name,
-                  levels=[1,2,3,5,8,10,12,14,18], # lower levels for exploratory
+                  #levels=[1,2,3,5,8,10,12,14,18], # lower levels for exploratory
                   )
 
     if False:
