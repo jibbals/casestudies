@@ -83,7 +83,9 @@ def plot_vorticity(DA_u,DA_v,DA_ff=None,DA_sh=None,DA_topog=None,
                       )
     
     if DA_ff is not None:
-        plotting.map_fire(DA_ff.values,lats,lons)
+        plotting.map_fire(DA_ff.values,lats,lons, 
+                          colors=['grey'], 
+                          linestyles=['--'])
     
     if DA_sh is not None:
         sh=DA_sh.values.T
