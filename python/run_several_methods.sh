@@ -26,7 +26,7 @@ fi
 
 ## List of methods to call
 ## METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
-methods="isochrones fireseries vorticity_10m plume wind_dir_10m fire_spread weather_summary_model multiple_transects multiple_transects_SN multiple_transects_vertmotion multiple_transects_vertmotion_SN"
+methods="isochrones fireseries vorticity vorticity_10m plume wind_dir_10m fire_spread weather_summary_model multiple_transects multiple_transects_SN multiple_transects_vertmotion multiple_transects_vertmotion_SN"
 
 #some runs have multiple interesting extents
 extent_inds="0"
@@ -73,7 +73,7 @@ from winds import rotation_looped, wind_and_heat_flux_looped
 from wind_dir import wind_dir_10m
 from timeseries_stuff import fireseries
 from plume import plume
-from vorticity import vorticity_10m
+from vorticity import vorticity_10m, vorticity
 
 ### keep track of used zooms
 KI_zooms = [None,
