@@ -362,10 +362,10 @@ if __name__ == '__main__':
     badja_zoom_name="zoom1"
     
     if True:
-        #mrs=["badja_run1","badja_run2","badja_run3"]
-        mrs=['KI_run1','KI_run2','KI_run3']
-        extent=KI_zoom
-        subdir=KI_zoom_name
+        mrs=["badja_run1","badja_run2","badja_run3",]#"badja_run4"]
+        #mrs=['KI_run1','KI_run2','KI_run3']
+        extent=badja_zoom
+        subdir=badja_zoom_name
         isochrone_comparison(mrs,extent=extent,subdir=subdir)
         #for mr in mrs:
             #fire_spread(mr,)

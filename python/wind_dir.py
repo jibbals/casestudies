@@ -107,16 +107,17 @@ def wind_dir_10m(
     
     ## topography: maybe we want coastline
     topog=fio.model_run_topography(mr)
-    coastflag = np.min(topog.values) < coastline
     
     # read fire model output
     DS_fire=fio.read_model_run_fire(mr)
     if extent is not None:
         DS_fire = fio.extract_extent(DS_fire,extent)
+        topog = fio.extract_extent(topog,extent)
     lats=DS_fire.lat.values
     lons=DS_fire.lon.values
+    coastflag = np.min(topog.values) < coastline
     
-    times = DS_fire.time[::10] # every 10 minute
+    times = DS_fire.time[::10].values # every 10 minute
     
     houroffset=utils.local_time_offset_from_lats_lons(lats,lons)
     
@@ -145,6 +146,7 @@ def wind_dir_10m(
         plotting.map_fire(DA_ff.values,lats,lons)
         # add topog
         if coastflag:
+            [print("DEBUG:",np.shape(arr)) for arr in [lons,lats,topog.values,coastline]]
             plt.contour(lons,lats,topog.values,np.array([coastline]),colors='k')
             
         ax.set_aspect("equal")

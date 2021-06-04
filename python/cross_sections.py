@@ -746,7 +746,7 @@ def multiple_transects(mr,
                        extent=None,
                        subdir=None,
                        hours=None,
-                       ztop=3000,
+                       ztop=None,
                        start=None,
                        end=None,
                        dx=None,
@@ -771,6 +771,14 @@ def multiple_transects(mr,
     # method takes way too long for compute node if running at full resolution without any subsetting
     if (extent is None) and (HSkip is None) and ("exploratory" not in mr):
         HSkip=2
+    # some default ztops
+    if ztop is None:
+        if 'badja' in mr:
+            ztop=10000
+        elif 'KI' in mr:
+            ztop = 4000
+        else:
+            ztop = 8000
         
     # theta contours/color levels
     theta_min,theta_max=290,316
@@ -1309,17 +1317,27 @@ if __name__ == '__main__':
     zoom=KI_jetrun_zoom #belowra_zoom
     subdir=KI_jetrun_name #belowra_zoom_name
     
-    if True:
+    if False:
         multiple_transects_vertmotion("KI_run2_exploratory",ztop=5000,)
     
     ## Special wandella transects
-    if False:
+    if True:
         wandella_zoom=[149.5843,  149.88, -36.376, -36.223]
         wandella_zoom_name="Wandella"
-        wandella_transect = [[-36.250,149.65],[-36.35,149.80]]
-        dx=0.05
+        wandella_transect = [[-36.250,149.67],[-36.35,149.82]]
+        dx=0.04
         dy=0.0
-        multiple_transects("badja_run3",
+        if False:
+            multiple_transects("badja_run3",
+                           extent=wandella_zoom,
+                           subdir="Wandella_diagonal", 
+                           ztop=8000, 
+                           start=wandella_transect[0],
+                           end=wandella_transect[1], 
+                           dx=dx, 
+                           dy=dy,
+                           )
+        multiple_transects_vertmotion("badja_run3",
                            extent=wandella_zoom,
                            subdir="Wandella_diagonal", 
                            ztop=8000, 

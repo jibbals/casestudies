@@ -11,12 +11,13 @@ import iris
 import numpy as np
 import os
 import xarray
-
+import pandas
+from datetime import datetime, timedelta
 from timeit import default_timer as timer
 from utilities import fio_iris as fio
 from utilities import utils
 from utilities import PFT as PFT_calc
-
+from timeseries_stuff import read_fire_time_series
 
 
 def PFT_from_cubelist(cubes0, latlon=None, tskip=None, latskip=None, lonskip=None):
@@ -196,8 +197,6 @@ def PFT_from_cubelist(cubes0, latlon=None, tskip=None, latskip=None, lonskip=Non
                     print("     : profile follows:")
                     print(TT)
                     assert np.sum(Tmin_indices) > 0, "not a good profile"
-                for thing in [uu,vv,ww,qq,TT,th,pr]:
-                    print(type(thing),np.shape(thing))
                 pmin = pr[Tmin_indices][0]
                 
                 frets = PFT_calc.PFT(TT,qq,uu,vv,ww,th,pr, 
@@ -221,7 +220,7 @@ def PFT_from_cubelist(cubes0, latlon=None, tskip=None, latskip=None, lonskip=Non
                             Pmin=pmin)
             PFT = frets[8]/1e9 # G Watts
     end = timer()
-    print("Info: time to produce PFT(%s): %.2f minutes"%(str(PFT.shape), (end-start)/60.0))
+    print("Info: time to produce PFT( shape = %s): %.2f minutes"%(str(PFT.shape), (end-start)/60.0))
     return PFT
 
 
@@ -257,7 +256,8 @@ def read_PFT_timeseries(mr,latlon,
                           add_theta=True,
                           )
         cubes.append(topog) # add topog to CubeList
-        print(cubes)
+        #print("DEBUG: topog", topog) 
+        #print(cubes)
         PFT_full.append(PFT_from_cubelist(cubes, latlon=latlon))
         dtimes.append(cubes[0].dim_coords[0].points)
     
@@ -273,10 +273,15 @@ def read_PFT_timeseries(mr,latlon,
     
     # copy dimensions
     timecoord = iris.coords.DimCoord(dtimes, 'time', units=Pa.coord('time').units)
-    dim_coords = [(b,a) for [a,b] in enumerate(Pa.dim_coords)]
-    # update time dimension
-    dim_coords[0] = (timecoord,0)
+    # time is only dimension since we have single lat,lon
+    dim_coords = [(timecoord,0),]
+
     # create cube from PFT array
+    #print("DEBUG: dim_coords",dim_coords)
+    #print("DEBUG: dim_coords[0]",dim_coords[0])
+    #print("DEBUG: type PFT", type(PFT))
+    #print("DEBUG: shape PFT", np.shape(PFT))
+    #print("DEBUG: PFT", PFT)
     PFTcube = iris.cube.Cube(PFT,
                              var_name='PFT',
                              units='Gigawatts',
@@ -299,8 +304,6 @@ def read_PFT_timeseries(mr,latlon,
     PFTcube.attributes=attributes
     
     # save file
-    #ddir=fio.run_info[mr]['dir']
-    fname= "data/PFT/"+mr+".nc"
     fio.make_folder(fname)
     iris.save(PFTcube,fname)
     
@@ -311,9 +314,85 @@ def read_PFT_timeseries(mr,latlon,
     # test file:
     f = iris.load(fname)
     print("INFO: SAVED ",fname)
-    print(f)
+    #print(f)
     return f
 
-if __name__ == "__main__":
-    read_PFT_timeseries("KI_run2_exploratory", latlon=[-35.8,137.3])
+def compare_PFT_to_firepower(mr, latlon, firespeed=False):
+    """
+        Timesries of PFT and firepower
+    """
     
+    lat,lon = latlon
+        
+    ## Read fire series at that spot
+    DS_fire = read_fire_time_series(mr,latlon=[lat,lon],)
+    lt_fire = DS_fire.localtime.values
+    firepower = DS_fire.firepower.values # [t] GWatts
+    fire_u10 = DS_fire['u_10m'].values.squeeze()
+    fire_v10 = DS_fire['v_10m'].values.squeeze()
+    fire_s10 = np.hypot(fire_u10,fire_v10)
+    fire_wdir10 = DS_fire['wdir_10m'].values.squeeze()
+
+    # Create/read pft timeseries
+    pft_ts=read_PFT_timeseries(mr, latlon=latlon)
+    # pull out data, sample plot
+    pft=pft_ts.extract("PFT")[0]
+    #utc = pft.coord('time').points
+    utc = utils.dates_from_iris(pft)
+    ltoffset = utils.local_time_offset_from_lats_lons([lat],[lon])
+    lt_pft = np.array([utci+timedelta(hours=ltoffset) for utci in utc])
+        
+    buffer_hours=1 # make plots a bit wider
+    lt0 = lt_fire[0]-pandas.Timedelta(buffer_hours,'h')
+    lt1 = lt_fire[-1]+pandas.Timedelta(buffer_hours,'h')
+        
+    ## Plot stuff
+    mc='darkgreen' # model colour
+    
+    # show firepower and PFT
+    plt.plot_date(lt_fire,firepower, color='r',fmt='-',label='firepower')
+    plt.plot_date(lt_pft,pft.data, color='m',fmt='-',label="PFT")
+    plt.ylabel('Gigawatts',color='r')
+    plt.legend()
+    
+    if firespeed:
+        # other side axis for firepower
+        plt.twinx()
+        plt.plot_date(lt_fire,fire_s10, color=mc, fmt='-', 
+                      label='model (10 metre)')
+        plt.ylabel("wind speed (m/s)")
+
+    
+    # fix date formatting
+    plt.gcf().autofmt_xdate()
+    plt.xlabel('local time')
+    plt.suptitle(mr+" at %.2f,%.2f"%(lat,lon))
+    fio.save_fig(mr, 
+            plot_name="PFT_vs_firepower",
+            plot_time="%s_%.2f,%.2f"%(mr,lat,lon),
+            plt=plt,
+            )
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    mr="KI_run2"
+    KI_latlon=-35.8,137.3
+    latlon=KI_latlon
+    lat,lon = latlon
+    
+    # badja firepower vs upwind pft
+    if True:
+        mr = "badja_run3"
+        badja_latlon=[-36.0,149.4]
+        compare_PFT_to_firepower(mr,badja_latlon,firespeed=False)
+    
+    # Create/read pft timeseries
+    #pft_ts=read_PFT_timeseries(mr, latlon=latlon)
+    # pull out data, sample plot
+    #pft=pft_ts.extract("PFT")[0]
+    #time = pft.coord('time').points
+    #plt.plot_date(time,pft.data)
+    #plt.title(mr + " PFT at %.2f,%.2f"%(lat,lon))
+    #plt.savefig("pft_test.png")
+    #print("INFO: SAVED pft_test.png")

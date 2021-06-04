@@ -38,7 +38,7 @@ latlons['Tuross Falls'] = -36.2228, 149.5358
 latlons['Belowra'] = -36.14807, 149.71676 # updated POST GOOGLE using qgis open street map
 latlons['Yowrie'] = -36.31894, 149.73928 # Also updated with openstreet map
 latlons['Cobargo'] = -36.3866, 149.9018
-latlons['Big Belimba Creek'] = -36.1001, 149.80365
+latlons['Big Belimbla Creek'] = -36.1001, 149.80365
 
 
 ####### Corryong ###############
