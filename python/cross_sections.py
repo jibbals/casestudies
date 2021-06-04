@@ -1298,6 +1298,134 @@ def multiple_transects_vertmotion_SN(*args,**kwargs):
     kwargs['SouthNorth']=True
     return multiple_transects_vertmotion(*args,**kwargs)
 
+def plot_special_transects(mr,start,end,ztop=5000,
+                           hours=None,
+                           name=None):
+    """
+        plot transect with full resolution
+        loop every 30 minutes
+    """
+    
+    # some defaults
+    if name is None:
+        name="%.2f,%.2f-%.2f,%.2f"%(start[0],start[1],end[0],end[1])
+    West = np.min([start[1],end[1]])-0.01
+    East = np.max([start[1],end[1]])+0.01
+    South = np.min([start[0],end[0]])-0.01
+    North = np.max([start[0],end[0]])+0.01
+    extent = [West,East,South,North]
+    
+    # hwind contours/color levels
+    hwind_min,hwind_max = 0,25
+    hwind_contours = np.arange(hwind_min,hwind_max,1)
+    hwind_cmap = "Blues"
+    hwind_norm = matplotlib.colors.Normalize(vmin=hwind_min, vmax=hwind_max) 
+    # create a scalarmappable from the colormap
+    hwind_sm = matplotlib.cm.ScalarMappable(cmap=hwind_cmap, norm=hwind_norm)
+    
+    # read topog
+    cube_topog = fio.read_topog(mr,extent=extent)
+    lats = cube_topog.coord('latitude').points
+    lons = cube_topog.coord('longitude').points
+    topog = cube_topog.data
+    
+    # Read model run
+    umdtimes = fio.hours_available(mr)
+    dtoffset = utils.local_time_offset_from_lats_lons(lats,lons)
+    
+    # hours input can be datetimes or integers
+    if hours is not None:
+        if not isinstance(hours[0],datetime):
+            umdtimes=umdtimes[hours]
+        else:
+            umdtimes = hours
+    if not hasattr(umdtimes,"__iter__"):
+        umdtimes = [umdtimes]
+
+    ## Loop over hours
+    for umdtime in umdtimes:
+        # read cube list
+        cubelist = fio.read_model_run(mr, 
+                                      hours=[umdtime],
+                                      extent=extent,
+                                      )
+                                      
+        # add temperature, height, destaggered wind cubes
+        utils.extra_cubes(cubelist,
+                          add_theta=True,
+                          add_z=True,
+                          add_winds=True,)
+        theta, = cubelist.extract('potential_temperature')
+        u,v,w = cubelist.extract(['u','v','upward_air_velocity'])
+        zcube, = cubelist.extract(['z_th'])
+        dtimes = utils.dates_from_iris(theta)
+        
+        # read fire front, sens heat, 10m winds
+        ff,sh,u10,v10 = fio.read_fire(model_run=mr,
+                                      dtimes=dtimes, 
+                                      extent=extent,
+                                      filenames=['firefront','sensible_heat',],
+                                      )
+        ## loop over time steps
+        for ti,dtime in enumerate(dtimes):
+            LT = dtime+timedelta(hours=dtoffset)
+            LTstr = LT.strftime("%H%M (UTC+"+"%.2f)"%dtoffset)
+            
+            ## Get time step data from cubes
+            #ffi=ff[ti].data
+            shi=sh[ti].data
+            #u10i=u10[ti].data
+            #v10i=v10[ti].data
+            ui=u[ti].data
+            vi=v[ti].data
+            si=np.hypot(ui,vi) # horizontal wind speed
+            wi=w[ti].data
+            zi=zcube[ti].data
+            Ti=theta[ti].data
+            
+            npoints=utils.number_of_interp_points(lats,lons,start,end,factor=1.0)
+            
+            ## show H wind speed and wind quivers
+            plotting.transect_s(si, zi, lats, lons, 
+                                start, 
+                                end,
+                                npoints=npoints,
+                                topog=topog, 
+                                sh=shi,
+                                ztop=ztop,
+                                lines=None, 
+                                contours=hwind_contours,
+                                cmap=hwind_cmap,
+                                colorbar=True,
+                                )
+            
+            ## Add quiver
+            wind_transect_struct = transect_winds(ui, vi, wi, zi, lats, lons, 
+                                                  [start,end],
+                                                  ztop=ztop,
+                                                  npoints=npoints,
+                                                  )
+                
+            #TW = wind_transect_struct['w']
+            Xvals = wind_transect_struct['x'][0,:]
+            Yvals = wind_transect_struct['y'] # 2d array of altitudes for cross section
+            label= wind_transect_struct['xlabel']
+            plt.xticks([Xvals[0],Xvals[-1]],
+                       [label[0],label[-1]],
+                       rotation=10)
+            plt.gca().set_ylim(np.min(Yvals),ztop)
+                
+            ## SAVE FIGURE
+            #print("DEBUG: LTstr",LTstr)
+            # add space in specific area, then add Hwinds colorbar
+            plt.suptitle(mr + "\n" + LTstr,
+                         fontsize=20)
+            fio.save_fig(mr,"special_transects",dtime,
+                         subdir=name,
+                         plt=plt,
+                         )
+    
+
 if __name__ == '__main__':
     latlontimes=firefront_centres["KI_run1"]['latlontimes']
     # keep track of used zooms
@@ -1313,15 +1441,25 @@ if __name__ == '__main__':
     KI_jetrun_zoom=[136.6,136.9,-36.08,-35.79]
     KI_jetrun_name="KI_earlyjet"
     # settings for plots
-    mr='KI_run2'
-    zoom=KI_jetrun_zoom #belowra_zoom
-    subdir=KI_jetrun_name #belowra_zoom_name
+    mr='badja_run2_exploratory'
+    zoom=badja_zoom #belowra_zoom
+    subdir=badja_zoom_name #belowra_zoom_name
+    
+    if True:
+        mr='badja_run2_exploratory'
+        # best return shear example at 0020LT
+        shear_example = [[-36.25,149.63],[-36.35,149.78]]
+        shear_example_ztop = 5000
+        
+        start,end=shear_example
+        ztop=shear_example_ztop
+        plot_special_transects(mr,start,end,ztop=ztop,name="shear")
     
     if False:
         multiple_transects_vertmotion("KI_run2_exploratory",ztop=5000,)
     
     ## Special wandella transects
-    if True:
+    if False:
         wandella_zoom=[149.5843,  149.88, -36.376, -36.223]
         wandella_zoom_name="Wandella"
         wandella_transect = [[-36.250,149.67],[-36.35,149.82]]
