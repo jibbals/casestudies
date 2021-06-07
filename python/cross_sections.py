@@ -1361,11 +1361,11 @@ def plot_special_transects(mr,start,end,ztop=5000,
         dtimes = utils.dates_from_iris(theta)
         
         # read fire front, sens heat, 10m winds
-        ff,sh,u10,v10 = fio.read_fire(model_run=mr,
-                                      dtimes=dtimes, 
-                                      extent=extent,
-                                      filenames=['firefront','sensible_heat',],
-                                      )
+        ff,sh = fio.read_fire(model_run=mr,
+                              dtimes=dtimes, 
+                              extent=extent,
+                              filenames=['firefront','sensible_heat',],
+                              )
         ## loop over time steps
         for ti,dtime in enumerate(dtimes):
             LT = dtime+timedelta(hours=dtoffset)
@@ -1405,7 +1405,7 @@ def plot_special_transects(mr,start,end,ztop=5000,
                                                   ztop=ztop,
                                                   npoints=npoints,
                                                   )
-                
+            plt.title("")    
             #TW = wind_transect_struct['w']
             Xvals = wind_transect_struct['x'][0,:]
             Yvals = wind_transect_struct['y'] # 2d array of altitudes for cross section
@@ -1419,7 +1419,7 @@ def plot_special_transects(mr,start,end,ztop=5000,
             #print("DEBUG: LTstr",LTstr)
             # add space in specific area, then add Hwinds colorbar
             plt.suptitle(mr + "\n" + LTstr,
-                         fontsize=20)
+                         fontsize=15)
             fio.save_fig(mr,"special_transects",dtime,
                          subdir=name,
                          plt=plt,
@@ -1446,7 +1446,7 @@ if __name__ == '__main__':
     subdir=badja_zoom_name #belowra_zoom_name
     
     if True:
-        mr='badja_run2_exploratory'
+        mr='badja_run3'
         # best return shear example at 0020LT
         shear_example = [[-36.25,149.63],[-36.35,149.78]]
         shear_example_ztop = 5000
