@@ -86,10 +86,12 @@ def isochrone_comparison(mrs, extent=None, subdir=None):
     
     # Add legend
     lines = [matplotlib.lines.Line2D([0], [0], color=c, linewidth=2, linestyle='-') for c in colors]
-    plt.legend(lines, mrs, 
-            bbox_to_anchor=(.01, 1.01), # put legend top left (above figure)
+    mrs_names=[mrs_name.split("_")[-1] for mrs_name in mrs]
+    plt.legend(lines, mrs_names, 
+            bbox_to_anchor=(-.002, 1.01), # put legend top left (above figure)
             loc='lower left', # for bbox connection
             handlelength=1, # default is 2, line length in legend is too long
+            ncol=2, # two columns
             )
     
     plotting.map_add_locations_extent(extent,hide_text=False)
@@ -362,19 +364,25 @@ if __name__ == '__main__':
     badja_zoom_name="zoom1"
     
     if True:
-        mrs=["badja_run1","badja_run2","badja_run3",]#"badja_run4"]
-        #mrs=['KI_run1','KI_run2','KI_run3']
+        mrs=["badja_run1","badja_run2","badja_run3","badja_run4"]
         extent=badja_zoom
         subdir=badja_zoom_name
+        #mrs=['KI_run1','KI_run2','KI_run3']
+        #extent=KI_zoom
+        #subdir=KI_zoom_name
+
         isochrone_comparison(mrs,extent=extent,subdir=subdir)
-        #for mr in mrs:
-            #fire_spread(mr,)
-            #isochrones(mr)
         
     
     if False:
-        for mr in ['KI_run1','KI_run2','KI_run3']:
-            isochrones(mr, extent=KI_zoom, subdir=KI_zoom_name)
+        mrs=["badja_run1","badja_run2","badja_run3","badja_run4"]
+        extent=badja_zoom
+        subdir=badja_zoom_name
+        #mrs=['KI_run1','KI_run2','KI_run3']
+        #extent=KI_zoom
+        #subdir=KI_zoom_name
+        for mr in mrs:
+            isochrones(mr, extent=extent, subdir=subdir)
     
     #mr = 'badja_run3'
     #zoom = badja_zoom

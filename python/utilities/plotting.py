@@ -304,8 +304,9 @@ def map_add_locations_extent(extent,
     dx,dy are distance between text and location (in degrees)
     '''
     names,latlons = utils.locations_from_extent(extent)
-
-    Names = [name.capitalize() for name in names]
+    
+    # Capitalise all words in name
+    Names = [name.title() for name in names]
     if hide_text:
         Names = ['']*len(names)
     
@@ -772,7 +773,7 @@ def map_quiver(u, v, lats, lons, nquivers=13, **quiver_kwargs):
 
 
 def map_add_nice_text(ax, latlons, texts=None, markers=None, 
-                      fontsizes=10, fontcolors='wheat', 
+                      fontsizes=9, fontcolors='wheat', 
                       markercolors='grey', markersizes=None,
                       outlinecolors='k', transform=None):
     '''
@@ -814,8 +815,8 @@ def map_add_nice_text(ax, latlons, texts=None, markers=None,
     for (lat, lon), text, marker, mcolor, msize, fcolor, fsize, outlinecolor in zip(latlons, texts, markers, markercolors, markersizes, fontcolors, fontsizes, outlinecolors):
         
         # outline for text/markers
-        marker_effects=[patheffects.Stroke(linewidth=5, foreground=outlinecolor), patheffects.Normal()]
-        text_effects = [patheffects.withStroke(linewidth=3, foreground=outlinecolor)]
+        marker_effects=[patheffects.Stroke(linewidth=4, foreground=outlinecolor), patheffects.Normal()]
+        text_effects = [patheffects.withStroke(linewidth=2, foreground=outlinecolor)]
         
         # Add the point to the map with patheffect
         ax.plot(lon, lat, color=mcolor, linewidth=0, 
@@ -995,7 +996,9 @@ def transect(data, z, lat, lon, start, end, npoints=None,
     ## Default contourfargs
     if 'extend' not in contourfargs:
         contourfargs['extend'] = 'max'
-    
+    if contours is not None:
+        contourfargs['levels'] = contours
+
     ## Check that z includes topography (within margin of 40 metres)
     if topog is not None:
         if np.mean(z[0]+40)<np.mean(topog):
@@ -1031,10 +1034,7 @@ def transect(data, z, lat, lon, start, end, npoints=None,
         plt.sca(ax)
     # Note that contourf can work with non-plaid coordinate grids provided both are 2-d
     # Contour inputs: xaxis, yaxis, data, colour gradient 
-    if contours is None:
-        plt.contourf(X,Y,slicedata,**contourfargs)
-    else:
-        plt.contourf(X,Y,slicedata,contours,**contourfargs)
+    cmappable=plt.contourf(X,Y,slicedata,contours,**contourfargs)
     
     if colorbar:
         # defaults if not set
@@ -1098,7 +1098,7 @@ def transect(data, z, lat, lon, start, end, npoints=None,
     plt.xlabel('')
     plt.title(title)
 
-    return slicedata, X, Y
+    return slicedata, X, Y, cmappable
 
 def transect_s(s, z, lat, lon, start, end, npoints=100, 
                topog=None, sh=None, latt=None, lont=None, ztop=4000,

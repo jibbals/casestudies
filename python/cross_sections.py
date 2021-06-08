@@ -126,6 +126,7 @@ def transect_winds(u,v,w,z,
                   ztop=5000,
                   npoints=None,
                   streamplot=False,
+                  n_arrows=20,
                   wind_contourargs={},
                   ):
     """
@@ -195,7 +196,7 @@ def transect_winds(u,v,w,z,
         #                     alpha=0.5,
         #                     )
         plotting.quiverwinds(slicez,slicex,transect_s,transect_w,
-                             n_arrows=20,
+                             n_arrows=n_arrows,
                              add_quiver_key=False,
                              alpha=0.5,
                              )
@@ -1071,7 +1072,7 @@ def multiple_transects_vertmotion(mr,
     w_norm = matplotlib.colors.SymLogNorm(0.25,base=2.0, vmin=-16,vmax=16,)
     w_contours = np.union1d(np.union1d(2.0**np.arange(-2,5),-1*(2.0**np.arange(-2,5))),np.array([0]))
     w_ticks = [-16,-4, 0, 4, 16] 
-    w_sm = matplotlib.cm.ScalarMappable(cmap=w_cmap, norm=w_norm)
+    #w_sm = matplotlib.cm.ScalarMappable(cmap=w_cmap, norm=w_norm)
     
     # read topog
     cube_topog = fio.read_topog(mr,extent=extent, HSkip=HSkip)
@@ -1205,7 +1206,7 @@ def multiple_transects_vertmotion(mr,
                 row_axis = plt.subplot(4,1, 2+trani) # row 2,3,4
                 #print("DEBUG: ")
                 #[print(type(thing),np.shape(thing)) for thing in [wi,zi,lats,lons,starti,endi,topog,shi]]
-                plotting.transect_w(wi,zi,lats,lons,
+                _,_,_,mappable = plotting.transect_w(wi,zi,lats,lons,
                                     start=starti,
                                     end=endi,
                                     ztop=ztop,
@@ -1270,7 +1271,7 @@ def multiple_transects_vertmotion(mr,
             ## SAVE FIGURE
             # add space in specific area, then add vert motion colorbar
             cbar_ax1 = fig.add_axes([0.06, 0.74, 0.01, 0.2]) # X Y Width Height
-            cbar1 = fig.colorbar(w_sm, 
+            cbar1 = fig.colorbar(mappable, 
                                  cax=cbar_ax1, 
                                  ticks=w_ticks, 
                                  pad=0)
@@ -1300,7 +1301,8 @@ def multiple_transects_vertmotion_SN(*args,**kwargs):
 
 def plot_special_transects(mr,start,end,ztop=5000,
                            hours=None,
-                           name=None):
+                           name=None,
+                           n_arrows=20):
     """
         plot transect with full resolution
         loop every 30 minutes
@@ -1404,6 +1406,7 @@ def plot_special_transects(mr,start,end,ztop=5000,
                                                   [start,end],
                                                   ztop=ztop,
                                                   npoints=npoints,
+                                                  n_arrows=n_arrows,
                                                   )
             plt.title("")    
             #TW = wind_transect_struct['w']
@@ -1445,7 +1448,7 @@ if __name__ == '__main__':
     zoom=badja_zoom #belowra_zoom
     subdir=badja_zoom_name #belowra_zoom_name
     
-    if True:
+    if False:
         mr='badja_run3'
         # best return shear example at 0020LT
         shear_example = [[-36.25,149.63],[-36.35,149.78]]
@@ -1454,6 +1457,18 @@ if __name__ == '__main__':
         start,end=shear_example
         ztop=shear_example_ztop
         plot_special_transects(mr,start,end,ztop=ztop,name="shear")
+    
+    if True:
+        mr='KI_run2'
+        # best return shear example at 0020LT
+        LLjet_example = [[-35.725,136.7],[-36.08,136.7]]
+        LLjet_example_ztop = 3000
+        
+        start,end=LLjet_example
+        ztop=LLjet_example_ztop
+        plot_special_transects(mr,start,end,ztop=ztop,
+                name="lowlevel_jet",
+                n_arrows=10,)
     
     if False:
         multiple_transects_vertmotion("KI_run2_exploratory",ztop=5000,)

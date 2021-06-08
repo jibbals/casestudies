@@ -47,8 +47,8 @@ latlons['Karumba'] = -36.00827, 147.69578
 latlons['Corryong'] = -36.196, 147.902
 
 ## Extra locs
-latlons['sydney']    = -33.8688, 151.2093
-latlons['brisbane']  = -27.4698, 153.0251
-latlons['canberra']  = -35.2809, 149.1300
-latlons['melbourne'] = -37.8136, 144.9631
+latlons['Sydney']    = -33.8688, 151.2093
+latlons['Brisbane']  = -27.4698, 153.0251
+latlons['Canberra']  = -35.2809, 149.1300
+latlons['Melbourne'] = -37.8136, 144.9631
 

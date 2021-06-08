@@ -16,7 +16,7 @@ import pandas
 from glob import glob
 from datetime import datetime, timedelta
 from utilities import fio, utils, plotting,constants
-
+from utilities.fio_iris import read_PFT_timeseries
 
 AWS_rename_columns = {
             "Latitude to four decimal places in degrees":"latitude",
@@ -496,11 +496,14 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1,
         DF_AWS = read_AWS(station_name=station_name)
     
     if no_aws:
+        assert latlon is not None, "latlon needs to be entered if running with no aws file"
         lat,lon = latlon
     else:
         lat = DF_AWS.latitude.values[0]
         lon = DF_AWS.longitude.values[0]
-    
+        latlon=[lat,lon]
+    print("INFO: compare AWS running for lat,lon:",lat,lon)
+
     if not no_model:
         ## Read fire series at that spot
         DS_fire = read_fire_time_series(mr,latlon=[lat,lon],)
@@ -534,7 +537,7 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1,
     ## Plot stuff
     mc='darkgreen' # model colour
     dc='k' # data colour
-    fig,axes = plt.subplots(nrows=3,ncols=1,sharex=True,sharey=False)
+    fig,axes = plt.subplots(nrows=4+(not no_model),ncols=1,sharex=True,sharey=False)
     # first plot shows wind speed and fire power
     plt.sca(axes[0])
     if not no_model:
@@ -545,14 +548,10 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1,
                       label='AWS')
         plt.plot_date(lt_AWS, AWS_gusts, color=dc,fmt='x', alpha=0.7,
                       label='AWS gusts (10 minute)')
-    #plt.legend()
-    plt.ylabel("wind speed (m/s)")
-    if not no_model:
-        # other side axis for firepower
-        plt.twinx()
-        plt.plot_date(lt_fire,firepower, color='r',fmt='-',label='firepower')
-        plt.ylabel('FP (GW)',color='r')
+
     plt.xticks([],[])
+    plt.ylabel("wind speed (m/s)")
+
     
     # wind direction
     plt.sca(axes[1])
@@ -560,13 +559,16 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1,
         plt.plot_date(lt_fire,fire_wdir10, color=mc, fmt='o', label='model (10m)')
     if not no_aws:
         plt.plot_date(lt_AWS, AWS_wdir, color=dc,fmt='o', label='AWS')
-    
+    # swap axis side
     plt.ylabel("WDir (deg)")
     plt.ylim(0,360) # ylimits should be 0 to 360 for wdir
+    axes[1].yaxis.set_label_position("right")
+    axes[1].yaxis.tick_right()
     wdir_ticks=[90,180,270]
     plt.yticks(wdir_ticks,wdir_ticks)
+    plt.xticks([],[])
     # other side axis for RH
-    plt.twinx()
+    plt.sca(axes[2])
     if not no_model:
         plt.plot_date(lt_fire,fire_RH_surf, color=mc,fmt='--',
                       label='model (surface)')
@@ -574,20 +576,38 @@ def AWS_compare_10m(mr, station_name, buffer_hours=1,
         plt.plot_date(lt_AWS, AWS_RH, color=dc,fmt='--', 
                       label='AWS')
     #plt.legend()
-    plt.ylabel('RH (%) (dashed)')
+    plt.ylabel('RH (%)')
     rh_ticks = [25,50,75]
     plt.ylim(0,100) # ylimits should be 0 to 100 for RH
     plt.yticks(rh_ticks,rh_ticks)
     plt.xticks([],[])
     
     ## temperature, pressure
-    plt.sca(axes[2])
+    plt.sca(axes[3])
     if not no_model:
         plt.plot_date(lt_fire, fire_t_surf, color=mc, fmt='-', label='model (surface)')
     if not no_aws:
         plt.plot_date(lt_AWS, AWS_T, color=dc,fmt='-', label='AWS')
     plt.ylabel("T (C)")
-    #plt.legend()
+    axes[3].yaxis.set_label_position("right")
+    axes[3].yaxis.tick_right()
+    
+    if not no_model:
+        plt.xticks([],[])
+        plt.sca(axes[4])
+        plt.plot_date(lt_fire,firepower, color='r',fmt='-',label='firepower')
+        plt.ylabel('FP (GW)',color='r')
+
+        # Add PFT
+        pft_ts=read_PFT_timeseries(mr, latlon=[lat,lon])
+        pft=pft_ts.extract("PFT")[0]
+        utc = utils.dates_from_iris(pft)
+        ltoffset = utils.local_time_offset_from_lats_lons([lat],[lon])
+        lt_pft = np.array([utci+timedelta(hours=ltoffset) for utci in utc])
+        plt.plot_date(lt_pft,pft.data, color='m',fmt='-',label="PFT")
+        # Limit y axis to 2x maximum firepower
+        plt.legend()
+
     
     # fix date formatting
     plt.gcf().autofmt_xdate()
@@ -638,7 +658,7 @@ if __name__ == '__main__':
     if False:
         fireseries("KI_run1_exploratory",)
     
-    if True:
+    if False:
         #for mr in ["yanchep_run3", "yanchep_run4","stanthorpe_run1","stanthorpe_run2"]:
         #for mr in ["corryong_run4", "corryong_run4_fix","green_valley_run2","gren_valley_run2_fix"]:
         for mr in ["green_valley_run2_fix"]:
@@ -656,12 +676,12 @@ if __name__ == '__main__':
             AWS_compare_10m(mr,'Moruya')
             
 
-    if False:
-        for mr in ['KI_run1','KI_run2',]:
-            for site in ['CAPE WILLOUGHBY','CAPE BORDA','KINGSCOTE AERO','PARNDANA CFS AWS']:
+    if True:
+        for mr in ['KI_run2','KI_run1',]:
+            for site in ['CAPE BORDA','KINGSCOTE AERO','PARNDANA CFS AWS']:
                 AWS_compare_10m(mr,site)
                 #fireseries(mr)
-    
+            AWS_compare_10m(mr,'CAPE WILLOUGHBY',no_model=True)
 
     
 

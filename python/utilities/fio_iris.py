@@ -235,6 +235,8 @@ def read_nc_iris(fpath, constraints=None, keepvars=None, HSkip=None):
             cubes = small_cubes
     if len(cubes) < 1:
         print("ERROR: NO CUBES RETURNED IN fio.read_nc_iris()")
+        print("ERROR: no data for:")
+        print("     : fpath: ",fpath)
         print("     :",constraints)
     return cubes
 
@@ -530,6 +532,10 @@ def read_topog(model_version, extent=None, HSkip=None):
     if extent is not None:
         constraints = _constraints_from_extent_(extent,constraints)
         
+    if len(files) < 1:
+        print("ERROR: no data for:")
+        print("     : model run: ",model_version)
+        print("     : extent:", str(extent))
     assert len(files) > 0, "NO FILES FOUND IN "+ddir
     topog = read_nc_iris(files[0],
                          constraints = constraints, 
@@ -539,6 +545,95 @@ def read_topog(model_version, extent=None, HSkip=None):
     # don't want time dim in topog
     topog = iris.util.squeeze(topog) 
     return topog
+
+def read_PFT_timeseries(mr,latlon,
+                        force_recreate=False,
+                        interp_method="nearest",):
+    lat,lon = latlon
+    extent=[lon-.01, lon+.01, lat-.01, lat+.01] # WESN
+    
+    fname = "../data/PFT/"+mr+str(lat)+","+str(lon)+".nc"
+    if os.path.isfile(fname) and not force_recreate:
+        print("INFO: Reading already created netcdf timeseries:",fname)
+        return iris.load(fname)
+    print("INFO: creating netcdf timeseries:",fname)
+    
+    
+    # let's time how long it takes
+    hours = hours_available(mr)
+    
+    PFT_full=[]
+    dtimes=[]
+    cubes=None
+    topog=read_topog(mr,extent=extent)
+    for hour in hours:
+        del cubes
+        # Read the cubes for one hour at a time
+        cubes = read_model_run(mr, hours=[hour], extent=extent,)
+        utils.extra_cubes(cubes,
+                          add_z=True, 
+                          add_RH=True,
+                          #add_topog=True, 
+                          add_winds=True,
+                          add_theta=True,
+                          )
+        cubes.append(topog) # add topog to CubeList
+        #print("DEBUG: topog", topog) 
+        #print(cubes)
+        PFT_full.append(utils.PFT_from_cubelist(cubes, latlon=latlon))
+        dtimes.append(cubes[0].dim_coords[0].points)
+    
+    ## COMBINE PFT ARRAY along time dimension...
+    PFT=np.concatenate(PFT_full,axis=0)
+    dtimes = np.concatenate(dtimes,axis=0) # array of seconds since 1970-01-01 00:00:00
+    ## Fix coordinates
+    ## Copy existing coords and attributes
+    lats = cubes[0].coord('latitude').points
+    lons = cubes[0].coord('longitude').points
+    Pa, = cubes.extract('air_pressure')
+    Pa = Pa[:,0] # surface only
+    
+    # copy dimensions
+    timecoord = iris.coords.DimCoord(dtimes, 'time', units=Pa.coord('time').units)
+    # time is only dimension since we have single lat,lon
+    dim_coords = [(timecoord,0),]
+
+    # create cube from PFT array
+    #print("DEBUG: dim_coords",dim_coords)
+    #print("DEBUG: dim_coords[0]",dim_coords[0])
+    #print("DEBUG: type PFT", type(PFT))
+    #print("DEBUG: shape PFT", np.shape(PFT))
+    #print("DEBUG: PFT", PFT)
+    PFTcube = iris.cube.Cube(PFT,
+                             var_name='PFT',
+                             units='Gigawatts',
+                             dim_coords_and_dims=dim_coords)
+    # Keep some attributes too
+    attrkeys=['source', 'um_version', 'institution', 'title', 
+              'summary', 'project', 'acknowledgment', 
+              'license', 
+              'geospatial_lon_units',
+              'geospatial_lat_units',
+              'publisher_institution', 'publisher_name', 'publisher_type', 
+              'publisher_url', 'naming_authority']
+    attributes={}
+    for k in attrkeys:
+        if k in Pa.attributes.keys():
+            attributes[k] = Pa.attributes[k]
+    #attributes = { k:Pa.attributes[k] for k in attrkeys }
+    attributes['geospatial_lon_max'] = np.max(lons)
+    attributes['geospatial_lat_max'] = np.max(lats)
+    PFTcube.attributes=attributes
+    
+    # save file
+    make_folder(fname)
+    iris.save(PFTcube,fname)
+    
+    # test file:
+    f = iris.load(fname)
+    print("INFO: SAVED ",fname)
+    #print(f)
+    return f
 
 def subset_time_iris(cube,dtimes,seccheck=121):
     '''
