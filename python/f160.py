@@ -136,10 +136,10 @@ def f160(press,Temp,Tempd, latlon,
     skew.plot_mixing_lines()
     return skew
 
-def f160_hour(dtime=datetime(2016,1,6,7), 
-              latlon=plotting._latlons_['pyrocb_waroona1'],
-              latlon_stamp='pyrocb1',
-              model_version='waroona_run1',
+def f160_hour(dtime, 
+              latlon,
+              latlon_stamp,
+              model_version,
               nearby=2):
     '''
     Look at F160 plots over time for a particular location
@@ -148,27 +148,32 @@ def f160_hour(dtime=datetime(2016,1,6,7),
     '''
 
     # Use datetime and latlon to determine what data to read
-    extentname=model_version.split('_')[0]
-    extent = plotting._extents_[extentname]
+    lat,lon = latlon
+    extent = [lon-.01,lon+.01,lat-.01,lat+.01]
     
     if latlon_stamp is None:
         latlon_stamp="%.3fS_%.3fE"%(-latlon[0],latlon[1])
     
     # read pressure and temperature cubes
-    cubes = fio.read_model_run(model_version, fdtime=dtime, extent=extent,
-                               add_winds = True,
-                               add_dewpoint = True,)
+    cubes = fio.read_model_run(model_version, 
+                                hours=dtime, 
+                                extent=extent,
+                               )
+    utils.extra_cubes(cubes,
+            add_winds = True,
+            add_dewpoint = True,
+            )
     p, t, td, u, v = cubes.extract(['air_pressure','air_temperature',
                                     'dewpoint_temperature','u','v'])
     p_rho = p
-    if model_version=='waroona_run1':
-        p_rho, = cubes.extract('air_pressure_rho')
     
     ffdtimes = utils.dates_from_iris(p)
-    
+    localtimes=utils.local_time_from_time_lats_lons(ffdtimes,[lat],[lon])
+
     for i in range(len(ffdtimes)):
         # Plot name and title
-        ptitle="SkewT$_{ACCESS}$   (%s) %s"%(latlon_stamp,ffdtimes[i].strftime("%Y %b %d %H:%M (UTC)"))
+        ltstr=localtimes[i].strftime("%Y %b %d %H:%M (LT)")
+        ptitle="SkewT$_{ACCESS}$ (%s) %s"%(latlon_stamp,ltstr)
         
         # create plot
         f160(p[i],t[i],td[i], latlon,
@@ -176,18 +181,25 @@ def f160_hour(dtime=datetime(2016,1,6,7),
         plt.title(ptitle)
         
         # save plot
-        fio.save_fig(model_version,_sn_,ffdtimes[i],plt,subdir=latlon_stamp)
+        fio.save_fig(model_version,
+                plot_name="f160",
+                plot_time=ffdtimes[i],
+                plt=plt,
+                subdir=latlon_stamp,
+                )
 
 if __name__ == '__main__':
     
     if True:
-        mr="KI_run1_exploratory"
+        mr="KI_run2"
         latlon=constants.latlons['Parndana']
-        hours=utils.hours_available(mr)
-        f160_hour(dtime=hours[10], 
-                  latlon=latlon, 
-                  latlon_stamp="Parndana",
-                  model_version=mr,)
+        hours=fio.hours_available(mr)
+        for hour in hours:
+            f160_hour(dtime=hour, 
+                      latlon=latlon, 
+                      latlon_stamp="Parndana",
+                      model_version=mr,
+                      )
     
     if False:
         waroona_upwind = []
