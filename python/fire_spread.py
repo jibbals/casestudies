@@ -52,43 +52,43 @@ def isochrone_comparison(mrs, extent=None, subdir=None):
     time_lt = utils.local_time_from_time_lats_lons(times,lats,lons)
     
     ## Plot starts here, we put isochrones onto topography
-    plotting.map_topography(DA_topog.values,lats,lons)
+    plotting.map_topography(DA_topog.values,lats,lons,cbar=True)
     
     # loop over timesteps after fire starts
     # This suppresses a warning when reading large arrays
     with dask.config.set(**{'array.slicing.split_large_chunks': False}):
         hasfire=np.min(DA_FFs[mrs[0]].values,axis=(1,2)) < 0
 
-    for ti,time_utc in enumerate(times[hasfire][::240]): # every 4 hours once fire starts
+        for ti,time_utc in enumerate(times[hasfire][::240]): # every 4 hours once fire starts
         
-        for mr, color in zip(mrs,colors):
+            for mr, color in zip(mrs,colors):
             
-            DA_FF = DA_FFs[mr]
-            with dask.config.set(**{'array.slicing.split_large_chunks': False}):
+                DA_FF = DA_FFs[mr]
+                # another chunk warning
                 FF = DA_FF.sel(time=time_utc).data.T
-            plotting.map_fire(FF,lats,lons, 
+                plotting.map_fire(FF,lats,lons, 
                               linewidths=1,
                               colors=[color],
                               linestyles='--',
                               )
 
-    # Finally do last timestep
-    for mr, color in zip(mrs,colors):
-        DA_FF = DA_FFs[mr]
+        # Finally do last timestep
+        for mr, color in zip(mrs,colors):
+            DA_FF = DA_FFs[mr]
             
-        ## slice time
-        with dask.config.set(**{'array.slicing.split_large_chunks': False}):
+            ## slice time
+            #another chunk warning
             FF = DA_FF.sel(time=times[-1]).data.T
-        plotting.map_fire(FF,lats,lons, 
-                          linewidths=2,
-                          colors=[color],
-                          )
+            plotting.map_fire(FF,lats,lons, 
+                              linewidths=2,
+                              colors=[color],
+                              )
     
     # Add legend
     lines = [matplotlib.lines.Line2D([0], [0], color=c, linewidth=2, linestyle='-') for c in colors]
     mrs_names=[mrs_name.split("_")[-1] for mrs_name in mrs]
     plt.legend(lines, mrs_names, 
-            bbox_to_anchor=(-.002, 1.01), # put legend top left (above figure)
+            bbox_to_anchor=(-.02, 1.06), # put legend top left (above figure)
             loc='lower left', # for bbox connection
             handlelength=1, # default is 2, line length in legend is too long
             ncol=2, # two columns
@@ -255,7 +255,7 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
     #plt.imshow(lons,lats,masked, interpolation='none')
     # heat flux
     if np.max(sh)>100:
-        plotting.map_sensibleheat(sh,lats,lons,colorbar=False)
+        plotting.map_sensibleheat(sh,lats,lons,colorbar=True)
     
     # quiver
     plotting.quiverwinds(lats,lons,u,v,)
@@ -317,7 +317,7 @@ def fire_spread(mr, extent=None, subdir=None, coastline=2):
         ## FIRST FIGURE: fire spread
         
         plot_fire_spread(DA_sh, DA_ff, DA_u10, DA_v10)
-        plotting.map_add_locations_extent(extent,hide_text=False)
+        plotting.map_add_locations_extent(extent,hide_text=False, fontsizes=13)
         plt.title(title)
         
         if coastline>0 and np.min(DA_topog.values)<coastline:
@@ -362,8 +362,10 @@ if __name__ == '__main__':
     KI_zoom2_name = "zoom2"
     badja_zoom=[149.4,150.12, -36.47, -35.99]
     badja_zoom_name="zoom1"
-    
-    if True:
+    if True: 
+        fire_spread(mr='badja_run3',extent=badja_zoom,subdir=badja_zoom_name,)
+
+    if False:
         mrs=["badja_run1","badja_run2","badja_run3","badja_run4"]
         extent=badja_zoom
         subdir=badja_zoom_name

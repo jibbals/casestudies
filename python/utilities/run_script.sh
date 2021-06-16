@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -P en0
-#PBS -q express
+#PBS -q normal
 #PBS -N casestudies_py
 #PBS -l walltime=20:00:00
 #PBS -l mem=120000MB
