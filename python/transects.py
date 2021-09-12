@@ -26,7 +26,7 @@ from utilities import fio_iris as fio
 ###
 ## GLOBALS
 ###
-_sn_ = 'cross_sections'
+_sn_ = 'transects'
 
 
 firefront_centres = {
@@ -200,8 +200,8 @@ def transect_winds(u,v,w,z,
                              add_quiver_key=False,
                              alpha=0.5,
                              )
-    plt.xlim(np.min(slicex),np.max(slicex))
-    plt.ylim(np.min(slicez),ztop)
+    plt.xlim(np.nanmin(slicex),np.nanmax(slicex))
+    plt.ylim(np.nanmin(slicez),ztop)
     
     return retdict
 
@@ -564,7 +564,7 @@ def map_and_transects(mr,
     # Read model run
     simname=mr.split('_')[0]
     umdtimes = fio.hours_available(mr)
-    dtoffset = fio.sim_info[simname]['UTC_offset']
+    dtoffset = utils.local_time_offset_from_lats_lons([extent[2],extent[3]],[extent[0],extent[1]])
     
     # hours input can be datetimes or integers
     if hours is not None:
@@ -961,7 +961,7 @@ def multiple_transects(mr,
                     plt.title("Winds (m/s)")
                 else:
                     plt.title("")
-                axleft.set_ylim(np.min(Yvals),ztop)
+                axleft.set_ylim(np.nanmin(Yvals),ztop)
                 
                 ## RIGHT PANEL: T and Vert motion
                 axright=plt.subplot(4,2,4+trani*2)
@@ -997,7 +997,7 @@ def multiple_transects(mr,
                             VM_contours, # contour lines
                             colors=VM_colours, # contour line colours
                             )
-                plt.ylim(np.min(XRet['y']),ztop)
+                plt.ylim(np.nanmin(XRet['y']),ztop)
                 if trani==0:
                     plt.title("T$_{Potential}$ and Vert motion")
                     plt.xlabel("%.2f (km)"%(xdistance/1000.0),labelpad=-10)
@@ -1010,7 +1010,7 @@ def multiple_transects(mr,
                            [label[0],label[-1]],
                            rotation=10)
                 
-                axright.set_ylim(np.min(XRet['y']),ztop)
+                axright.set_ylim(np.nanmin(XRet['y']),ztop)
             ## SAVE FIGURE
             #print("DEBUG: LTstr",LTstr)
             # add space in specific area, then add Hwinds colorbar
@@ -1265,7 +1265,7 @@ def multiple_transects_vertmotion(mr,
                             rotation=0)
                 plt.title("")
                 
-                row_axis.set_ylim(np.min(Yvals),ztop)
+                row_axis.set_ylim(np.nanmin(Yvals),ztop)
                 
                 
             ## SAVE FIGURE
@@ -1448,6 +1448,19 @@ if __name__ == '__main__':
     zoom=badja_zoom #belowra_zoom
     subdir=badja_zoom_name #belowra_zoom_name
     
+    if True: # look at green valley for dragana
+        mr="green_valley_run2_fix"
+        start,end=[[-35.9,147.5],[-36.34,148.1]]
+        extent=[147.35,148.25,-36.5,-35.7]
+        hours=[datetime(2019,12,30,8)]
+        for method in [multiple_transects_vertmotion,multiple_transects,]:
+            method(mr, extent=extent, ztop=9000,
+                    start=start,end=end,
+                    hours=hours,
+                    dx=.01,
+                    dy=.01,
+                    )
+
     if False:
         mr='badja_run3'
         # best return shear example at 0020LT
@@ -1458,7 +1471,7 @@ if __name__ == '__main__':
         ztop=shear_example_ztop
         plot_special_transects(mr,start,end,ztop=ztop,name="shear")
     
-    if True:
+    if False:
         mr='KI_run2'
         # best return shear example at 0020LT
         LLjet_example = [[-35.725,136.7],[-36.08,136.7]]

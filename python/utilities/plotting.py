@@ -997,7 +997,7 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
 def transect(data, z, lat, lon, start, end, npoints=None, 
              topog=None, sh=None, latt=None, lont=None, ztop=4000,
              title="", ax=None, colorbar=True,
-             contours=None,lines=None, 
+             lines=None, 
              cbar_args={},
              **contourfargs):
     '''
@@ -1005,18 +1005,15 @@ def transect(data, z, lat, lon, start, end, npoints=None,
     ARGUMENTS:
         data is 3d [levs,lats,lons]
         z (3d): height [lev,lats,lons]
-        lat(1d), lon(1d)
-        start, end are [lat0,lon0], [lat1,lon1]
-        contours will be filled colours
-        lines will be where to draw black lines
+        lat(1d), lon(1d): data coordinates
+        start, end: [lat0,lon0], [lat1,lon1]
+        lines (list): add black lines to contourf
         cbar_args = dict of options for colorbar, drawn if colorbar==True
-    return slicedata, slicex, slicez
+    return slicedata, slicex, slicez, cmappable (the colorbar)
     '''
     ## Default contourfargs
     if 'extend' not in contourfargs:
         contourfargs['extend'] = 'max'
-    if contours is not None:
-        contourfargs['levels'] = contours
 
     ## Check that z includes topography (within margin of 40 metres)
     if topog is not None:
@@ -1074,10 +1071,7 @@ def transect(data, z, lat, lon, start, end, npoints=None,
     
     # Add contour lines
     if lines is not None:
-        # ignore warning when there are no lines?
-        #with warnings.catch_warnings():
-            #warnings.simplefilter('ignore')
-        plt.contour(X,Y,slicedata,lines,colors='k')            
+        plt.contour(X,Y,slicedata,lines,colors='k')
     
     zbottom = np.tile(np.min(Y),reps=npoints) # xcoords
     xbottom = X[0,:]

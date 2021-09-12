@@ -17,13 +17,21 @@ __DATADIR__="../data/"
 # "liquid water mixing ratio is the ratio ofthe mass of liquid water to the mass of dry air in a given volume of air. Likewise, the ice mixing ratio is the ratio of the mass of frozen water to the mass of dry air"
 cloud_threshold = 0.01 # g/kg cloud boundary of liquid + ice /kg air
 
-
-
-
 # dictionaries for named locations/extents
 latlons, extents={},{}
 
-####### Kangaroo Island extents##########
+### EXTENTS ###
+# extents{"location":{"zoomname":[W,E,S,N], }}
+extents['KI'] = {"zoom1":[136.5,   137.5,   -36.1,   -35.6],
+                 "zoom2":[136.5887,136.9122,-36.047,-35.7371],
+                 "early_run":[136.6,136.9,-36.08,-35.79],}
+extents['badja'] = {"zoom1":[149.4,     150.12,  -36.47,  -35.99],
+                    "Wandella":[149.5843,  149.88, -36.376, -36.223],
+                    "Belowra":[149.5308,149.9093,-36.2862,-36.0893],}
+
+### LOCATIONS ###
+####### Kangaroo Island ##########
+
 # towns...
 latlons['Parndana'] = -35.79, 137.262
 #latlons['Cape Torrens'] = -35.74,136.75

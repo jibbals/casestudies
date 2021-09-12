@@ -276,12 +276,12 @@ def vorticity(mr, extent=None, subdir=None, levels=[3,10,20,30,40, 50,60,70,90],
 if __name__ == '__main__':
 
     # keep track of used zooms
-    KI_zoom = [136.5,137.5,-36.1,-35.6]
     KI_zoom_name = "zoom1"
-    KI_zoom2 = [136.5887,136.9122,-36.047,-35.7371]
+    KI_zoom = constants.extents['KI'][KI_zoom_name]
     KI_zoom2_name = "zoom2"
-    badja_zoom=[149.4,150.0, -36.4, -35.99]
+    KI_zoom2 = constants.extents['KI'][KI_zoom2_name]
     badja_zoom_name="zoom1"
+    badja_zoom=constants.extents['badja'][badja_zoom_name]
     
     if True:
         mr = "KI_run2"

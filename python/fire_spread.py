@@ -22,11 +22,12 @@ import dask # for a warning blocker
 #import cartopy.crs as ccrs
 #from matplotlib import colors
 #from datetime import datetime, timedelta
-from utilities import fio, utils, plotting
+from utilities import fio, utils, plotting, constants
 
 
-def isochrone_comparison(mrs, extent=None, subdir=None):
+def isochrone_comparison(mrs, extent=None, subdir=None, minute_increment=240):
     """
+    minute_increment is for dashed lines
     """
     # colours from first 80% of gnuplot
     colors = plt.cm.gnuplot(np.linspace(0,0.8,num=len(mrs)))
@@ -59,7 +60,7 @@ def isochrone_comparison(mrs, extent=None, subdir=None):
     with dask.config.set(**{'array.slicing.split_large_chunks': False}):
         hasfire=np.min(DA_FFs[mrs[0]].values,axis=(1,2)) < 0
 
-        for ti,time_utc in enumerate(times[hasfire][::240]): # every 4 hours once fire starts
+        for ti,time_utc in enumerate(times[hasfire][::minute_increment]): # every 4 hours once fire starts
         
             for mr, color in zip(mrs,colors):
             
@@ -262,7 +263,7 @@ def plot_fire_spread(DA_sh, DA_ff, DA_u, DA_v):
     
     
 
-def fire_spread(mr, extent=None, subdir=None, coastline=2):
+def fire_spread(mr, extent=None, subdir=None, coastline=2, timesteps=5, firespeed=True):
     """
     ARGS:
         mr: model run name
@@ -291,8 +292,11 @@ def fire_spread(mr, extent=None, subdir=None, coastline=2):
     if "exploratory" in mr:
         ind_interest = np.arange(0,len(times),10)
         times_of_interest=times[::10]
+    elif "AF" in mr:
+        ind_interest = np.arange(0,len(times),timesteps)
+        times_of_interest=[times[i] for i in ind_interest]
     else:
-        ind_interest = np.union1d([0,30,60,90,120,150,180],np.arange(181,24*60-1,5))
+        ind_interest = np.union1d([0,29,59,89,119,149,],np.arange(179,24*60-1,timesteps))
         times_of_interest=[times[i] for i in ind_interest]
         
     for ti,time_utc in enumerate(times_of_interest):
@@ -317,7 +321,7 @@ def fire_spread(mr, extent=None, subdir=None, coastline=2):
         ## FIRST FIGURE: fire spread
         
         plot_fire_spread(DA_sh, DA_ff, DA_u10, DA_v10)
-        plotting.map_add_locations_extent(extent,hide_text=False, fontsizes=13)
+        plotting.map_add_locations_extent(extent,hide_text=True, fontsizes=13)
         plt.title(title)
         
         if coastline>0 and np.min(DA_topog.values)<coastline:
@@ -329,41 +333,68 @@ def fire_spread(mr, extent=None, subdir=None, coastline=2):
         fio.save_fig(mr,"fire_spread", time_utc, plt, subdir=subdir)
 
         ## SECOND FIGURE: fire speed
-        plot_fire_speed(DA_fs, DA_ff, DA_u10, DA_v10)
-        plotting.map_add_locations_extent(extent, hide_text=False)
-        plt.title(title)
-        
-        if coastline>0 and np.min(DA_topog.values)<coastline:
-            plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
-                        colors='k')
-        plt.gca().set_aspect("equal")
+        if firespeed:
+            plot_fire_speed(DA_fs, DA_ff, DA_u10, DA_v10)
+            plotting.map_add_locations_extent(extent, hide_text=True)
+            plt.title(title)
+            
+            if coastline>0 and np.min(DA_topog.values)<coastline:
+                plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
+                            colors='k')
+            plt.gca().set_aspect("equal")
 
-        # save figure
-        fio.save_fig(mr,"fire_speed", time_utc, plt, subdir=subdir)
+            # save figure
+            fio.save_fig(mr,"fire_speed", time_utc, plt, subdir=subdir)
 
-        ## Third FIGURE: fire speed maximum
-        plot_fire_speed(DA_fs_upto, DA_ff, DA_u10, DA_v10)
-        plotting.map_add_locations_extent(extent, hide_text=False)
-        plt.title(title)
-        
-        if coastline>0 and np.min(DA_topog.values)<coastline:
-            plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
-                        colors='k')
-        plt.gca().set_aspect("equal")
+            ## Third FIGURE: fire speed maximum
+            plot_fire_speed(DA_fs_upto, DA_ff, DA_u10, DA_v10)
+            plotting.map_add_locations_extent(extent, hide_text=False)
+            plt.title(title)
+            
+            if coastline>0 and np.min(DA_topog.values)<coastline:
+                plt.contour(lons,lats,DA_topog.values, np.array([coastline]),
+                            colors='k')
+            plt.gca().set_aspect("equal")
 
-        # save figure
-        fio.save_fig(mr,"fire_speed_max", time_utc, plt, subdir=subdir)
+            # save figure
+            fio.save_fig(mr,"fire_speed_max", time_utc, plt, subdir=subdir)
+
+def suitecall(mr, extent=None, subdir=None):
+    """ fire spread plot and isochrones? """
+    isochrones(mr, extent=extent, subdir=subdir)
+    fire_spread(mr, extent=extent, subdir=subdir)
+
 
 if __name__ == '__main__':
     # keep track of used zooms
-    KI_zoom = [136.5,137.5,-36.1,-35.6]
     KI_zoom_name = "zoom1"
-    KI_zoom2 = [136.5887,136.9122,-36.047,-35.7371]
+    KI_zoom = constants.extents['KI'][KI_zoom_name]
     KI_zoom2_name = "zoom2"
-    badja_zoom=[149.4,150.12, -36.47, -35.99]
+    KI_zoom2 = constants.extents['KI'][KI_zoom2_name]
     badja_zoom_name="zoom1"
-    if True: 
-        fire_spread(mr='badja_run3',extent=badja_zoom,subdir=badja_zoom_name,)
+    badja_zoom=constants.extents['badja'][badja_zoom_name]
+    sirivan_extent = [149.2, 150.4, -32.4, -31.6]
+    sirivanz_extent = [149.4, 150.19, -32.2, -31.8]
+    harvey_test_runs=["AF_coupled","AF_uncoupled","AF_coupled-spark","AF_uncoupled-spark"]
+
+    # Check harvey's runs
+    if True:
+        extent = sirivanz_extent
+        isochrone_comparison(harvey_test_runs,
+                extent=extent,
+                minute_increment=60)
+    # check harveys runs in more detail    
+    if False:
+        for mr in harvey_test_runs:
+            fire_spread(mr=mr, extent=sirivanz_extent, subdir="sirivanz",
+                    timesteps=12, firespeed=False)
+
+    if False: 
+        fire_spread(mr='badja_run3',
+                extent=badja_zoom,
+                subdir=badja_zoom_name,
+                timesteps=10,
+                firespeed=False)
 
     if False:
         mrs=["badja_run1","badja_run2","badja_run3","badja_run4"]
