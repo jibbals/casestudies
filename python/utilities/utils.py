@@ -41,6 +41,146 @@ def distance_between_points(latlon0,latlon1):
     c = 2*np.arctan2(np.sqrt(a),np.sqrt(1-a))
     return R*c
 
+def extra_DataArrays(DS,
+                add_z=False,
+                add_winds=False,
+                add_dewpoint=False,
+                add_RH=False,
+                add_theta=False,):
+    """
+    Additional DAs added to model DataSet (DS)
+    """
+
+    if add_z:
+        # add zth cube
+        p, pmsl = DS['air_pressure'],DS['air_pressure_at_sea_level']
+        ## DONT take out time dimension
+        ##p, pmsl = p[0], pmsl[0]
+        nt,nz,ny,nx = p.shape
+        # repeat surface pressure along new z axis
+        reppmsl0 = np.repeat(pmsl.data[np.newaxis,:,:,:],nz, axis=0)
+        # put time dim first to match air pressure
+        reppmsl = np.transpose(reppmsl0,(1,0,2,3))
+        zth = -(287*300/9.8)*np.log(p.data/reppmsl)
+        zth_DA = xr.DataArray(data=zth,
+                              coords=p.coords(),
+                              dims=p.dims(),
+                              name="z_th",
+                              attrs={"units":"m",
+                                     "desc":"-(287*300/9.8)*np.log(P/mslp)",
+                                     },
+                              )
+        
+        DS["z_th"]=zth_DA
+
+    if add_winds:
+        # wind speeds need to be interpolated onto non-staggered latlons
+        u1, v1 = DS['x_wind'],DS['y_wind']
+        
+        ### DESTAGGER u and v using iris interpolate
+        ### (this will trigger the delayed read)
+        # u1: [t,z, lat, lon1]
+        # v1: [t,z, lat1, lon]  # put these both onto [t,z,lat,lon]
+        #u = u1.interpolate([('longitude',v1.coord('longitude').points)],
+        #                   iris.analysis.Linear())
+        #v = v1.interpolate([('latitude',u1.coord('latitude').points)],
+        #                   iris.analysis.Linear())
+        u=u1.interp(longitude=v1.coords['longitude'])
+        v=v1.interp(latitude=u1.coords['latitude'])
+        #u.standard_name='u'
+        #v.standard_name='v'
+        # Get wind speed cube using hypotenuse of u,v
+        s = wind_speed(u.data,v.data)
+        s_DA = xr.DataArray(data=s,
+                            coords=u.coords(),
+                            dims=u.dims(),
+                            name="s",
+                            attrs={"units":"m s-1",
+                                   "desc":"hypot(u,v)",
+                                   },
+                           )
+        # Get wind direction using arctan of y/x
+        wind_dir = wind_dir_from_uv(u.data,v.data)
+        wd_DA = xr.DataArray(data=wind_dir,
+                            coords=u.coords(),
+                            dims=u.dims(),
+                            name="wind_direction",
+                            attrs={"units":"degrees",
+                                   "desc":"arctan(u,v) flipped and rotated to met standard",
+                                   },
+                           )
+        DS['s']=s_DA
+        DS['wind_direction']=wd_DA
+
+    #    if add_dewpoint:
+    #        # Take pressure and relative humidity
+    #        #print("DEBUG: add_dewpoint", allcubes)
+    #        p,q = allcubes.extract(['air_pressure','specific_humidity'])
+    #        p_orig_units = p.units
+    #        q_orig_units = q.units
+    #        p.convert_units('hPa')
+    #        q.convert_units('kg kg-1')
+    #        
+    #        # calculate vapour pressure:
+    #        epsilon = 0.6220 # gas constant ratio for dry air to water vapour
+    #        e = p*q/(epsilon+(1-epsilon)*q)
+    #        e.rename('vapour_pressure')
+    #        e.units = 'hPa'
+    #        #e_correct=np.mean(e.data)
+    #        p.convert_units(p_orig_units)
+    #        q.convert_units(q_orig_units)
+    #        #assert np.isclose(np.mean(e.data),e_correct), "Changing units back messes with vapour_presssure"
+    #
+    #        allcubes.append(e)
+    #        # calculate dewpoint from vapour pressure
+    #        Td = 234.5 / ((17.67/np.log(e.data/6.112))-1) # in celcius
+    #        Td = Td + 273.15 # celcius to kelvin
+    #
+    #        # change Td to a Cube
+    #        iris.std_names.STD_NAMES['dewpoint_temperature'] = {'canonical_units': 'K'}
+    #        cubeTd = iris.cube.Cube(Td, standard_name="dewpoint_temperature",
+    #                                   var_name="Td", units="K",
+    #                                   dim_coords_and_dims=[(p.coord('time'),0),
+    #                                                        (p.coord('model_level_number'),1),
+    #                                                        (p.coord('latitude'),2),
+    #                                                        (p.coord('longitude'),3)])
+    #
+    #        allcubes.append(cubeTd)
+
+    if add_theta:
+        # Estimate potential temp
+        p, Ta = DS['air_pressure'],DS['air_temperature']
+        theta = potential_temperature(p.data,Ta.data)
+        theta_DA = xr.DataArray(data=theta,
+                            coords=p.coords(),
+                            dims=p.dims(),
+                            name="theta",
+                            attrs={"units":"K",
+                                   "desc":"T*(1e5/p)**(287.05/1004.64)",
+                                   },
+                           )
+        DS['theta']=theta_DA
+    
+    #    if add_RH:
+    #        # estimate relative humidity
+    #        q,T = allcubes.extract(['specific_humidity','air_temperature'])
+    #        # compute RH from specific and T in kelvin
+    #        orig_Tunits=T.units
+    #        T.convert_units('K')
+    #        RH = relative_humidity_from_specific(q.data, T.data)
+    #        # restore T units (just in case)
+    #        T.convert_units(orig_Tunits)
+    #        # turn RH into a cube and add to return list
+    #        iris.std_names.STD_NAMES['relative_humidity'] = {'canonical_units': '1'}
+    #        cubeRH = iris.cube.Cube(RH, standard_name="relative_humidity",
+    #                                   var_name="RH", units="1",
+    #                                   dim_coords_and_dims=[(q.coord('time'),0),
+    #                                                        (q.coord('model_level_number'),1),
+    #                                                        (q.coord('latitude'),2),
+    #                                                        (q.coord('longitude'),3)])
+    #        allcubes.append(cubeRH)
+    return allcubes
+
 def extra_cubes(allcubes,
                 add_z=False,
                 add_winds=False,
@@ -959,7 +1099,6 @@ def uv_from_wind_degrees(wd,met_convention=True):
 def wind_speed(u,v):
     '''
     horizontal wind speed from u,v vectors
-    fix sets instances of -5000 to NaN (problem from destaggering winds with one missing edge)
     '''
     
     s = np.hypot(u,v) # Speed is hypotenuse of u and v
@@ -970,6 +1109,7 @@ def wind_speed(u,v):
         s[s==-5000] = np.NaN
         assert np.sum(np.isnan(s[:,:,:,1:]))==0, "Some nans are left in the wind_speed calculation"
         assert np.sum(s==-5000)==0, "Some -5000 values remain in the wind_speed calculation"
+    assert np.sum(s<0) == 0, "Negative wind speeds have occurred"
     
     return s
 
