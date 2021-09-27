@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -P en0
-#PBS -q normal
+#PBS -q express
 #PBS -N runstuff
 #PBS -l walltime=16:00:00
 #PBS -l mem=120000MB
@@ -24,28 +24,9 @@ if [ $# -lt 1 ] && [ -z ${mr} ]; then
     exit 0
 fi
 
-## scripts with a "suitecall" method:
-scripts=$(grep -l *.py -e "suitecall(")
-
-# loop over lines in scripts to be run:
-for script in $scripts; do
-    echo "script: ...$script..."
-    
-    echo "run $script?"
-    select yn in "Yes" "No"; do
-        case $yn in 
-            Yes ) echo "qsub -v mr=${1},script=${script} -N ${1}_${script} ${0}";
-                # send this script to queue with extra variables script, mr, (eventually west,east,south,north)
-                #qsub -v mr=${1},script=$script,
-                break;;
-            No ) break;;
-        esac
-    done
-done
-
-
-echo "end of test"
-exit 0
+## List of methods to call
+## METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
+methods="isochrones fireseries vorticity vorticity_10m plume wind_dir_10m fire_spread weather_summary_model multiple_transects multiple_transects_SN multiple_transects_vertmotion multiple_transects_vertmotion_SN"
 
 #some runs have multiple interesting extents
 extent_inds="0"
@@ -89,7 +70,7 @@ python <<EOF
 ## local scripts that can be run
 ## NEED TO IMPORT METHOD MATCHING NAME IN METHODS LIST
 # METHODS NEED TO HAVE 1st 3 arguments: run name, WESN, subdir
-from cross_sections import topdown_view_only, multiple_transects, multiple_transects_SN, multiple_transects_vertmotion, multiple_transects_vertmotion_SN
+from transects import topdown_view_only, multiple_transects, multiple_transects_SN, multiple_transects_vertmotion, multiple_transects_vertmotion_SN
 from weather_summary import weather_summary_model
 from fire_spread import fire_spread, isochrones
 from winds import rotation_looped, wind_and_heat_flux_looped

@@ -273,7 +273,10 @@ def read_fire_time_series(mr,
     
 
 def fireseries(mr,extent=None,subdir=None,
-        GW_max=None,):
+        GW_max=None,
+        add_fire_percentiles=True,
+        add_wind_percentiles=False,
+        ):
     """
     show model run firepower, maximum fire speed, and 95th pctile of fire speed
     ARGS:
@@ -281,6 +284,10 @@ def fireseries(mr,extent=None,subdir=None,
     """
     ## Read/create time series
     DS = read_fire_time_series(mr)
+    if (not ('firespeed_quantiles' in DS.keys())) or (not ('windspeed_10m_quantiles' in DS.keys())):
+        print("INFO: ... that file was outdated, recreating")
+        DS.close()
+        DS = read_fire_time_series(mr, force_recreate=True)
     time=DS.localtime.values
     firepower=DS.firepower.values
     DA_FS=DS['firespeed_quantiles']
@@ -297,31 +304,44 @@ def fireseries(mr,extent=None,subdir=None,
     if (GW_max is not None) and (np.max(firepower) > GW_max):
         plt.ylim(0,GW_max)
     plt.twinx()
-    for pctile,fscolor in zip([ .95, .99, 1.0],['grey','grey','k']):
+    pctiles = [1.0]
+    fscolors = ['k']
+    if add_fire_percentiles:
+        pctiles = [ .95, .99, 1.0]
+        fscolors = ['grey','grey','k']
+    for pctile,fscolor in zip(pctiles,fscolors):
         plt.plot_date(time, DA_FS.sel(quantile=pctile).values * 3.6, 
                       color=fscolor,
                       fmt='-',
                       label=pctile*100,
                       )
-    plt.legend(title="percentile",
-               prop={'size': 4},
-               )
+    if add_fire_percentiles:
+        plt.legend(title="percentile",
+                   prop={'size': 4},
+                   )
     plt.ylabel("firespeed (km/h)")
     plt.xticks([],[])
     plt.title(mr+" fire")
     
     ## second subplot
     plt.sca(axes[1])
-    for pctile,wscolor in zip([0.5,0.75,0.9,0.95,1.00],['grey','grey','grey','grey','k']):
+    
+    pctiles = [1.0]
+    wscolors = ['k']
+    if add_wind_percentiles:
+        pctiles = [0.5,0.75,0.9,0.95,1.00]
+        wscolors = ['grey','grey','grey','grey','k']
+    for pctile,wscolor in zip(pctiles,wscolors):
         plt.plot_date(time, DA_WS.sel(quantile=pctile).values*3.6,
                       color=wscolor,
                       fmt='-',
                       label=pctile*100,
                       )
-    plt.legend(
-        prop={'size': 5},
-        #title="percentile",
-        )
+    if add_wind_percentiles:
+        plt.legend(
+            prop={'size': 5},
+            title="percentile",
+            )
     plt.ylabel("10m wind speed (km/h)")
     windspeed_max=DA_WS.sel(quantile=1.0).values*3.6
     windmax=np.max([136.3636, 
@@ -664,8 +684,9 @@ if __name__ == '__main__':
         for mr in ["green_valley_run2_fix"]:
             fireseries(mr)
 
-    if False:
-        for mr in ['KI_run1','KI_run2','badja_run3','badja_run1','badja_run2',]:
+    ## max windspeed and firespeed plotting
+    if True:
+        for mr in ['KI_run2','badja_run3','badja_run1','badja_run2','badja_run4','KI_run1','KI_run3']:
             #read_fire_time_series(mr, force_recreate=True)
             fireseries(mr)
 
@@ -676,7 +697,7 @@ if __name__ == '__main__':
             AWS_compare_10m(mr,'Moruya')
             
 
-    if True:
+    if False:
         for mr in ['KI_run2','KI_run1',]:
             for site in ['CAPE BORDA','KINGSCOTE AERO','PARNDANA CFS AWS']:
                 AWS_compare_10m(mr,site)

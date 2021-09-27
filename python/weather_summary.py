@@ -187,7 +187,10 @@ def plot_weather_summary(U,V,W, height, lat, lon,
                 pad=0,
                 #extend='max', # Get warning on NCI that this does nothing..
                 )
-        
+
+def suitecall(mr, extent=None, subdir=None):
+    """ vertically binned weather summary plots """
+    return weather_summary_model(mr, extent=extent, subdir=subdir)
 
 def weather_summary_model(mr,
                           extent=None,
@@ -610,10 +613,10 @@ def weather_series(model_run='waroona_run3',
 
 if __name__=='__main__':
     # keep track of used zooms
-    badja_zoom=[149.4,150.0, -36.4, -35.99]
-    badja_zoom_name="zoom1"
-    KI_zoom = [136.5,137.5,-36.1,-35.6]
     KI_zoom_name = "zoom1"
+    KI_zoom = constants.extents['KI'][KI_zoom_name]
+    badja_zoom_name="zoom1"
+    badja_zoom=constants.extents['badja'][badja_zoom_name]
 
     # settings for plots
     mr='KI_run1_exploratory'

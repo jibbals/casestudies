@@ -22,15 +22,20 @@ from timeseries_stuff import read_fire_time_series
 
 
 
-def compare_PFT_to_firepower(mr, latlon, firespeed=False, name=None):
+def compare_PFT_to_firepower(mr, latlon, firespeed=False, name=None, FPrun=None):
     """
         Timesries of PFT and firepower
     """
     
     lat,lon = latlon
-        
+
     ## Read fire series at that spot
-    DS_fire = read_fire_time_series(mr,latlon=[lat,lon],)
+
+    if FPrun is None:
+        DS_fire = read_fire_time_series(mr,latlon=[lat,lon],)
+    else:
+        DS_fire = read_fire_time_series(FPrun,latlon=[lat,lon],)
+
     lt_fire = DS_fire.localtime.values
     firepower = DS_fire.firepower.values # [t] GWatts
     fire_u10 = DS_fire['u_10m'].values.squeeze()
@@ -73,9 +78,12 @@ def compare_PFT_to_firepower(mr, latlon, firespeed=False, name=None):
     plt.gcf().autofmt_xdate()
     plt.xlabel('local time')
     plt.suptitle(mr+" at "+name)
+    plot_name="%s_%s"%(mr,name)
+    if FPrun is not None:
+        plot_name = plot_name+"_FP_from_"+FPrun.split("_")[-1]
     fio.save_fig(mr, 
-            plot_name="PFT_vs_firepower",
-            plot_time="%s_%s"%(mr,name),
+            plot_name="PFT_vs_firepower", # folder name
+            plot_time= plot_name,# plot name (is normally time)
             plt=plt,
             )
 
@@ -83,9 +91,24 @@ def compare_PFT_to_firepower(mr, latlon, firespeed=False, name=None):
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     
+    Borda_latlon=constants.latlons['Cape Borda']
+    Parndana_latlon=constants.latlons['Parndana']
+    Yowrie_latlon=constants.latlons['Yowrie']
     if True:
-        Borda_latlon=constants.latlons['Cape Borda']
-        Parndana_latlon=constants.latlons['Parndana']
+        # look at run3, run4, and run4 against firepower from run3
+        compare_PFT_to_firepower("badja_run3", Yowrie_latlon, 
+                firespeed=False, 
+                name="Yowrie")
+        compare_PFT_to_firepower("badja_run4", Yowrie_latlon, 
+                firespeed=False, 
+                name="Yowrie")
+        compare_PFT_to_firepower("badja_run4", Yowrie_latlon, 
+                firespeed=False, 
+                name="Yowrie",
+                FPrun="badja_run3",)
+
+
+    if False:
         mr="KI_run2"
         compare_PFT_to_firepower(mr,Borda_latlon,firespeed=False,name="Cape Borda")
         compare_PFT_to_firepower(mr,Parndana_latlon,firespeed=False, name="Parndana")

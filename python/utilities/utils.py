@@ -516,7 +516,7 @@ def transect(data, lats, lons, start, end, nx=None, z=None,
     interpolate along cross section
     USES XARRAY INTERPOLATION 
     inputs: 
-        wind: data [[z], lats, lons]
+        data:[[z], lats, lons] array
         lats, lons: horizontal dims 1d arrays
         start = [lat0,lon0]
         end = [lat1,lon1]

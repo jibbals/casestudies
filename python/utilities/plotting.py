@@ -298,6 +298,7 @@ def map_add_locations_extent(extent,
                              nice=True,
                              dx=.025,
                              dy=.015,
+                             **nice_text_args,
                              ):
     '''
     wrapper for map_add_locations that adds all the points for that extent
@@ -311,7 +312,7 @@ def map_add_locations_extent(extent,
         Names = ['']*len(names)
     
     if nice:
-        map_add_nice_text(plt.gca(),latlons=latlons,texts=Names)
+        map_add_nice_text(plt.gca(),latlons=latlons,texts=Names,**nice_text_args)
     else:
         map_add_locations(latlons, texts=Names, color=color, textcolor='k', dx=dx,dy=dy)
 
@@ -499,11 +500,11 @@ def map_sensibleheat(sh, lat, lon,
         #    cbar_kwargs['extend']='max'
         if 'ticks' not in cbar_kwargs:
             cbar_kwargs['ticks'] = [1e2,1e3,1e4,1e5],
-            xtick_labels=['2','3','4','5']
-        else:
-            xtick_labels=cbar_kwargs['ticks']
+            #xtick_labels=['2','3','4','5']
+        #else:
+        #    xtick_labels=cbar_kwargs['ticks']
         if 'label' not in cbar_kwargs:
-            cbar_kwargs['label'] ='log$_{10}$ Wm$^{-2}$',
+            cbar_kwargs['label'] ='Wm$^{-2}$'
         
         cbar=plt.colorbar(cs, **cbar_kwargs)
         # Need to set xticks prior to calling set_xticklabels
@@ -511,8 +512,8 @@ def map_sensibleheat(sh, lat, lon,
         #cbar.ax.set_xticks(cbar_kwargs['ticks'])
         #cbar.ax.set_xticklabels(xtick_labels)
         
-    plt.xticks([],[])
-    plt.yticks([],[])
+    #plt.xticks([],[])
+    #plt.yticks([],[])
     return cs, cbar
     
 
@@ -784,7 +785,7 @@ def map_add_nice_text(ax, latlons, texts=None, markers=None,
         markers: iterable of characters, optional
         transform: if using geoaxes instance (non platecarree map) then set this to ccrs.Geodetic() or PlateCarree()?
     '''
-    fontname='Arial'
+    fontname='Droid Sans'
     ## Adding to a map using latlons can use the geodetic transform
     #geodetic_CRS = ccrs.Geodetic()
     transformargs = {}
@@ -849,6 +850,24 @@ def map_topography(topog,lats,lons, cbar=False, **contourfargs):
     
     plt.contourf(lons,lats,topog,
                  **contourfargs)
+    
+    cbar_args={}
+    if cbar:
+        # defaults if not set
+        #orientation 	vertical or horizontal
+        #fraction 	0.15; fraction of original axes to use for colorbar
+        #pad 	0.05 if vertical, 0.15 if horizontal; fraction of original axes between colorbar and new image axes
+        #shrink 	1.0; fraction by which to multiply the size of the colorbar
+        #aspect 	20; ratio of long to short dimensions
+        if 'pad' not in cbar_args:
+            cbar_args['pad']=0.01
+        if 'aspect' not in cbar_args:
+            cbar_args['aspect']=30
+        if 'shrink' not in cbar_args:
+            cbar_args['shrink'] = 0.85
+        if 'fraction' not in cbar_args:
+            cbar_args['fraction'] = .075
+        plt.colorbar(**cbar_args)
     
 
 def make_patch_spines_invisible(ax):
@@ -978,7 +997,7 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
 def transect(data, z, lat, lon, start, end, npoints=None, 
              topog=None, sh=None, latt=None, lont=None, ztop=4000,
              title="", ax=None, colorbar=True,
-             contours=None,lines=None, 
+             lines=None, 
              cbar_args={},
              **contourfargs):
     '''
@@ -986,18 +1005,15 @@ def transect(data, z, lat, lon, start, end, npoints=None,
     ARGUMENTS:
         data is 3d [levs,lats,lons]
         z (3d): height [lev,lats,lons]
-        lat(1d), lon(1d)
-        start, end are [lat0,lon0], [lat1,lon1]
-        contours will be filled colours
-        lines will be where to draw black lines
+        lat(1d), lon(1d): data coordinates
+        start, end: [lat0,lon0], [lat1,lon1]
+        lines (list): add black lines to contourf
         cbar_args = dict of options for colorbar, drawn if colorbar==True
-    return slicedata, slicex, slicez
+    return slicedata, slicex, slicez, cmappable (the colorbar)
     '''
     ## Default contourfargs
     if 'extend' not in contourfargs:
         contourfargs['extend'] = 'max'
-    if contours is not None:
-        contourfargs['levels'] = contours
 
     ## Check that z includes topography (within margin of 40 metres)
     if topog is not None:
@@ -1055,10 +1071,7 @@ def transect(data, z, lat, lon, start, end, npoints=None,
     
     # Add contour lines
     if lines is not None:
-        # ignore warning when there are no lines?
-        #with warnings.catch_warnings():
-            #warnings.simplefilter('ignore')
-        plt.contour(X,Y,slicedata,lines,colors='k')            
+        plt.contour(X,Y,slicedata,lines,colors='k')
     
     zbottom = np.tile(np.min(Y),reps=npoints) # xcoords
     xbottom = X[0,:]
