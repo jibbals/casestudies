@@ -41,6 +41,34 @@ from utilities import plotting, utils, fio, constants
 ###
 ## GLOBALS
 ###
+
+_wind_surf_defaults_=dict(
+    isomin=15, # 5 m/s wind speed min
+    isomax=25,
+    surface_count=11, # 21 contours between 5 and 50 ~ 2.5m/s
+    opacity=0.15,
+    colorscale='viridis',
+    showscale=False,
+    )
+
+_upmotion_surf_defaults_=dict(
+    isomin=2, # m/s
+    isomax=20,
+    surface_count=6, # 21 contours between 5 and 50 ~ 2.5m/s
+    opacity=0.2,
+    colorscale='viridis',
+    showscale=False,
+    )
+_downmotion_surf_defaults_=dict(
+    isomin=-20, # m/s opposite of upmotion
+    isomax=-2,
+    reversescale=True,
+    surface_count=6, # 21 contours between 5 and 50 ~ 2.5m/s
+    opacity=0.2,
+    colorscale='viridis',
+    showscale=False,
+    )
+
 _sn_ = 'threedee'
 _verbose_ = True
 
@@ -70,11 +98,10 @@ def cube_to_xyz(cube,
     pull out the data and reshape it to [lon,lat,lev]
     """
     assert len(cube.shape)==3, "cube is not 3-D"
-    data = cube[:ztopind,:,:].data.data
+    data = cube[:ztopind,:,:].data
     # data is now a level, lat, lon array... change to lon, lat, lev
     xyz = np.moveaxis(np.moveaxis(data,0,2),0,1)
     return xyz
-    
 
 def create_figure(gofigures, 
                   camera_eye=[1.4,-1.6,.35], 
@@ -111,13 +138,11 @@ def create_figure(gofigures,
         print("INFO: Saving Image: ",filename)
         fig.write_image(filename)
 
-def cloud_system(mr='KI_run1_exploratory', hour=1, 
-                theta_height=1000, theta_min=311, theta_max=320,
-                vert_motion_height = 2500,
-                top_height=8000, send_to_browser=False,
-                extent=None,
-                HSkip=5,
-                ltoffset=8):
+def wind_jet(x,y,z,wind_speed_xyz, 
+             #theta_height=1000, theta_min=311, theta_max=320,
+             #vert_motion_height = 2500,
+             **iso_surf_args
+             ):
     """
     Read an hour of model output, plot it in 3d using plotly
     saves output as .png
@@ -129,42 +154,83 @@ def cloud_system(mr='KI_run1_exploratory', hour=1,
         height_top: how high (m) included in plot
         send_to_browser: instead of trying to save figures, send one to the browser (interactive)
     """
+    for k,v in _wind_surf_defaults_.items():
+        if k not in iso_surf_args:
+            iso_surf_args[k]=v
+    
+    verbose("creating windjet surface")
+    wind_surf = go.Isosurface(
+        z=z.flatten(),
+        x=x.flatten(),
+        y=y.flatten(),
+        value=wind_speed_xyz.flatten(),
+        **iso_surf_args)
+        
+    return wind_surf
+            
+def wind_system(mr='KI_run1_exploratory', hour=1, 
+                top_height=5000, 
+                send_to_browser=False,
+                extent=None,
+                #HSkip=5,
+                #ltoffset=8
+                **iso_surf_args,
+                ):
+    """
+    Read an hour of model output, plot it in 3d using plotly
+    saves output as .png
+    ARGUMENTS:
+        hour: which output hour (first is 0, last is 23 or -1)
+        ws_min,ws_max: windspeed min and max vals
+        height_top: how high (m) included in plot
+        send_to_browser: instead of trying to save figures, send one to the browser (interactive)
+    """
     
     #hours=fio.hours_available(mr)
     #dtime=hours[hour]
     
-    cubes = fio.read_model_run_hour(mr, 
+    DS = fio.read_model_run_hour(mr, 
                                hour=hour, 
                                extent=extent, 
-                               #add_theta=True, 
-                               #add_topog=True, 
-                               #add_winds=True,
-                               #HSkip=HSkip,
                                )
-    utils.extra_cubes(cubes,add_theta=True,add_winds=True,add_z=True)
-    
-    th, qc = cubes.extract(['potential_temperature','qc'])
-    # datetimes in hour output
-    cubetimes = utils.dates_from_iris(th)
-    
-    ff, = fio.read_fire(mr,
-                        dtimes=cubetimes,
-                        extent=extent,
-                        HSkip=HSkip)
+    utils.extra_DataArrays(DS,add_winds=True)
     
     # Get the rest of the desired data
-    topog, = cubes.extract(['surface_altitude'])
-    d_topog = topog.data.data.T # convert to lon,lat
+    topog = DS['surface_altitude']
+    d_topog = topog.load().data.T # convert to lon,lat
     # set one pixel to -150 to fix color scale
-    d_topog[1,1] = -150
+    #d_topog[1,1] = -150
     
-    u,v,w = cubes.extract(['u','v','upward_air_velocity'])
-    levh  = qc.coord('level_height').points
+    u, v, w = DS['u'], DS['v'], DS['vertical_wnd']
+    ws = DS['s']
+    
+    # datetimes in hour output
+    DAtimes=w.time.data
+    lats=w.latitude.data
+    lons=w.longitude.data
+    # title from local time at fire ignition
+    time_lt = utils.local_time_from_time_lats_lons(DAtimes,lats,lons)
+    
+    #DS_ff = fio.read_model_run_fire(mr,
+    #                    extent=extent,
+    #                    )
+    #ff = DS_ff['firefront'].loc[dict(time=DAtimes)]
+    
+    # set one pixel to -150 to fix color scale
+    #d_topog[1,1] = -150
+    
+    if "level_height" in w:
+        levh  = w.level_height.load().data
+    else:
+        levh  = w.level_height_0.load().data
+    
     topind = np.sum(levh<top_height)
-    topind_th = np.sum(levh<theta_height)
-    # these are level, lat, lon cubes
-    lat,lon = qc.coord('latitude').points, qc.coord('longitude').points
     
+    # these are level, lat, lon cubes
+    lat,lon = w.latitude.data, w.longitude.data
+    
+    if extent is None:
+        extent=[lon[0],lon[-1],lat[0],lat[-1]]
     # dimensional mesh
     X,Y,Z = np.meshgrid(lon,lat,levh) 
     ## X Y Z are now [lat, lon, lev] for some reason
@@ -199,10 +265,175 @@ def cloud_system(mr='KI_run1_exploratory', hour=1,
     # angle for view is 270 degrees - 90* hour/24
     # or 270 - 90 * (60*hour + 60*hi/n_hi)/(24*60)
     
-    for hi, cubetime in enumerate(cubetimes):
+    for hi, DAtime in enumerate(DAtimes):
         #verbose("Creating surfaces")
-        camera_eye = [-2 * np.cos(np.deg2rad(290-120*((60*(hour+hi/len(cubetimes))))/(24.0*60))), 
-                      2 * np.sin(np.deg2rad(290-120*((60*(hour+hi/len(cubetimes))))/(24.0*60))),
+        camera_eye = [-2 * np.cos(np.deg2rad(290-120*((60*(hour+hi/len(DAtimes))))/(24.0*60))), 
+                      2 * np.sin(np.deg2rad(290-120*((60*(hour+hi/len(DAtimes))))/(24.0*60))),
+                      0.35]
+        
+        # get cloud, theta, vert motion, firefront in terms of lon,lat,lev
+        #d_qc = cube_to_xyz(qc[hi],ztopind=topind)
+        #d_th = cube_to_xyz(th[hi],ztopind=topind_th)
+        #d_w = cube_to_xyz(w[hi],ztopind=topind)
+        d_ws = cube_to_xyz(ws[hi],ztopind=topind)
+        
+        # surfaces to be plotted in 3d
+        surface_list = [topog_layer]
+        
+        ## atmospheric heat (theta)
+        #if np.sum(d_ws > ws_min) > 0:
+        ws_surf = wind_jet(
+                X[:,:,:topind],
+                Y[:,:,:topind],
+                Z[:,:,:topind],
+                d_ws,
+                **iso_surf_args,
+                )
+        surface_list.append(ws_surf)
+        
+        #
+        ### 3d figure:
+        #
+        
+        ## title, lables
+        #print("DEBUG: DAtime",type(DAtime),DAtime)
+        #lt = DAtime + timedelta(hours=ltoffset)
+        layoutargs = dict(
+            title={"text":str(DAtime)[:19]+" UTC ", #lt.strftime(mr+' %d %H:%M (lt)'),
+                   "yref": "paper",
+                   "y" : 0.775,
+                   "x" : 0.3,
+                   "yanchor" : "bottom",
+                   "xanchor" : "left",},
+            xaxis_title="",
+            yaxis_title="",
+            font=dict(
+                    family="Courier New, monospace",
+                    size=18,
+                    color="#222222"
+                ),
+            #margin=dict(
+            #        #l=60,
+            #        #r=10,
+            #        #b=0,
+            #        t=0,
+            #    ),
+            )
+
+        figname = None
+        if not send_to_browser:
+            #figname = cubetime.strftime('figures/threedee/test_%Y%m%d%H%M.png')
+            figname = fio.standard_fig_name(mr,_sn_,DAtime)
+        create_figure(surface_list, filename=figname, camera_eye=camera_eye, **layoutargs)
+
+def cloud_system(mr='KI_run1_exploratory', hour=1, 
+                theta_height=1000, theta_min=311, theta_max=320,
+                vert_motion_height = 2500,
+                top_height=8000, send_to_browser=False,
+                extent=None,
+                HSkip=5,
+                ltoffset=8):
+    """
+    Read an hour of model output, plot it in 3d using plotly
+    saves output as .png
+    ARGUMENTS:
+        hour: which output hour (first is 0, last is 23 or -1)
+        theta_height: how high are we looking regarding potential temp?
+        theta_min, theta_max: min and max potential temperature to draw isosurface
+        vert_motion_height: altitude of vertical motion surface,
+        height_top: how high (m) included in plot
+        send_to_browser: instead of trying to save figures, send one to the browser (interactive)
+    """
+    
+    #hours=fio.hours_available(mr)
+    #dtime=hours[hour]
+    
+    DS = fio.read_model_run_hour(mr, 
+                               hour=hour, 
+                               extent=extent, 
+                               #add_theta=True, 
+                               #add_topog=True, 
+                               #add_winds=True,
+                               #HSkip=HSkip,
+                               )
+    utils.extra_DataArrays(DS,add_theta=True,add_winds=True,add_z=True)
+    
+    qc = DS['cld_ice']+DS['cld_water']
+    th = DS['potential_temperature']
+    
+    # datetimes in hour output
+    DAtimes=th.time.data
+    lats=th.latitude.data
+    lons=th.longitude.data
+    # title from local time at fire ignition
+    time_lt = utils.local_time_from_time_lats_lons(DAtimes,lats,lons)
+    
+    DS_ff = fio.read_model_run_fire(mr,
+                        #dtimes=DAtimes,
+                        extent=extent,
+                        #HSkip=HSkip,
+                        )
+    ff = DS_ff['firefront'].loc[dict(time=DAtimes)]
+    #sh = DS_ff['SHEAT_2'].loc[dict(time=DAtimes)]
+    
+    # Get the rest of the desired data
+    topog = DS['surface_altitude']
+    d_topog = topog.load().data.T # convert to lon,lat
+    # set one pixel to -150 to fix color scale
+    d_topog[1,1] = -150
+    
+    u, v, w = DS['u'], DS['v'], DS['vertical_wnd']
+    if "level_height" in w:
+        levh  = w.level_height.load().data
+    else:
+        levh  = w.level_height_0.load().data
+    
+    topind = np.sum(levh<top_height)
+    topind_th = np.sum(levh<theta_height)
+    
+    # these are level, lat, lon cubes
+    lat,lon = qc.latitude.data, qc.longitude.data
+    
+    if extent is None:
+        extent=[lon[0],lon[-1],lat[0],lat[-1]]
+    # dimensional mesh
+    X,Y,Z = np.meshgrid(lon,lat,levh) 
+    ## X Y Z are now [lat, lon, lev] for some reason
+    [X,Y,Z] = [ np.moveaxis(arr,0,1) for arr in [X,Y,Z]]
+    ## Now they are lon, lat, lev
+    ## Cut down to desired level
+    [X, Y, Z] = [ arr[:,:,:topind] for arr in [X,Y,Z]]
+    
+    # topography surface
+    topog_layer = go.Surface(
+        z=Z[:,:,0],
+        x=X[:,:,0],
+        y=Y[:,:,0],
+        colorscale='earth', # was not reversed on local laptop
+        #cmin=-150, # make water blue, near zero green, hills brown
+        reversescale=True,
+        surfacecolor=d_topog,
+        showscale=False, # remove colour bar,
+    )
+    
+    namedlocs=[]
+    namedlocs_lats = []
+    namedlocs_lons = []
+    for (namedloc, (loclat, loclon)) in plotting._latlons_.items():
+        #print(namedloc, loclat, loclon)
+        if loclon < extent[1] and loclon > extent[0] and loclat < extent[3] and loclat > extent[2]:
+            if 'fire' not in namedloc and 'pyrocb' not in namedloc:
+                namedlocs.append(namedloc)
+                namedlocs_lats.append(loclat)
+                namedlocs_lons.append(loclon)
+    
+    # angle for view is 270 degrees - 90* hour/24
+    # or 270 - 90 * (60*hour + 60*hi/n_hi)/(24*60)
+    
+    for hi, DAtime in enumerate(DAtimes):
+        #verbose("Creating surfaces")
+        camera_eye = [-2 * np.cos(np.deg2rad(290-120*((60*(hour+hi/len(DAtimes))))/(24.0*60))), 
+                      2 * np.sin(np.deg2rad(290-120*((60*(hour+hi/len(DAtimes))))/(24.0*60))),
                       0.35]
         #print("DEBUG:", camera_eye)
         
@@ -304,9 +535,10 @@ def cloud_system(mr='KI_run1_exploratory', hour=1,
         #
         
         ## title, lables
-        lt = cubetime + timedelta(hours=ltoffset)
+        #print("DEBUG: DAtime",type(DAtime),DAtime)
+        #lt = DAtime + timedelta(hours=ltoffset)
         layoutargs = dict(
-            title={"text":lt.strftime(model_run+' %d %H:%M (lt)'),
+            title={"text":mr+" "+str(DAtime)[:19]+" UTC ", #lt.strftime(mr+' %d %H:%M (lt)'),
                    "yref": "paper",
                    "y" : 0.775,
                    "x" : 0.3,
@@ -330,20 +562,64 @@ def cloud_system(mr='KI_run1_exploratory', hour=1,
         figname = None
         if not send_to_browser:
             #figname = cubetime.strftime('figures/threedee/test_%Y%m%d%H%M.png')
-            figname = fio.standard_fig_name(mr,_sn_,cubetime)
+            figname = fio.standard_fig_name(mr,_sn_,DAtime)
         create_figure(surface_list, filename=figname, camera_eye=camera_eye, **layoutargs)
 
 if __name__=='__main__':
     KI_extent=None
     
-    mr="KI_run1_exploratory"
+    mr="KI_run2_exploratory"
     extent=KI_extent
     # theta limits for 3d plot
     theta_min = 311
     theta_max = 320
     
-    # Cloud images
+    DS = fio.read_model_run_hour(mr, 
+                               hour=1, 
+                               extent=extent, 
+                               #add_theta=True, 
+                               #add_topog=True, 
+                               #add_winds=True,
+                               #HSkip=HSkip,
+                               )
+    #print(DS)
+    p=DS['pressure']
+    
+    # datetimes in hour output
+    DAtimes=p.time.data
+    npdtimes = [np.datetime64(dtime) for dtime in DAtimes]
+    lats=p.latitude.data
+    lons=p.longitude.data
+    # title from local time at fire ignition
+    time_lt = utils.local_time_from_time_lats_lons(DAtimes,lats,lons)
+    
+    DS_ff = fio.read_model_run_fire(mr,
+                        #dtimes=DAtimes,
+                        extent=extent,
+                        #HSkip=HSkip,
+                        )
+    ff = DS_ff['firefront'].loc[dict(time=DAtimes)]
+    sh = DS_ff['SHEAT_2'].loc[dict(time=DAtimes)]
+    #print(ff)
+    #print(ff.firefront)
+    
+    # wind jet
     if True:
+        for hour in [1,7]:
+            wind_system(mr='KI_run2_exploratory', 
+                        hour=hour, 
+                        #top_height=5000, 
+                        send_to_browser=False,
+                        extent=None,
+                        #HSkip=5,
+                        #ltoffset=8
+                        #isomin=10,
+                        #isomax=50,
+                        #opacity=.4
+                        )
+    
+    # Cloud images
+    if False:
         for hour in [1]:
             cloud_system(mr=mr,
                          hour = hour,

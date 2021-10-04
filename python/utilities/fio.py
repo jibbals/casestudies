@@ -220,7 +220,10 @@ def read_model_run_hour(mr, extent=None, hour=0):
     
     return DS
     
-def read_model_run_fire(mr, extent=None):
+def read_model_run_fire(mr, 
+                        extent=None,
+                        #dtimes=None,
+                        ):
     """
     """
     fdir=DATADIR+mr+"/fire/"
@@ -229,7 +232,18 @@ def read_model_run_fire(mr, extent=None):
     
     if extent is not None:
         DS = extract_extent(DS,extent)
-        
+    
+    #subselect based on datetime list input
+    # does not quite work...
+    #    if dtimes is not None:
+    #        # convert to numpy.datetime64?
+    #        for DA in DS:
+    #            if 'time' in DS[DA].dims:
+    #                print("DEBUG: BEFORE:")
+    #                print(DS[DA].loc[dict(time=dtimes)])
+    #                DS.update({DA:DS[DA].loc[dict(time=dtimes)]})
+    #                print("DEBUG: AFTER:")
+    #                print(DS[DA])
     return(DS)
     
 def save_fig_to_path(pname,plt, **savefigargs):

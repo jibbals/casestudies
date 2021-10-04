@@ -50,12 +50,28 @@ def extra_DataArrays(DS,
     """
     Additional DAs added to model DataSet (DS)
     """
-
+    if 'air_pressure' in DS:
+        p = DS['air_pressure']
+    else:
+        p = DS['pressure']
+    if 'air_temperature' in DS:
+        Ta = DS['air_temperature']
+    elif 'air_temp' in DS:
+        Ta = DS['air_temp']
+    else:
+        Ta = DS['temperature']
+    if 'air_pressure_at_sea_level' in DS:
+        pmsl = DS['air_pressure_at_sea_level']
+    else:
+        pmsl = DS['mslp']
+    if 'x_wind' in DS:
+        u1, v1 = DS['x_wind'],DS['y_wind']
+    else:
+        u1,v1 = DS['wnd_ucmp'],DS['wnd_vcmp']
+    
+    # add z_theta
     if add_z:
-        # add zth cube
-        p, pmsl = DS['air_pressure'],DS['air_pressure_at_sea_level']
-        ## DONT take out time dimension
-        ##p, pmsl = p[0], pmsl[0]
+        
         nt,nz,ny,nx = p.shape
         # repeat surface pressure along new z axis
         reppmsl0 = np.repeat(pmsl.data[np.newaxis,:,:,:],nz, axis=0)
@@ -63,8 +79,8 @@ def extra_DataArrays(DS,
         reppmsl = np.transpose(reppmsl0,(1,0,2,3))
         zth = -(287*300/9.8)*np.log(p.data/reppmsl)
         zth_DA = xr.DataArray(data=zth,
-                              coords=p.coords(),
-                              dims=p.dims(),
+                              coords=p.coords,
+                              dims=p.dims,
                               name="z_th",
                               attrs={"units":"m",
                                      "desc":"-(287*300/9.8)*np.log(P/mslp)",
@@ -75,25 +91,25 @@ def extra_DataArrays(DS,
 
     if add_winds:
         # wind speeds need to be interpolated onto non-staggered latlons
-        u1, v1 = DS['x_wind'],DS['y_wind']
+        
         
         ### DESTAGGER u and v using iris interpolate
         ### (this will trigger the delayed read)
         # u1: [t,z, lat, lon1]
         # v1: [t,z, lat1, lon]  # put these both onto [t,z,lat,lon]
-        #u = u1.interpolate([('longitude',v1.coord('longitude').points)],
-        #                   iris.analysis.Linear())
-        #v = v1.interpolate([('latitude',u1.coord('latitude').points)],
-        #                   iris.analysis.Linear())
-        u=u1.interp(longitude=v1.coords['longitude'])
-        v=v1.interp(latitude=u1.coords['latitude'])
-        #u.standard_name='u'
-        #v.standard_name='v'
+        u=u1.interp(longitude_0=v1.coords['longitude'])
+        #print(u)
+        #print(u.coords)
+        #print(u.dims)
+        #u.rename({"longitude_0":"longitude"})
+        v=v1.interp(latitude_0=u1.coords['latitude'])
+        #v.rename({"latitude_0":"latitude"})
+        
         # Get wind speed cube using hypotenuse of u,v
         s = wind_speed(u.data,v.data)
         s_DA = xr.DataArray(data=s,
-                            coords=u.coords(),
-                            dims=u.dims(),
+                            coords=u.coords,
+                            dims=u.dims,
                             name="s",
                             attrs={"units":"m s-1",
                                    "desc":"hypot(u,v)",
@@ -102,13 +118,15 @@ def extra_DataArrays(DS,
         # Get wind direction using arctan of y/x
         wind_dir = wind_dir_from_uv(u.data,v.data)
         wd_DA = xr.DataArray(data=wind_dir,
-                            coords=u.coords(),
-                            dims=u.dims(),
+                            coords=u.coords,
+                            dims=u.dims,
                             name="wind_direction",
                             attrs={"units":"degrees",
                                    "desc":"arctan(u,v) flipped and rotated to met standard",
                                    },
                            )
+        DS['u'] = u
+        DS['v'] = v
         DS['s']=s_DA
         DS['wind_direction']=wd_DA
 
@@ -149,17 +167,17 @@ def extra_DataArrays(DS,
 
     if add_theta:
         # Estimate potential temp
-        p, Ta = DS['air_pressure'],DS['air_temperature']
+        
         theta = potential_temperature(p.data,Ta.data)
         theta_DA = xr.DataArray(data=theta,
-                            coords=p.coords(),
-                            dims=p.dims(),
+                            coords=p.coords,
+                            dims=p.dims,
                             name="theta",
                             attrs={"units":"K",
                                    "desc":"T*(1e5/p)**(287.05/1004.64)",
                                    },
                            )
-        DS['theta']=theta_DA
+        DS['potential_temperature']=theta_DA
     
     #    if add_RH:
     #        # estimate relative humidity
@@ -179,7 +197,7 @@ def extra_DataArrays(DS,
     #                                                        (q.coord('latitude'),2),
     #                                                        (q.coord('longitude'),3)])
     #        allcubes.append(cubeRH)
-    return allcubes
+    return DS
 
 def extra_cubes(allcubes,
                 add_z=False,
