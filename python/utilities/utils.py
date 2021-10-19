@@ -1501,6 +1501,17 @@ def vorticity(u,v,lats,lons,nans_to_zeros=False):
         
     return zeta, OW, OW_norm, OWZ
 
+def vorticity_4d(u,v,lats,lons):
+    nh,nl,_,_ = u.shape
+    vort = np.zeros(u.shape)
+    OW = np.zeros(u.shape)
+    OWN = np.zeros(u.shape)
+    OWZ = np.zeros(u.shape)
+    for hi in range(nh):
+        for li in range(nl):
+            vort[hi,li], OW[hi,li],OWN[hi,li],OWZ[hi,li] = vorticity(u[hi,li],v[hi,li],lats,lons)
+    return vort,OW,OWN,OWZ
+
 def wind_dir_from_uv(u,v):
     """
         input u and v cubes, to have trig applied to them

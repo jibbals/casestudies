@@ -12,6 +12,8 @@ import timeit # for timing stuff
 from datetime import datetime, timedelta
 import pandas # for csv reading (AWS)
 
+from utilities.utils import extra_DataArrays, vorticity_4d
+
 from glob import glob
 import os
 
@@ -219,7 +221,83 @@ def read_model_run_hour(mr, extent=None, hour=0):
         DS = extract_extent(DS,extent)
     
     return DS
+
+def read_extra_data(mr, 
+                    hour=0,
+                    force_recreate=False,
+                    topind=90
+                    ):
+    """
+    Read or Create/Save set of data extra to the model output
+    Includes: potential temp, destaggered winds, z_th, vorticity, OW, OWZ, OWN, updraft helicity (for several metrics)
     
+    ARGUMENTS:
+        mr: model run name
+        hour: integer - which hour to read/create
+        force_recreate: bool - create from atmos output even if already done
+    RETURNS:
+        xarray DataSet
+    """
+    
+    hour_dt = hours_available(mr)[hour]
+    hour_str = hour_dt.strftime("%Y%m%d%H")
+    
+    fname = "../data/"+mr+"/extra_data/"+hour_str+".nc"
+    if os.path.isfile(fname) and not force_recreate:
+        # Read the file, return DS
+        print("INFO: Reading already created extra_data:",fname)
+        return xr.open_dataset(fname)
+    #else:
+    
+    # make the file, save the file
+    atmos=read_model_run_hour(mr,hour=hour)
+    make_folder(fname)
+    
+    DA_dict={}
+    # add extra data
+    extra_DataArrays(atmos,add_winds=True,add_theta=True,add_z=True)
+    DA_dict['potential_temperature']= atmos['potential_temperature']
+    DA_dict['u'] = atmos['u']
+    DA_dict['v'] = atmos['v']
+    DA_dict['s'] = atmos['s']
+    DA_dict['wind_direction'] = atmos['wind_direction']
+    DA_dict["z_th"] = atmos["z_th"]
+    # add vorticity
+    u=atmos['u'].data
+    v=atmos['v'].data
+    lats=atmos['u'].latitude
+    lons=atmos['u'].longitude
+    zeta,OW,OWN,OWZ = vorticity_4d(u,v,lats,lons)
+    DA_zeta = xr.DataArray(data=zeta,
+                           coords=atmos['u'].coords,
+                           dims=atmos['u'].dims,
+                           name="vorticity",
+                           attrs={"units":"1/s",
+                                  "desc":"Vorticity = zeta = v_x - u_y",
+                                  },
+                          )
+    DA_OW = xr.DataArray(data=OW,
+                         coords=atmos['u'].coords,
+                         dims=atmos['u'].dims,
+                         name="OW",
+                         attrs={"units":"1/s",
+                                "desc":"Shear def = F = v_x + U_y, Stretch def = E = u_x - v_y, OW = zeta^2 - (E^2 + F^2)",
+                                },
+                          )
+    
+    DA_dict['vorticity']=DA_zeta
+    DA_dict['OW'] = DA_OW
+    # ADD local time
+    #    utc=Temp.time.values
+    #    localtime = utils.local_time_from_time_lats_lons(utc,[lat],[lon])
+    #    DS_plus_lt=DS.assign_coords(localtime=("time",localtime))
+    # 
+    print("INFO: SAVING NETCDF:",fname)
+    DS = xr.Dataset(DA_dict)
+    DS.to_netcdf(fname)
+    print("INFO: SAVED NETCDF:",fname)
+    
+
 def read_model_run_fire(mr, 
                         extent=None,
                         #dtimes=None,
