@@ -19,20 +19,27 @@ from datetime import datetime, timedelta
 from glob import glob
 import os
 
-#from utilities import utils, plotting, fio, constants
+from utilities import utils, plotting, fio, constants
 
 ## RUN
-fhsns_path="../data/Fuels/KI_Vesta_Prefire_FHSNS.nc"
-hns_path="../data/Fuels/KI_Vesta_Prefire_HNS.nc"
-fhss_path="../data/Fuels/KI_Vesta_Prefire_FHSS.nc"
+extent=constants.extents['badja']['zoom1']
 
-DS_FHSS=xr.open_dataset(fhss_path)
-DS_FHSNS=xr.open_dataset(fhsns_path)
-DS_HNS=xr.open_dataset(hns_path)
+mr1='badja_run3'
+mr2='badja_LRC1'
 
-plt.figure(figsize=[14,14])
-plt.pcolormesh(DS_FHSS['Band1'].values)
-plt.colorbar()
-plt.title("FHSS")
-plt.savefig("FHSS_map.png")
+for mr in [mr1,mr2]:
+    print(mr)
+    print("---------    -----------")
+    #DS = fio.read_model_run_fire(mr)
+    DS = fio.read_model_run_hour(mr)
+    p = DS['pressure']
+    #print(p)
+    print(" - - - - ")
+    #### HERE IS WHERE ISSUE OCCURS::#####
+    p_sub = fio.extract_extent(p,extent)
+    #print(p_sub)
+    print(" ------- ")
+    DS_sub2 = fio.read_model_run_hour(mr,extent=extent)
+    print(DS_sub2)
+
 

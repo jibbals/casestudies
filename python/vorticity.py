@@ -124,6 +124,7 @@ def vorticity_10m(
         hours: optional run for subset of model hours
         extent: subset extent
         subdir: savefolder in case of specific extent
+        timeskip=10: one plot per 10 minutes
     """
     
     
@@ -272,6 +273,10 @@ def vorticity(mr, extent=None, subdir=None, levels=[3,10,20,30,40, 50,60,70,90],
             cbar.ax.set_xticklabels(vort_ticks_str,rotation=20)
             # save figure
             fio.save_fig(mr,"vorticity", time_utc, plt, subdir=subdir)
+
+def suitecall(mr, extent=None, subdir=None):
+    vorticity_10m(mr=mr, extent=extent, subdir=subdir)
+    vorticity(mr=mr, extent=extent, subdir=subdir)
 
 if __name__ == '__main__':
 

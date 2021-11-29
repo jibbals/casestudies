@@ -378,7 +378,7 @@ if __name__ == '__main__':
     harvey_test_runs=["AF_coupled","AF_uncoupled","AF_coupled-spark","AF_uncoupled-spark"]
 
     # Check harvey's runs
-    if True:
+    if False:
         extent = sirivanz_extent
         isochrone_comparison(harvey_test_runs,
                 extent=extent,
@@ -390,16 +390,17 @@ if __name__ == '__main__':
                     timesteps=12, firespeed=False)
 
     if False: 
-        fire_spread(mr='badja_run3',
-                extent=badja_zoom,
-                subdir=badja_zoom_name,
+        fire_spread(mr='badja_UC1',
+                #extent=badja_zoom,
+                #subdir=badja_zoom_name,
                 timesteps=10,
                 firespeed=False)
 
-    if False:
-        mrs=["badja_run1","badja_run2","badja_run3","badja_run4"]
+    if True:
+        #mrs=["badja_run1","badja_run2","badja_run3","badja_run4"]
+        mrs=["badja_run3","badja_UC1"]
         extent=badja_zoom
-        subdir=badja_zoom_name
+        subdir="uncoupled" #badja_zoom_name
         #mrs=['KI_run1','KI_run2','KI_run3']
         #extent=KI_zoom
         #subdir=KI_zoom_name
@@ -408,9 +409,10 @@ if __name__ == '__main__':
         
     
     if False:
-        mrs=["badja_run1","badja_run2","badja_run3","badja_run4"]
-        extent=badja_zoom
-        subdir=badja_zoom_name
+        #mrs=["badja_run1","badja_run2","badja_run3","badja_run4"]
+        mrs=["badja_LRC1","badja_UC1"]
+        extent=None # badja_zoom
+        subdir=None # badja_zoom_name
         #mrs=['KI_run1','KI_run2','KI_run3']
         #extent=KI_zoom
         #subdir=KI_zoom_name

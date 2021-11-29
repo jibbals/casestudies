@@ -232,6 +232,8 @@ def plume(mr, extent=None, subdir=None, levels=[3,10,20,30,40, 50,60,70,90], coa
             # save figure
             fio.save_fig(mr,"plume", time_utc, plt, subdir=subdir)
 
+def suitecall(mr, extent=None,subdir=None):
+    plume(mr, extent=extent, subdir=subdir)
 
 if __name__ == '__main__':
     # keep track of used zooms

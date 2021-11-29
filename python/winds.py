@@ -239,6 +239,10 @@ def rotation_looped(mr,
 
         fio.save_fig(mr, "wind_dir_10m", dtime, subdir=subdir, plt=plt)
 
+# run from script
+def suitecall(mr, extent=None, subdir=None):
+    rotation_looped(mr, extent=extent, subdir=subdir)
+
 if __name__=='__main__':
     
     # keep track of used zooms
@@ -252,9 +256,9 @@ if __name__=='__main__':
     badja_tiffname=None
 
     # settings for plots
-    mr='KI_run2'
-    extent=KI_zoom
-    subdir=KI_zoom_name
+    mr='badja_LRC_run1'
+    extent=badja_zoom
+    subdir=badja_zoom_name
     tiffname=None
 
     ### Run the stuff

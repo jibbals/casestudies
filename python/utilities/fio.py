@@ -78,6 +78,29 @@ def extract_extent(DS,WESN):
         WESN: [W,E,S,N] latlons of extent
     """
     lon0,lon1,lat0,lat1=WESN
+
+    # If we're looking at a xr.Dataset, we need to use sel
+    if isinstance(DS,xr.Dataset):
+        if hasattr(DS,"longitude_0"): # atmos DS has some fields on staggered grid
+            DS_cut = DS.sel(
+                latitude = slice(lat0,lat1),
+                longitude = slice(lon0,lon1),
+                latitude_0 = slice(lat0,lat1),
+                longitude_0 = slice(lon0,lon1),
+                )
+        elif hasattr(DS,"lon"): # maybe fire DS
+            DS_cut = DS.sel(
+                lat = slice(lat0,lat1),
+                lon = slice(lon0,lon1),
+                )
+        else:
+            DS_cut = DS.sel(
+                latitude = slice(lat0,lat1),
+                longitude = slice(lon0,lon1),
+                )
+
+        return DS_cut
+
     
     # make mask for lats/lons (or latitude/longitude)
     if hasattr(DS,"longitude"):
@@ -97,12 +120,12 @@ def extract_extent(DS,WESN):
         mask_lat = mask_lat & (DS.latitude_0 >= lat0) & (DS.latitude_0 <= lat1)
     
     #Finally, it is just a matter of using the where() method and specifying drop=True as an argument.
-    #print("DEBUG: DS before spatial subset:")
-    #print(DS)
+    print("DEBUG: DS before spatial subset:")
+    print(DS)
     cropped_ds = DS.where(mask_lon & mask_lat, drop=True)
 
-    #print("DEBUG: DS after spatial subset:")
-    #print(cropped_ds)
+    print("DEBUG: DS after spatial subset:")
+    print(cropped_ds)
     return cropped_ds
 
 def fire_path(mr, prefix):

@@ -885,7 +885,10 @@ def quiverwinds(lats,lons,u,v,
     """
     u, v in metres/second
     arrows and labels converted into km/h
-    
+    ARGS:
+        lats,lons,u,v,
+        thresh_windspeed=10 km/h
+
     """
     
     #set some defaults
@@ -997,7 +1000,7 @@ def scale_bar(ax, proj, length, location=(0.5, 0.05), linewidth=3,
 def transect(data, z, lat, lon, start, end, npoints=None, 
              topog=None, sh=None, latt=None, lont=None, ztop=4000,
              title="", ax=None, colorbar=True,
-             lines=None, 
+             lines=None, contours=None,
              cbar_args={},
              **contourfargs):
     '''
@@ -1050,7 +1053,9 @@ def transect(data, z, lat, lon, start, end, npoints=None,
         plt.sca(ax)
     # Note that contourf can work with non-plaid coordinate grids provided both are 2-d
     # Contour inputs: xaxis, yaxis, data, colour gradient 
-    cmappable=plt.contourf(X,Y,slicedata,contours,**contourfargs)
+    if contours is not None and 'levels' not in contourfargs:
+        contourfargs['levels']=contours
+    cmappable=plt.contourf(X,Y,slicedata,**contourfargs)
     
     if colorbar:
         # defaults if not set

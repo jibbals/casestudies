@@ -1448,7 +1448,7 @@ if __name__ == '__main__':
     zoom=badja_zoom #belowra_zoom
     subdir=badja_zoom_name #belowra_zoom_name
     
-    if True: # look at green valley for dragana
+    if False: # look at green valley for dragana
         mr="green_valley_run2_fix"
         start,end=[[-35.9,147.5],[-36.34,148.1]]
         extent=[147.35,148.25,-36.5,-35.7]
@@ -1461,15 +1461,25 @@ if __name__ == '__main__':
                     dy=.01,
                     )
 
-    if False:
-        mr='badja_run3'
-        # best return shear example at 0020LT
-        shear_example = [[-36.25,149.63],[-36.35,149.78]]
-        shear_example_ztop = 5000
-        
-        start,end=shear_example
-        ztop=shear_example_ztop
-        plot_special_transects(mr,start,end,ztop=ztop,name="shear")
+    # special transects
+    if True:
+        ztop=5000
+        special_transects=[
+                [[-36.3262,149.6610],[-36.3030,149.9515]],# yowrie - wandella
+                [[-36.3071,149.6708],[-36.4152,149.9842]],# yowrie - cobargo
+                [[-36.25,149.63],[-36.35,149.78]], # shear
+                [[-36.33+.08,149.85-.1],[-36.33-.08,149.85+.1]], # wandella valley
+                ]
+        st_names = ['yowrie_wandella',
+                'yowrie_coburg',
+                'shear',
+                'wandella_valley',]
+
+        for mr in ['badja_run3','badja_UC1']:
+            for i in [0]:
+                start,end=special_transects[i]
+                name=st_names[i]
+                plot_special_transects(mr,start,end,ztop=ztop,name=name)
     
     if False:
         mr='KI_run2'

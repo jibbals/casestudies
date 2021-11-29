@@ -90,20 +90,15 @@ def wind_dir_10m(
         mr,
         extent=None,
         subdir=None,
-        hours=range(24),
         coastline=2,
         ):
     """
     
     ARGUMENTS:
         mr: model run name
-        hours: optional run for subset of model hours
         extent: subset extent
         subdir: savefolder in case of specific extent
     """
-    # Defaults
-    if hours is None:
-        hours=range(24)
     
     ## topography: maybe we want coastline
     topog=fio.model_run_topography(mr)
@@ -146,14 +141,14 @@ def wind_dir_10m(
         plotting.map_fire(DA_ff.values,lats,lons)
         # add topog
         if coastflag:
-            [print("DEBUG:",np.shape(arr)) for arr in [lons,lats,topog.values,coastline]]
             plt.contour(lons,lats,topog.values,np.array([coastline]),colors='k')
             
         ax.set_aspect("equal")
         
         # save figure
         fio.save_fig(mr,"topdown_wdir_10m", time_utc, plt, subdir=subdir)
-        
+
+
 
 # def wind_dir(
 #         mr,
@@ -225,6 +220,8 @@ def wind_dir_10m(
 #             fio.save_fig(mr,"topdown_wdir_10m", time_utc, plt, subdir=subdir)
             
     
+def suitecall(mr, extent=None, subdir=None):
+    wind_dir_10m(mr, extent=extent, subdir=subdir)
 
 if __name__ == '__main__':
 

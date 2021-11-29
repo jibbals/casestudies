@@ -13,7 +13,13 @@ Created on Mon Aug  5 13:52:09 2019
 ###
 
 import iris
-from iris.experimental.equalise_cubes import equalise_attributes
+if iris.__version__ < '3':
+    from iris.experimental.equalise_cubes import equalise_attributes
+else:
+    from iris.util import equalise_attributes
+
+from iris.cube import CubeList as icCubeList
+from iris.cube import Cube as icCube
 import xarray as xr # better fio
 import numpy as np
 import timeit # for timing stuff
@@ -135,7 +141,7 @@ def create_wind_profile_csv(model_run, name, latlon):
     T, RH = cubes.extract(['air_temperature','relative_humidity'])
     
     # extract single lat lon
-    cubes1 = iris.cube.CubeList([x,y,wdir,z,topog, T, RH])
+    cubes1 = icCubeList([x,y,wdir,z,topog, T, RH])
     lat,lon = -32.84,115.93
     for i in range(len(cubes1)):
         cubes1[i] = cubes1[i].interpolate([('longitude',lon), ('latitude',lat)],
@@ -154,7 +160,7 @@ def create_wind_profile_csv(model_run, name, latlon):
     
     # interpolate to our heights
     heights = np.arange(500,2001,500)
-    cubes2 = iris.cube.CubeList([x1,y1,wdir1])
+    cubes2 = icCubeList([x1,y1,wdir1])
     ## interpolate to 500,1000,1500,2000m above ground level
     for i in range(len(cubes2)):
         # add agl coord
@@ -219,7 +225,7 @@ def read_nc_iris(fpath, constraints=None, keepvars=None, HSkip=None):
     if HSkip is not None:
         if not (HSkip == False):
             # For each cube, apply ::HSkip to lon/lat dimension
-            small_cubes = iris.cube.CubeList()
+            small_cubes = icCubeList()
             for cube in cubes:
                 if cube.ndim == 2:
                     mini = cube[::HSkip,::HSkip]
@@ -270,7 +276,7 @@ def read_fire(model_run,
         constraints = _constraints_from_extent_(extent,constraints)
 
     # Build up cubelist based on which files you want to read
-    cubelist = iris.cube.CubeList()
+    cubelist = icCubeList()
 
     for fname in filenames:
         paths = fire_path(model_run,fname)
@@ -604,7 +610,7 @@ def read_PFT_timeseries(mr,latlon,
     #print("DEBUG: type PFT", type(PFT))
     #print("DEBUG: shape PFT", np.shape(PFT))
     #print("DEBUG: PFT", PFT)
-    PFTcube = iris.cube.Cube(PFT,
+    PFTcube = icCube(PFT,
                              var_name='PFT',
                              units='Gigawatts',
                              dim_coords_and_dims=dim_coords)
