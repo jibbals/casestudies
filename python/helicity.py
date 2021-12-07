@@ -96,10 +96,8 @@ def Updraft_Helicity(u,v,w,
 
     # let's mask out everywhere outside the altitudinal range
     outside = np.logical_or(z < z0, z > z1)
-    print("DEBUG: zrange, z[sample], n_{removed levels}", z0,z1, z[0,::2,5,5].compute(), np.sum(outside,axis=-3)[0,5,:].compute())
     w[outside] = 0
 
-    
     # integral from Kain et al. (2008)
     # [..., lat, lon]
     UH = np.sum(w*zeta*dz, axis=-3) # sum over altitude
@@ -181,8 +179,8 @@ def plot_UH(mr, extent=None, subdir=None,
             
             fio.save_fig(mr,_SN_,title,plt,subdir=subdir)
 
+# This runs via the shell script "run_several_methods.sh"
 def suitecall(mr, extent=None, subdir=None):
-    
     for (z0,z1) in [(0,2000),(1000,3000),(2000,5000)]:
         plot_UH(mr, extent=extent, subdir=subdir,
                 z0=z0,
