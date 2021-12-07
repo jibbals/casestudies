@@ -81,13 +81,18 @@ KI_zoom_names=list(constants.extents['KI'].keys())
 KI_zooms = list(constants.extents['KI'].values())
 badja_zoom_names=list(constants.extents['badja'].keys())
 badja_zooms= list(constants.extents['badja'].values())
+badja_am_zoom_names=list(constants.extents['badja_am'].keys())
+badja_am_zooms= list(constants.extents['badja_am'].values())
 
 ## settings for plots
 mr="${mr}"
 zooms = [None]
 subdirs = [None]
 
-if 'badja' in mr:
+if 'badja_am' in mr:
+    zooms = badja_am_zooms
+    subdirs = badja_am_zoom_names
+elif 'badja' in mr:
     zooms = badja_zooms
     subdirs = badja_zoom_names
 elif 'KI_' in mr:
@@ -97,7 +102,7 @@ elif 'KI_' in mr:
 zoom = zooms[${extent_ind}]
 subdir = subdirs[${extent_ind}]
 
-print("INFO: running [mr, zoom, subdir] :",[mr, zoom, subdir])
+print("INFO: running $script on $mr: [zoom, subdir] =",[zoom, subdir])
 
 suitecall(mr,zoom,subdir)
 

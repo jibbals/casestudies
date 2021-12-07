@@ -88,6 +88,30 @@ def extra_DataArrays(DS,
                               )
         
         DS["z_th"]=zth_DA
+        # What about z_th_agl?
+        topog = None
+        if "surface_altitude" in DS:
+            topog=DS['surface_altitude']
+        elif "topog" in DS:
+            topog=DS['topog']
+        else:
+            print("WARNING: no topography found")
+        
+        if topog is not None:
+            assert np.all(topog.shape == (ny,nx)), "topography is not [lat,lon]!?"+str(topog.shape)
+            topog3d = np.repeat(topog.data[np.newaxis,:,:], nz, axis=0)
+            topog4d = np.repeat(topog3d[np.newaxis,:,:,:], nt, axis=0)
+            zthagl_DA = xr.DataArray(
+                    data=zth-topog4d,
+                    coords=p.coords,
+                    dims=p.dims,
+                    name="z_th_agl",
+                    attrs={"units":"m",
+                        "desc":"z_th - topography",
+                        },
+                    )
+            DS["z_th_agl"]=zthagl_DA
+
 
     if add_winds:
         # wind speeds need to be interpolated onto non-staggered latlons
@@ -864,6 +888,46 @@ def firepower_from_cube(shcube):
     if np.ma.is_masked(firepower):
         firepower=firepower.data
     return firepower/1e9 # Watts to Gigawatts
+
+def edges(arr,axis=None):
+    """
+    return linearly interpolated edge points for arr
+    if multiple dimensions, need axis argument
+    """
+    if axis is None:
+        assert len(arr.shape) < 2, "need axis argument for multidim array input"
+        darr=np.diff(arr)
+        edges=np.zeros(len(arr)+1)
+        # midpoints
+        edges[1:-1] = arr[:-1]+darr/2.0
+        # outer edges
+        edges[0] = arr[0] - darr[0]/2.0
+        edges[-1] = arr[-1] + darr[-1]/2.0
+    else:
+        # want to return array one bigger in desired dimension
+        shape = list(np.shape(arr))
+        shape[axis] = shape[axis]+1
+        edges = np.zeros(shape)
+        # use slice notation to just work on desired axis
+        slc_mids = [slice(None)] * len(shape)
+        slc_mids[axis] = slice(1,-1)
+        slc_mids = tuple(slc_mids)
+        slc_all_but1 = [slice(None)] * len(shape)
+        slc_all_but1[axis] = slice(0,-1)
+        slc_all_but1 = tuple(slc_all_but1)
+        slc_e0 = [slice(None)] * len(shape)
+        slc_e0[axis] = 0 # just first edge
+        slc_e0 = tuple(slc_e0)
+        slc_e1 = [slice(None)] * len(shape)
+        slc_e1[axis] = -1 # final edge
+        slc_e1 = tuple(slc_e1)
+        # midpoints and outer edges same as 1d case
+        darr=np.diff(arr,axis=axis)
+        edges[slc_mids] = arr[slc_all_but1]+darr/2.0
+        edges[slc_e0] = arr[slc_e0]-darr[slc_e0]/2.0
+        edges[slc_e1] = arr[slc_e1]+darr[slc_e1]/2.0
+    return edges
+
 
 def lat_lon_grid_edges(lats,lons):
     """

@@ -924,7 +924,7 @@ def quiverwinds(lats,lons,u,v,
     #cmap = matplotlib.colors.ListedColormap(['black', 'magenta'])
     #bounds=[0,90,1000]
     #norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
-    
+    #print("DEBUG: quiverwinds:", qlons.shape, qlats.shape, qu.shape, qv.shape, yskip,xskip)
     Q = plt.quiver(qlons, qlats, 
                qu, qv, 
                #color=cmap(norm(qs.data)), #doesn't work!?
