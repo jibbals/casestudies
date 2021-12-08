@@ -22,7 +22,7 @@ from datetime import datetime,timedelta
 from utilities import plotting, utils, constants
 from utilities import fio_iris as fio
 
-from transects import firefront_centres, interp_centres,
+from transects import firefront_centres, interp_centres
 
 ###
 ## GLOBALS
@@ -42,7 +42,7 @@ def get_symlog_scale(base, min_index,max_index):
     label=[]
     return scale
 
-vertmotion_contours = get_symloc_scale(2.0,-2,6)
+vertmotion_contours = get_symlog_scale(2.0,-2,6)
 
 ###
 ## METHODS

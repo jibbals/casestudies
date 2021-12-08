@@ -125,6 +125,8 @@ def plot_vertical_velocity(
 
 # This runs via the shell script "run_several_methods.sh"
 def suitecall(mr, extent=None, subdir=None):
+    if subdir is None:
+        subdir=""
     # Check a bunch of overnight vert velocity levels
     zrange = [0.1, 0.5, 1, 2, 5]
     for z in zrange:

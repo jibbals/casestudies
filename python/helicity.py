@@ -181,8 +181,11 @@ def plot_UH(mr, extent=None, subdir=None,
 
 # This runs via the shell script "run_several_methods.sh"
 def suitecall(mr, extent=None, subdir=None):
+    if subdir is None:
+        subdir=""
     for (z0,z1) in [(0,2000),(1000,3000),(2000,5000)]:
-        plot_UH(mr, extent=extent, subdir=subdir,
+        plot_UH(mr, extent=extent, 
+                subdir=subdir+"%d_%d"%(z0//1000,z1//1000),
                 z0=z0,
                 z1=z1,
                 hours_range=np.arange(2,16),
