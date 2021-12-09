@@ -44,6 +44,8 @@ def basic_transects(mr,start,end,ztop=5000,
             vertical motion + pot. temp + wind quivers
             todo: vorticity + vert motion
             maybe: pot temp + vert motion
+        ARGS:
+            name: transect name needed as first folder in subdir
     """
     
     # some defaults
@@ -125,7 +127,7 @@ def basic_transects(mr,start,end,ztop=5000,
             
             # Vorticity in 3d?
             
-            npoints=utils.number_of_interp_points(lats,lons,start,end,factor=1.0)
+            npoints=transect_utils.number_of_interp_points(lats,lons,start,end,factor=1.0)
             
             ### PLOT 1: Horizontal wind speed + pot.temp + quiver
             ### PLOT 2: Vertical winds + pot-temp + quiver
@@ -140,7 +142,7 @@ def basic_transects(mr,start,end,ztop=5000,
                         sh=shi,
                         ztop=ztop,
                         lines=None, 
-                        contours=hwind_contours,
+                        levels=hwind_contours,
                         cmap=hwind_cmap,
                         colorbar=True,
                         )
@@ -162,7 +164,8 @@ def basic_transects(mr,start,end,ztop=5000,
                     Ti, zi, lats, lons, start, end, 
                     npoints=npoints, 
                     ztop=ztop, 
-                    lines=T_lines,)
+                    lines=T_lines,
+                    )
                 
                 ## Add quiver
                 wind_transect_struct = transect_utils.plot_transect_winds(
@@ -188,7 +191,7 @@ def basic_transects(mr,start,end,ztop=5000,
                 plt.suptitle(mr + "\n" + LTstr,
                              fontsize=15)
                 fio.save_fig(mr,"transects",dtime,
-                             subdir=subdir,
+                             subdir=name+'/'+subdir,
                              plt=plt,
                              )
             
@@ -244,35 +247,18 @@ def basic_transects(mr,start,end,ztop=5000,
 
 if __name__ == '__main__':
     
-    # special transects
+    # test method
+    #def basic_transects(mr,start,end,ztop=5000,
+    #                hours=None,
+    #                name=None,
+    #                n_arrows=20,
+    #                T_lines=np.arange(280,350,2),):
     if True:
-        ztop=5000
-        # TODO" add to transect_utils
-        special_transects=[
-                [[-36.3262,149.6610],[-36.3030,149.9515]],# yowrie - wandella
-                [[-36.3071,149.6708],[-36.4152,149.9842]],# yowrie - cobargo
-                [[-36.25,149.63],[-36.35,149.78]], # shear
-                [[-36.33+.08,149.85-.1],[-36.33-.08,149.85+.1]], # wandella valley
-                ]
-        st_names = ['yowrie_wandella',
-                'yowrie_coburg',
-                'shear',
-                'wandella_valley',]
-    
-        for mr in ['badja_run3','badja_UC1']:
-            for i in [0]:
-                start,end=special_transects[i]
-                name=st_names[i]
-                plot_special_transects(mr,start,end,ztop=ztop,name=name)
-    
-    if False:
-        mr='KI_run2'
-        # best return shear example at 0020LT
-        LLjet_example = [[-35.725,136.7],[-36.08,136.7]]
-        LLjet_example_ztop = 3000
-        
-        start,end=LLjet_example
-        ztop=LLjet_example_ztop
-        plot_special_transects(mr,start,end,ztop=ztop,
-                name="lowlevel_jet",
-                n_arrows=10,)
+        mr = "badja_am1"
+        for name,[lat0,lon0,lat1,lon1] in transect_utils.mr_transects[mr].items():
+            start,end = [[lat0,lon0], [lat1,lon1]]
+            print("DEBUG:", name, start, end)
+            basic_transects(mr, start, end, ztop=5000,
+                    hours=np.arange(2,10),
+                    name=name,
+                    )

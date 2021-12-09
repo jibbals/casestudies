@@ -896,9 +896,9 @@ def quiverwinds(lats,lons,u,v,
     #set some defaults
     if (not no_defaults) and (not differential):
         if "scale_units" not in quivargs.keys() and 'scale' not in quivargs.keys():
-            # I think this makes 50m/s 1 inch 
+            # I think this makes 50 m/s 1 inch 
             quivargs['scale_units']="inches"
-            quivargs['scale']=50*3.6  
+            quivargs['scale']=50 * 3.6
         if "pivot" not in quivargs.keys():
             quivargs['pivot']='middle'
     
@@ -919,14 +919,16 @@ def quiverwinds(lats,lons,u,v,
     # if we want to look at differential wind speed we need to subtract the mean flow
     # also change the wind threshold etc...
     if differential:
-
-        u_diff = (u[::yskip,::xskip] - np.nanmean(u))*3.6  # m/s -> km/h
-        v_diff = (v[::yskip,::xskip] - np.nanmean(v))*3.6  # m/s -> km/h
+        ubar = np.nanmean(u)
+        vbar = np.nanmean(v)
+        u_diff = (u[::yskip,::xskip] - ubar)*3.6  # m/s -> km/h
+        v_diff = (v[::yskip,::xskip] - vbar)*3.6  # m/s -> km/h
+        diffstr = "(u,v)-(%.1f,%.1f)"%(ubar*3.6,vbar*3.6)
         Q = plt.quiver(qlons,qlats,
                 u_diff,
                 v_diff,
                 **quivargs)
-        plt.quiverkey(Q, 0.1, 1.05, 10, r'$5 \frac{km}{h}$', labelpos='W', fontproperties={'weight':'bold'})
+        plt.quiverkey(Q, 0.1, 1.05, 20, diffstr + r' = $20 \frac{km}{h}$', labelpos='W', fontproperties={'weight':'bold'})
         return
         
     # wins speed used as threshhold for quiver arrows

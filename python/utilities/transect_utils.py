@@ -28,12 +28,22 @@ from utilities import constants# ,plotting, utils
 ###
 
 # {"model run": {"transect name" : [lat0,lon0,lat1,lon1] ,}, }
-list_of_transects={
+# example use:
+# for subdir,[lat0,lon0,lat1,lon1] in transect_utils.mr_transects[mr].items():
+#      start,end = [[lat0,lon0], [lat1,lon1]]
+mr_transects={
     "badja_am1":{ 
         "Cobargo_Plume_NWSE":[-36.26,149.675, -36.4,150.0],
         },
-    "KI_run2":{},
-    "badja_run3":{},
+    "KI_run2":{
+        "LLjet_example":[-35.725,136.7, -36.08,136.7],
+        },
+    "badja_run3":{
+        "yowrie_wandella":[-36.3262,149.6610, -36.3030,149.9515],
+        'yowrie_coburg':[-36.3071,149.6708, -36.4152,149.9842],
+        'shear':[-36.25,149.63, -36.35,149.78],
+        'wandella_valley':[-36.33+.08,149.85-.1, -36.33-.08,149.85+.1],
+        },
     }
 
 ###
@@ -339,7 +349,7 @@ def plot_transect_winds(u,v,w,z,
 def plot_transect(data, z, lat, lon, start, end, npoints=None, 
              topog=None, sh=None, latt=None, lont=None, ztop=4000,
              title="", ax=None, colorbar=True,
-             lines=None, contours=None,
+             lines=None,
              cbar_args={},
              **contourfargs):
     '''
@@ -392,8 +402,6 @@ def plot_transect(data, z, lat, lon, start, end, npoints=None,
         plt.sca(ax)
     # Note that contourf can work with non-plaid coordinate grids provided both are 2-d
     # Contour inputs: xaxis, yaxis, data, colour gradient 
-    if contours is not None and 'levels' not in contourfargs:
-        contourfargs['levels']=contours
     cmappable=plt.contourf(X,Y,slicedata,**contourfargs)
     
     if colorbar:
@@ -460,7 +468,6 @@ def plot_transect(data, z, lat, lon, start, end, npoints=None,
 def plot_transect_s(s, z, lat, lon, start, end, npoints=100, 
                topog=None, sh=None, latt=None, lont=None, ztop=4000,
                title="Wind speed (m/s)", ax=None, colorbar=True,
-               contours=np.arange(0,25,2.5),
                lines=np.arange(0,25,2.5), 
                cbar_args={},
                **contourfargs):
@@ -475,6 +482,8 @@ def plot_transect_s(s, z, lat, lon, start, end, npoints=100,
     ## default cmap
     if 'cmap' not in contourfargs:
         contourfargs['cmap']=_cmaps_['windspeed']
+    if 'levels' not in contourfargs:
+        contourfargs['levels'] = np.arange(0,25,2.5),
     
     # wind speed
     s[np.isnan(s)] = -5000 # There is one row or column of s that is np.NaN, one of the edges I think
@@ -483,14 +492,13 @@ def plot_transect_s(s, z, lat, lon, start, end, npoints=100,
     return plot_transect(s,z,lat,lon,start,end,npoints=npoints,
                     topog=topog, sh=sh, latt=latt, lont=lont, ztop=ztop,
                     title=title, ax=ax, colorbar=colorbar,
-                    contours=contours,lines=lines,
+                    lines=lines,
                     cbar_args=cbar_args,
                     **contourfargs)
 
 def plot_transect_theta(theta, z, lat, lon, start, end, npoints=None, 
                    topog=None, sh=None, latt=None, lont=None, ztop=4000,
                    title="$T_{\\theta}$ (K)", ax=None, colorbar=True,
-                   contours = np.arange(280,350,1),
                    lines = np.union1d(np.arange(280,301,2), np.arange(310,351,10)),
                    cbar_args={},
                    **contourfargs):
@@ -504,6 +512,8 @@ def plot_transect_theta(theta, z, lat, lon, start, end, npoints=None,
     '''
     if 'cmap' not in contourfargs:
         contourfargs['cmap'] = _cmaps_['th']
+    if 'levels' not in contourfargs:
+        contourfargs['levels'] = np.arange(280,350,1),
     if 'norm' not in contourfargs:
         contourfargs['norm'] = matplotlib.colors.SymLogNorm(300,base=np.e)
     if 'format' not in cbar_args:
@@ -512,14 +522,13 @@ def plot_transect_theta(theta, z, lat, lon, start, end, npoints=None,
     return plot_transect(theta,z,lat,lon,start,end,npoints=npoints,
                     topog=topog, sh=sh, latt=latt, lont=lont, ztop=ztop,
                     title=title, ax=ax, colorbar=colorbar,
-                    contours=contours, lines=lines,
+                    lines=lines,
                     cbar_args=cbar_args,
                     **contourfargs)
 
 def plot_transect_w(w, z, lat, lon, start, end, npoints=None, 
                topog=None, sh=None, latt=None, lont=None, ztop=5000,
                title="Vertical motion (m/s)", ax=None, colorbar=True, 
-               contours=np.union1d(np.union1d(2.0**np.arange(-2,6),-1*(2.0**np.arange(-2,6))),np.array([0])),
                lines=np.array([0]),
                cbar_args={},
                **contourfargs):
@@ -533,6 +542,8 @@ def plot_transect_w(w, z, lat, lon, start, end, npoints=None,
     '''
     if 'cmap' not in contourfargs:
         contourfargs['cmap'] = _cmaps_['verticalvelocity']
+    if 'levels' not in contourfargs:
+        contourfargs['levels'] = np.union1d(np.union1d(2.0**np.arange(-2,6),-1*(2.0**np.arange(-2,6))),np.array([0]))
     if 'norm' not in contourfargs:
         contourfargs['norm'] = matplotlib.colors.SymLogNorm(0.25,base=2.0)
     if 'format' not in cbar_args:
@@ -542,14 +553,13 @@ def plot_transect_w(w, z, lat, lon, start, end, npoints=None,
     return plot_transect(w, z,lat,lon,start,end,npoints=npoints,
                     topog=topog, sh=sh, latt=latt, lont=lont, ztop=ztop,
                     title=title, ax=ax, colorbar=colorbar,
-                    contours=contours, lines=lines,
+                    lines=lines,
                     cbar_args=cbar_args,
                     **contourfargs)
 
 def transect_qc(qc, z, lat, lon, start, end, npoints=None, 
                topog=None, sh=None, latt=None, lont=None, ztop=4000,
                title="Water and ice (g/kg air)", ax=None, colorbar=True,
-               contours=np.arange(0.0,0.4,0.01),
                lines=np.array([constants.cloud_threshold]),
                cbar_args={},
                **contourfargs):
@@ -566,18 +576,21 @@ def transect_qc(qc, z, lat, lon, start, end, npoints=None,
         contourfargs['cmap'] = _cmaps_['qc']
     if 'norm' not in contourfargs:
         contourfargs['norm'] = matplotlib.colors.SymLogNorm(0.02, base=2.0)
+    if 'levels' not in contourfargs:
+        contourfargs['levels'] = np.arange(0.0,0.4,.01),
     if 'format' not in cbar_args:
         cbar_args['format'] = ScalarFormatter()
     # call transect using some defaults for vertical velocity w
     return plot_transect(qc, z,lat,lon,start,end,npoints=npoints,
                     topog=topog, sh=sh, latt=latt, lont=lont, ztop=ztop,
                     title=title, ax=ax, colorbar=colorbar,
-                    contours=contours, lines=lines,
+                    lines=lines,
                     cbar_args=cbar_args,
                     **contourfargs)
 
-def add_contours(data, z, lat, lon, start, end, npoints=None, 
-                 ztop=None, lines=None, 
+def add_contours(data, z, lat, lon, start, end, lines,
+                 npoints=None, 
+                 ztop=None, 
                  **contourargs):
         '''
         Draw cross section
