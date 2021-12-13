@@ -20,8 +20,6 @@ import matplotlib.pyplot as plt
 from utilities import fio, utils, plotting, constants
 
 _SN_ = "vertmotion"
-
-
     
 def plot_vertical_velocity(
         mr, 
@@ -71,13 +69,14 @@ def plot_vertical_velocity(
             zstr = "%.1f - %.1f m"%(level_height[zi],level_height[zi_2])
         
         for ti, time in enumerate(ltimes):
-            vertvel = w[ti,zi].data
-            ui = u[ti,zi].data
-            vi = v[ti,zi].data
+            # convert dask lazy arrays into DataArrays (can be used like numpy arrays)
+            vertvel = w[ti,zi].compute()
+            ui = u[ti,zi].compute()
+            vi = v[ti,zi].compute()
             if zi_2 is not None:
-                vertvel = np.mean(w[ti,zi:zi_2+1].data,axis=0)
-                ui = np.mean(u[ti,zi:zi_2+1].data,axis=0)
-                vi = np.mean(v[ti,zi:zi_2+1].data,axis=0)
+                vertvel = np.nanmean(w[ti,zi:zi_2+1].data,axis=0)
+                ui = np.nanmean(u[ti,zi:zi_2+1].data,axis=0)
+                vi = np.nanmean(v[ti,zi:zi_2+1].data,axis=0)
 
             fire = DS_fire.sel(time=times[ti])
             sh = fire['SHEAT_2'].T # fire stuff is transposed :(
@@ -143,12 +142,14 @@ def suitecall(mr, extent=None, subdir=None):
 if __name__=="__main__":
     # Check a bunch of overnight vert velocity levels
     #zrange = [0.1, 0.5, 1, 2, 3, 4, 5]
-    zrange=[1,3,5]
+    zrange=[1,]#3,5]
+    #hrange=np.arange(5,13)
+    hrange=np.arange(5,6)
     for z in zrange:
         plot_vertical_velocity("badja_am1",
                 extent=constants.extents['badja_am']['zoom2'],
                 subdir="zoom2_%.2f"%z,
-                hours_range=np.arange(5,13),
+                hours_range=hrange,
                 altitude=z*1000.0,
                 )
             

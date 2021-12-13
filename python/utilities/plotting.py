@@ -892,7 +892,6 @@ def quiverwinds(lats,lons,u,v,
         thresh_windspeed=10 km/h
         differential=False: set to True to instead plot quiver difference from mean flow
     """
-
     #set some defaults
     if (not no_defaults) and (not differential):
         if "scale_units" not in quivargs.keys() and 'scale' not in quivargs.keys():
