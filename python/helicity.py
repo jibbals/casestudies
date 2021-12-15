@@ -23,29 +23,6 @@ from utilities import fio, utils, plotting, constants
 
 _SN_ = "Helicity"
 
-
-def del_u_del_v(u,v,lats,lons):
-    """
-    calculate metres per degree, 
-    then take gradients along u and v in the horizontal dimensions.
-    I think this maintains [...,y,x] shape
-    ARGS:
-        u,v [...,y,x]: winds horizontal
-        lats,lons: in degrees
-    """
-
-    lat_deg_per_metre = 1/111.32e3 # 111.32km per degree
-    lat_mean = np.mean(lats)
-    lon_deg_per_metre = lat_deg_per_metre * np.cos(np.deg2rad(lat_mean))
-    
-    mlats = lats / lat_deg_per_metre # convert lats into metres
-    mlons = lons / lon_deg_per_metre # convert lons into metres
-    
-    # array[...,lat,lon]
-    u_lat, u_lon = np.gradient(u, mlats, mlons, axis=(-2,-1))
-    v_lat, v_lon = np.gradient(v, mlats, mlons, axis=(-2,-1))
-    return u_lat, u_lon, v_lat, v_lon
-
 def Helicity_vertical(u, v, w, lats, lons):
     """
     Horizontal component of the environmental helicity (potential for helical flow)
@@ -55,7 +32,7 @@ def Helicity_vertical(u, v, w, lats, lons):
         v[...,y,x] : north-south wind (m/s)
         w[...,y,x] : vertical motion (m/s)
     """
-    u_lat,u_lon,v_lat,v_lon = del_u_del_v(u,v,lats,lons)
+    u_lat,u_lon,v_lat,v_lon = utils.del_u_del_v(u,v,lats,lons)
     return w*(v_lon-u_lat)
     
 def Updraft_Helicity(u,v,w, 
@@ -81,7 +58,7 @@ def Updraft_Helicity(u,v,w,
     w = w.copy()
     # u is west to east (longitudinal wind)
     # v is south to north (latitudinal wind)
-    u_lat,u_lon,v_lat,v_lon = del_u_del_v(u,v,lats,lons)
+    u_lat,u_lon,v_lat,v_lon = utils.del_u_del_v(u,v,lats,lons)
     
     # vorticity zeta [..., alts,lats,lons]
     zeta = v_lon - u_lat

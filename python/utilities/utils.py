@@ -365,6 +365,28 @@ def extra_cubes(allcubes,
         allcubes.append(cubeRH)
     return allcubes
 
+def del_u_del_v(u,v,lats,lons):
+    """
+    calculate metres per degree, 
+    then take gradients along u and v in the horizontal dimensions.
+    I think this maintains [...,y,x] shape
+    ARGS:
+        u,v [...,y,x]: winds horizontal
+        lats,lons: in degrees
+    """
+
+    lat_deg_per_metre = 1/111.32e3 # 111.32km per degree
+    lat_mean = np.mean(lats)
+    lon_deg_per_metre = lat_deg_per_metre * np.cos(np.deg2rad(lat_mean))
+    
+    mlats = lats / lat_deg_per_metre # convert lats into metres
+    mlons = lons / lon_deg_per_metre # convert lons into metres
+    
+    # array[...,lat,lon]
+    u_lat, u_lon = np.gradient(u, mlats, mlons, axis=(-2,-1))
+    v_lat, v_lon = np.gradient(v, mlats, mlons, axis=(-2,-1))
+    return u_lat, u_lon, v_lat, v_lon
+
 def FFDI(DF,RH,T,v):
     """
     The FFDI is a key tool for assessing fire danger in Australia. 
@@ -1145,6 +1167,24 @@ def PFT_from_cubelist(cubes0, latlon=None, tskip=None, latskip=None, lonskip=Non
     print("Info: time to produce PFT( shape = %s): %.2f minutes"%(str(PFT.shape), (end-start)/60.0))
     return PFT
 
+def rotation(u,v,w,z,lats,lons):
+    """
+    v_x * u_y + w_x * u_z + w_y * v_z
+    ARGS:
+        u,v,w [...,alts,lats,lons]
+        z[alts] (maybe z [...,alts,lats,lons] works too?)
+        lats,lons : dims -2 and -1 of u,v,w
+    """
+    
+    u_lat, u_lon, v_lat, v_lon = del_u_del_v(u,v,lats,lons)
+    w_lat, w_lon, _, _ = del_u_del_v(w,v,lats,lons)
+    # u_z, v_z
+    # z is model levels heights
+    u_z = np.gradient(u, z, axis=-3)
+    v_z = np.gradient(v, z, axis=-3)
+
+    return v_lon*u_lat + w_lon*u_z + w_lat*v_z
+    
 
 def dragana_vorticity(lat,lon,u_wind,v_wind, smoothing=False):
     """
@@ -1186,6 +1226,63 @@ def dragana_vorticity(lat,lon,u_wind,v_wind, smoothing=False):
     return rel_vor
 
 def vorticity(u,v,lats,lons,nans_to_zeros=False):
+    """
+    
+    ARGUMENTS:
+        u = longitudinal wind [lats,lons] (m/s)
+        v = latitudinal wind [lats,lons] (m/s)
+        lats (deg)
+        lons (deg)
+        nans_to_zeros flag to change nans to zero
+        
+    RETURNS: zeta is transformed from m/s/deg to 1/s
+        zeta, OW, OW_norm, OWZ
+        scales: 
+            zeta(vorticity) ~ -0.05 to +.05
+            OW (similar)
+            OW_norm ~ 0 to 1
+            OWZ ~ also 0 to 1?
+        
+    NOTES:
+        derivatives calculated using numpy gradient function (keeps dims)
+        Vorticity = zeta = v_x - u_y (where v_x = dv/dx. u_y = du/dy).
+        Shearing deformation = F = v_x + U_y
+        Stretching deformation = E = u_x - v_y
+        OW = zeta^2 - (E^2 + F^2) 
+        OW_norm = OW/zeta^2
+        OWZ = OW/zeta
+        Cheers,
+        Kevin.
+        
+    """
+    """ lat_deg_per_metre = 1/111.32e3 # 111.32km per degree
+    lat_mean = np.mean(lats)
+    lon_deg_per_metre = lat_deg_per_metre * np.cos(np.deg2rad(lat_mean))
+    
+    mlats = lats / lat_deg_per_metre # convert lats into metres
+    mlons = lons / lon_deg_per_metre # convert lons into metres """
+    
+    u_lat, u_lon, v_lat, v_lon = del_u_del_v(u,v,lats,lons)
+    # u is left to right (longitudinal wind)
+    # v is south to north (latitudinal wind)
+    zeta = v_lon - u_lat
+    F = v_lon + u_lat
+    E = u_lon - v_lat
+    OW = zeta**2 - (E**2 + F**2)
+    # ignore div by zero warning
+    with np.errstate(divide='ignore',invalid='ignore'):
+        zetanan = np.copy(zeta)
+        zetanan[np.isclose(zeta,0)]=np.NaN
+        OW_norm = OW/(zetanan**2)
+        OWZ = OW/zetanan
+    # fix nans to zero
+    if nans_to_zeros:
+        OWZ[np.isnan(OWZ)]=0 
+        OW_norm[np.isnan(OW_norm)]=0 
+        
+    return zeta, OW, OW_norm, OWZ
+
+def vorticity_old(u,v,lats,lons,nans_to_zeros=False):
     """
     
     ARGUMENTS:
@@ -1255,17 +1352,6 @@ def vorticity(u,v,lats,lons,nans_to_zeros=False):
         OW_norm[np.isnan(OW_norm)]=0 
         
     return zeta, OW, OW_norm, OWZ
-
-def vorticity_4d(u,v,lats,lons):
-    nh,nl,_,_ = u.shape
-    vort = np.zeros(u.shape)
-    OW = np.zeros(u.shape)
-    OWN = np.zeros(u.shape)
-    OWZ = np.zeros(u.shape)
-    for hi in range(nh):
-        for li in range(nl):
-            vort[hi,li], OW[hi,li],OWN[hi,li],OWZ[hi,li] = vorticity(u[hi,li],v[hi,li],lats,lons)
-    return vort,OW,OWN,OWZ
 
 def wind_dir_from_uv(u,v):
     """

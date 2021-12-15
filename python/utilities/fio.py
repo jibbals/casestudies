@@ -12,7 +12,7 @@ import timeit # for timing stuff
 from datetime import datetime, timedelta
 import pandas # for csv reading (AWS)
 
-from utilities.utils import extra_DataArrays, vorticity_4d
+from utilities.utils import extra_DataArrays, vorticity
 
 from glob import glob
 import os
@@ -290,7 +290,7 @@ def read_extra_data(mr,
     v=atmos['v'].data
     lats=atmos['u'].latitude
     lons=atmos['u'].longitude
-    zeta,OW,OWN,OWZ = vorticity_4d(u,v,lats,lons)
+    zeta,OW,OWN,OWZ = vorticity(u,v,lats,lons)
     DA_zeta = xr.DataArray(data=zeta,
                            coords=atmos['u'].coords,
                            dims=atmos['u'].dims,

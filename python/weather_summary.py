@@ -165,9 +165,12 @@ def plot_weather_summary(U,V,W, height, lat, lon,
         if FF is not None:
             plotting.map_fire(FF, lat, lon)
         
+        # add topography contours
         if topog is not None:
-            plt.contour(lon,lat,topog,topog_contours,
-                        colors='k', alpha=0.7, linewidths=1)
+            # only if there are any to add
+            if np.nanmax(topog) > np.nanmin(topog_contours):
+                plt.contour(lon,lat,topog,topog_contours,
+                    colors='k', alpha=0.7, linewidths=1)
             
         plt.xticks([],[])
         plt.yticks([],[])

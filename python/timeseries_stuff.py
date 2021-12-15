@@ -668,7 +668,7 @@ def AWS_sites(mr=None, WESN=None):
         
     return namelatlon
         
-def suitecall(mr, extent=extent, subdir=subdir):
+def suitecall(mr, extent=None, subdir=None):
         fireseries(mr, extent=extent, subdir=subdir)
 
 if __name__ == '__main__':
