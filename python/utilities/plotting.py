@@ -922,12 +922,12 @@ def quiverwinds(lats,lons,u,v,
         vbar = np.nanmean(v)
         u_diff = (u[::yskip,::xskip] - ubar)*3.6  # m/s -> km/h
         v_diff = (v[::yskip,::xskip] - vbar)*3.6  # m/s -> km/h
-        diffstr = "(u,v)-(%.1f,%.1f)"%(ubar*3.6,vbar*3.6)
+        diffstr = "(u-%.1f,v-%.1f)\n"%(ubar*3.6,vbar*3.6)
         Q = plt.quiver(qlons,qlats,
                 u_diff,
                 v_diff,
                 **quivargs)
-        plt.quiverkey(Q, 0.1, 1.05, 20, diffstr + r' = $20 \frac{km}{h}$', labelpos='W', fontproperties={'weight':'bold'})
+        plt.quiverkey(Q, 0.1, 1.06, 20, diffstr + r' = $20 \frac{km}{h}$', labelpos='W', fontproperties={'weight':'bold','size':'8'})
         return
         
     # wins speed used as threshhold for quiver arrows

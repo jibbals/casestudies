@@ -252,7 +252,7 @@ def read_extra_data(mr,
                     ):
     """
     Read or Create/Save set of data extra to the model output
-    Includes: potential temp, destaggered winds, z_th, vorticity, OW, OWZ, OWN, updraft helicity (for several metrics)
+    Includes: potential temp, destaggered winds, z_th, vorticity, OW, OWZ, OWN, updraft helicity, rotation
     
     ARGUMENTS:
         mr: model run name
@@ -315,6 +315,9 @@ def read_extra_data(mr,
     #    localtime = utils.local_time_from_time_lats_lons(utc,[lat],[lon])
     #    DS_plus_lt=DS.assign_coords(localtime=("time",localtime))
     # 
+    # Add rotation
+    
+
     print("INFO: SAVING NETCDF:",fname)
     DS = xr.Dataset(DA_dict)
     DS.to_netcdf(fname)

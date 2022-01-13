@@ -365,6 +365,15 @@ def extra_cubes(allcubes,
         allcubes.append(cubeRH)
     return allcubes
 
+def degrees_to_metres(lats,lons):
+    lat_deg_per_metre = 1/111.32e3 # 111.32km per degree
+    lat_mean = np.mean(lats)
+    lon_deg_per_metre = lat_deg_per_metre * np.cos(np.deg2rad(lat_mean))
+    
+    mlats = lats / lat_deg_per_metre # convert lats into metres
+    mlons = lons / lon_deg_per_metre # convert lons into metres
+    return mlats,mlons
+
 def del_u_del_v(u,v,lats,lons):
     """
     calculate metres per degree, 
@@ -374,13 +383,7 @@ def del_u_del_v(u,v,lats,lons):
         u,v [...,y,x]: winds horizontal
         lats,lons: in degrees
     """
-
-    lat_deg_per_metre = 1/111.32e3 # 111.32km per degree
-    lat_mean = np.mean(lats)
-    lon_deg_per_metre = lat_deg_per_metre * np.cos(np.deg2rad(lat_mean))
-    
-    mlats = lats / lat_deg_per_metre # convert lats into metres
-    mlons = lons / lon_deg_per_metre # convert lons into metres
+    mlats,mlons=degrees_to_metres(lats,lons)
     
     # array[...,lat,lon]
     u_lat, u_lon = np.gradient(u, mlats, mlons, axis=(-2,-1))
@@ -1178,11 +1181,28 @@ def rotation(u,v,w,z,lats,lons):
     
     u_lat, u_lon, v_lat, v_lon = del_u_del_v(u,v,lats,lons)
     w_lat, w_lon, _, _ = del_u_del_v(w,v,lats,lons)
+    #print("DEBUG: w_lat shape,min,mean,max",w_lat.shape,np.min(w_lat),np.mean(w_lat),np.max(w_lat),)
     # u_z, v_z
     # z is model levels heights
-    u_z = np.gradient(u, z, axis=-3)
-    v_z = np.gradient(v, z, axis=-3)
 
+    print("DEBUG: shape u,z:",u.shape,z.shape)
+    print("DEBUG: type u,z:",type(u),type(z))
+    if len(z.shape)>1:
+        # get du and dv along vertical dimension, assuming scale length 1
+        du0 = np.gradient(u)
+        print("DEBUG: np.gradient(u) type,shape:",type(du0),np.shape(du0))
+        du = np.gradient(u)[-3]
+        dv = np.gradient(v)[-3]
+        # need to divide both by dz along z dimension
+        dz = np.gradient(z)[-3]
+        print("DEBUG: shape du,dz:",du.shape,dz.shape)
+        print("DEBUG: sample dz:",dz[0,1:5:30,len(lats)//2,len(lons)//2])
+        u_z = du/dz
+        v_z = dv/dz
+    else:
+        u_z = np.gradient(u, z, axis=-3)
+        v_z = np.gradient(v, z, axis=-3)
+    print("DEBUG: u_z shape,min,mean,max",u_z.shape,np.min(u_z),np.mean(u_z),np.max(u_z),)
     return v_lon*u_lat + w_lon*u_z + w_lat*v_z
     
 

@@ -42,6 +42,7 @@ def basic_transects(mr,start,end,ztop=5000,
         plot transect with full resolution
             horizontal wind speeds + pot. temp + wind quivers
             vertical motion + pot. temp + wind quivers
+            todo: rotation + pot. temp + wind quivers
             todo: vorticity + vert motion
             maybe: pot temp + vert motion
         ARGS:
@@ -71,6 +72,15 @@ def basic_transects(mr,start,end,ztop=5000,
     lons = cube_topog.coord('longitude').points
     topog = cube_topog.data
     
+    # Make a little plot showing where transect is located
+    wider_extent = [West-.25,East+.25,South-.2,North+.2]
+    wider_topog = fio_iris.read_topog(mr,extent=wider_extent)
+    wider_lats = wider_topog.coord('latitude').points
+    wider_lons = wider_topog.coord('longitude').points
+    plotting.map_contourf(wider_topog.data,wider_lats,wider_lons,title=name)
+    plotting.map_add_locations_extent(wider_extent)
+    fio.save_fig(mr, _SN_, name, plt, subdir=name)
+
     # Read model run
     um_times = fio.hours_available(mr)
     dtoffset = utils.local_time_offset_from_lats_lons(lats,lons)
@@ -101,13 +111,25 @@ def basic_transects(mr,start,end,ztop=5000,
         u,v,w = cubelist.extract(['u','v','upward_air_velocity'])
         zcube, = cubelist.extract(['z_th'])
         dtimes = utils.dates_from_iris(theta)
-        
+        print("DEBUG:", cubelist)
+        # Calculate rotation
+        rotation = utils.rotation(
+            u.data,
+            v.data,
+            w.data,
+            #level_height,
+            np.nanmean(zcube.data,axis=(0,2,3)), # altitude in m
+            lats,lons,
+            )
+        print("DEBUG: rotation shape,nanmin,nanmean,nanmax",rotation.shape,np.nanmin(rotation),np.nanmean(rotation),np.nanmax(rotation),)
+
         # read fire front, sens heat, 10m winds
         ff,sh = fio_iris.read_fire(model_run=mr,
                               dtimes=dtimes, 
                               extent=extent,
                               filenames=['firefront','sensible_heat',],
                               )
+        
         ## loop over time steps
         for ti,dtime in enumerate(dtimes):
             LT = dtime+timedelta(hours=dtoffset)
@@ -125,13 +147,17 @@ def basic_transects(mr,start,end,ztop=5000,
             zi=zcube[ti].data
             Ti=theta[ti].data
             
+            # rotation
+            roti=rotation[ti]
+
             # Vorticity in 3d?
             
             npoints=transect_utils.number_of_interp_points(lats,lons,start,end,factor=1.0)
             
             ### PLOT 1: Horizontal wind speed + pot.temp + quiver
             ### PLOT 2: Vertical winds + pot-temp + quiver
-            for ploti, subdir in enumerate(["HWind","VWind"]):
+            ### PLOT 3: Rotation + pot-temp + quiver
+            for ploti, subdir in enumerate(["HWind","VWind", "Rotation"]):
                 if ploti == 0:
                     ## show H wind speed
                     transect_utils.plot_transect_s(
@@ -158,7 +184,28 @@ def basic_transects(mr,start,end,ztop=5000,
                         lines=None,
                         colorbar=True,
                         )
-                    
+                elif ploti == 2:
+                    ## show rotation
+                    _,_,_,CS = transect_utils.plot_transect(
+                        roti, zi, lats, lons,
+                        start, end,
+                        npoints=npoints,
+                        topog=topog,
+                        sh=shi,
+                        ztop=ztop,
+                        lines=None,
+                        colorbar=False, # will add colorbar after, with fixed limits
+                        cmap="seismic",
+                        levels=np.arange(-60,60.1,3) * 1e-6,
+                        extend="both",
+                    )
+                    # reset over and under colours
+                    cmap = CS.get_cmap().copy()
+                    cmap.set_under('cyan')
+                    cmap.set_over('fuchsia')
+                    CS.set_cmap(cmap)
+                    plt.colorbar(pad=.01,aspect=30,shrink=0.85,fraction=.075)
+
                 ## Add pot temp contour
                 transect_utils.add_contours(
                     Ti, zi, lats, lons, start, end, 

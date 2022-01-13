@@ -377,12 +377,12 @@ if __name__ == '__main__':
     sirivanz_extent = [149.4, 150.19, -32.2, -31.8]
     harvey_test_runs=["AF_coupled","AF_uncoupled","AF_coupled-spark","AF_uncoupled-spark"]
 
-    # Check harvey's runs
-    if False:
-        extent = sirivanz_extent
-        isochrone_comparison(harvey_test_runs,
+    # Check am1 vs am2
+    if True:
+        extent = constants.extents['badja_am']['zoom2']
+        isochrone_comparison(['badja_am1','badja_am2'],
                 extent=extent,
-                minute_increment=60)
+                minute_increment=30)
     # check harveys runs in more detail    
     if False:
         for mr in harvey_test_runs:
@@ -396,7 +396,7 @@ if __name__ == '__main__':
                 timesteps=10,
                 firespeed=False)
 
-    if True:
+    if False:
         #mrs=["badja_run1","badja_run2","badja_run3","badja_run4"]
         mrs=["badja_run3","badja_UC1"]
         extent=badja_zoom
