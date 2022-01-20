@@ -54,6 +54,7 @@ def plot_rotation(
         
         ltimes = utils.local_time_from_time_lats_lons(times, lats, lons)
         u,v,w = DS_atmos['u'], DS_atmos['v'], DS_atmos['vertical_wnd']
+        z = DS_atmos['z_th']
         level_height=DS_atmos['level_height'].data
         zi = np.argmin(np.abs(level_height - altitude))
         zstr = "%.1f m"%level_height[zi]
@@ -63,12 +64,20 @@ def plot_rotation(
         #print("DEBUG: level_height shape, [0:5]",level_height.shape,level_height[0:5].compute(),)
         # need to load the lazy arrays into memory and put into numpy arrays here for gradient function to work (compute().data)
         # ROTATION [ t, lev, lat, lon]
+        # # OLD:
+        # rotation = utils.rotation(
+        #     u[:,zi-1:zi+2].compute().data,
+        #     v[:,zi-1:zi+2].compute().data,
+        #     w[:,zi-1:zi+2].compute().data,
+        #     level_height[zi-1:zi+2].compute(),
+        #     lats,lons)[:,1]
+        # #print("DEBUG: rotation shape,nanmin,nanmean,nanmax",rotation.shape,np.nanmin(rotation),np.nanmean(rotation),np.nanmax(rotation),)
         rotation = utils.rotation(
-            u[:,zi-1:zi+2].compute().data,
-            v[:,zi-1:zi+2].compute().data,
-            w[:,zi-1:zi+2].compute().data,
-            level_height[zi-1:zi+2].compute(),
-            lats,lons)[:,1]
+            u.compute().data,
+            v.compute().data,
+            w.compute().data,
+            z.compute().data,
+            lats,lons)
         #print("DEBUG: rotation shape,nanmin,nanmean,nanmax",rotation.shape,np.nanmin(rotation),np.nanmean(rotation),np.nanmax(rotation),)
 
         for ti, time in enumerate(ltimes):
@@ -76,7 +85,7 @@ def plot_rotation(
             #wi = w[ti,zi].compute()
             ui = u[ti,zi].compute()
             vi = v[ti,zi].compute()
-            roti = rotation[ti]
+            roti = rotation[ti,zi]
 
             fire = DS_fire.sel(time=times[ti])
             sh = fire['SHEAT_2'].T # fire stuff is transposed :(

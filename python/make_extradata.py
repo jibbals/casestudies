@@ -6,11 +6,8 @@
 @author: jesse
 """
 
-
-
-
 from utilities import fio
 
-mr = "badja_run3"
-for hour in range (3,5):
-    fio.read_extra_data(mr,hour=hour)
+mr = "badja_am1"
+for hour in range (4,18):
+    fio.extra_data_make(mr,hour=hour)

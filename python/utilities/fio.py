@@ -12,7 +12,7 @@ import timeit # for timing stuff
 from datetime import datetime, timedelta
 import pandas # for csv reading (AWS)
 
-from utilities.utils import extra_DataArrays, vorticity
+from utilities.utils import extra_DataArrays, vorticity, rotation
 
 from glob import glob
 import os
@@ -245,34 +245,20 @@ def read_model_run_hour(mr, extent=None, hour=0):
     
     return DS
 
-def read_extra_data(mr, 
-                    hour=0,
-                    force_recreate=False,
-                    topind=90
-                    ):
-    """
-    Read or Create/Save set of data extra to the model output
-    Includes: potential temp, destaggered winds, z_th, vorticity, OW, OWZ, OWN, updraft helicity, rotation
-    
-    ARGUMENTS:
-        mr: model run name
-        hour: integer - which hour to read/create
-        force_recreate: bool - create from atmos output even if already done
-    RETURNS:
-        xarray DataSet
-    """
-    
+def extra_data_fname(mr,hour):
     hour_dt = hours_available(mr)[hour]
     hour_str = hour_dt.strftime("%Y%m%d%H")
     
     fname = "../data/"+mr+"/extra_data/"+hour_str+".nc"
-    if os.path.isfile(fname) and not force_recreate:
-        # Read the file, return DS
-        print("INFO: Reading already created extra_data:",fname)
-        return xr.open_dataset(fname)
-    #else:
+    return fname
+
+def extra_data_make(mr,
+                    hour,
+                    topind=90,
+                    ):
     
     # make the file, save the file
+    fname=extra_data_fname(mr,hour)
     atmos=read_model_run_hour(mr,hour=hour)
     make_folder(fname)
     
@@ -286,8 +272,8 @@ def read_extra_data(mr,
     DA_dict['wind_direction'] = atmos['wind_direction']
     DA_dict["z_th"] = atmos["z_th"]
     # add vorticity
-    u=atmos['u'].data
-    v=atmos['v'].data
+    u=atmos['u'].data.compute()
+    v=atmos['v'].data.compute()
     lats=atmos['u'].latitude
     lons=atmos['u'].longitude
     zeta,OW,OWN,OWZ = vorticity(u,v,lats,lons)
@@ -316,12 +302,58 @@ def read_extra_data(mr,
     #    DS_plus_lt=DS.assign_coords(localtime=("time",localtime))
     # 
     # Add rotation
-    
+    u,v,w = DA_dict['u'], DA_dict['v'], atmos['vertical_wnd']
+    z = atmos['z_th']
+    lats=u.latitude
+    lons=u.longitude
+    rota = rotation(
+        u.compute().data,
+        v.compute().data,
+        w.compute().data,
+        z.compute().data,
+        lats,lons)
+    DA_rot = xr.DataArray(data=rota,
+                         coords=atmos['u'].coords,
+                         dims=atmos['u'].dims,
+                         name="rotation",
+                         attrs={"units":"1/s2",
+                                "desc":"v_x * u_y + w_x * u_z + w_y * v_z",
+                                },
+                          )
+    DA_dict['rotation']=DA_rot
 
     print("INFO: SAVING NETCDF:",fname)
     DS = xr.Dataset(DA_dict)
     DS.to_netcdf(fname)
     print("INFO: SAVED NETCDF:",fname)
+
+def extra_data_read(mr, 
+                    hour=0,
+                    force_recreate=False,
+                    topind=90
+                    ):
+    """
+    Read or Create/Save set of data extra to the model output
+    Includes: potential temp, destaggered winds, z_th, vorticity, OW, OWZ, OWN, updraft helicity, rotation
+    
+    ARGUMENTS:
+        mr: model run name
+        hour: integer - which hour to read/create
+        force_recreate: bool - create from atmos output even if already done
+    RETURNS:
+        xarray DataSet
+    """
+    
+    fname = extra_data_fname(mr,hour)
+
+    if os.path.isfile(fname) and not force_recreate:
+        # Read the file, return DS
+        print("INFO: Reading already created extra_data:",fname)    
+    else:
+        print("INFO: No extra_data file at ",fname," so will create it now...")
+        extra_data_make(mr,hour=hour,topind=topind)
+    
+    return xr.open_dataset(fname)
     
 
 def read_model_run_fire(mr, 
