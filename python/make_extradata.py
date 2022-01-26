@@ -8,6 +8,6 @@
 
 from utilities import fio
 
-mr = "badja_am1"
+mr = "KI_run2"
 for hour in range (4,18):
     fio.extra_data_make(mr,hour=hour)

@@ -117,8 +117,7 @@ def basic_transects(mr,start,end,ztop=5000,
             u.data,
             v.data,
             w.data,
-            #level_height,
-            np.nanmean(zcube.data,axis=(0,2,3)), # altitude in m
+            zcube.data, # altitude in m
             lats,lons,
             )
         print("DEBUG: rotation shape,nanmin,nanmean,nanmax",rotation.shape,np.nanmin(rotation),np.nanmean(rotation),np.nanmax(rotation),)
@@ -290,7 +289,118 @@ def basic_transects(mr,start,end,ztop=5000,
             #              plt=plt,
             #              )
             
+
+def KI_transect():
+    mr = "KI_run2"
+    name = "LLjet_example"
+    hours = np.arange(2,18)
+    transect = transect_utils.mr_transects[mr][name] #[-35.725,136.7, -36.08,136.7],    
     
+    start,end = [transect[0],transect[1]], [transect[2],transect[3]]
+    ztop = 2500
+    n_arrows=5
+
+    hwind_levels=np.arange(5,25.1,1)
+
+    West = np.min([start[1],end[1]])-0.01
+    East = np.max([start[1],end[1]])+0.01
+    South = np.min([start[0],end[0]])-0.01
+    North = np.max([start[0],end[0]])+0.01
+    extent = [West,East,South,North]
+    
+    # read topog
+    cube_topog = fio_iris.read_topog(mr,extent=extent)
+    lats = cube_topog.coord('latitude').points
+    lons = cube_topog.coord('longitude').points
+    topog = cube_topog.data
+    
+    
+    # Read model run subset of hours
+    um_times = fio.hours_available(mr)[hours]
+    # local time offset
+    dtoffset = utils.local_time_offset_from_lats_lons(lats,lons)
+    
+    ## Loop over hours
+    for um_time in um_times:
+        # read cube list
+        cubelist = fio_iris.read_model_run(mr, 
+                                      hours=[um_time],
+                                      extent=extent,
+                                      )
+                                      
+        # add temperature, height, destaggered wind cubes
+        utils.extra_cubes(cubelist,
+                          #add_theta=True,
+                          add_z=True,
+                          add_winds=True,)
+        #theta, = cubelist.extract('potential_temperature')
+        u,v,w = cubelist.extract(['u','v','upward_air_velocity'])
+        zcube, = cubelist.extract(['z_th'])
+        dtimes = utils.dates_from_iris(w)
+        
+        # read fire front, sens heat
+        ff,sh = fio_iris.read_fire(model_run=mr,
+                              dtimes=dtimes, 
+                              extent=extent,
+                              filenames=['firefront','sensible_heat',],
+                              )
+        
+        ## loop over time steps
+        for ti,dtime in enumerate(dtimes):
+            LT = dtime+timedelta(hours=dtoffset)
+            LTstr = LT.strftime("%H%M (UTC+"+"%.2f)"%dtoffset)
+            
+            ## Get time step data from cubes
+            shi=sh[ti].data
+            ui=u[ti].data
+            vi=v[ti].data
+            si=np.hypot(ui,vi) # horizontal wind speed
+            wi=w[ti].data
+            zi=zcube[ti].data
+            
+            npoints=transect_utils.number_of_interp_points(lats,lons,start,end,factor=1.0)
+            
+            ### PLOT 1: Horizontal wind speed + pot.temp + quiver
+            ## show H wind speed
+            transect_utils.plot_transect_s(
+                si, zi, lats, lons, 
+                start, end,
+                npoints=npoints,
+                topog=topog, 
+                sh=shi,
+                ztop=ztop,
+                lines=None, 
+                levels=hwind_levels,
+                #cmap=hwind_cmap,
+                colorbar=True,
+                )
+                
+            ## Add quiver
+            wind_transect_struct = transect_utils.plot_transect_winds(
+                ui, vi, wi, zi, lats, lons, 
+                [start,end],
+                ztop=ztop,
+                npoints=npoints,
+                n_arrows=n_arrows,
+                )
+                
+            plt.title("")
+                
+            Xvals = wind_transect_struct['x'][0,:]
+            Yvals = wind_transect_struct['y'] # 2d array of altitudes for cross section
+            label = wind_transect_struct['xlabel']
+            plt.xticks(
+                [Xvals[0],Xvals[-1]],
+                [label[0],label[-1]],
+                rotation=10,
+                )
+            plt.gca().set_ylim(np.min(Yvals),ztop)
+            plt.title(mr + "\n" + LTstr, fontsize=15)
+            fio.save_fig(mr,"transects",dtime,
+                             subdir=name+'/special',
+                             plt=plt,
+                             )
+
 
 if __name__ == '__main__':
     
@@ -301,6 +411,9 @@ if __name__ == '__main__':
     #                n_arrows=20,
     #                T_lines=np.arange(280,350,2),):
     if True:
+        KI_transect()
+
+    if False:
         mr = "badja_am1"
         for name,[lat0,lon0,lat1,lon1] in transect_utils.mr_transects[mr].items():
             start,end = [[lat0,lon0], [lat1,lon1]]

@@ -272,9 +272,21 @@ def extra_cubes(allcubes,
         u.standard_name='u'
         v.standard_name='v'
         # Get wind speed cube using hypotenuse of u,v
-        s = wind_speed_from_uv_cubes(u,v)
-        s.units = 'm s-1'
-        s.var_name='s' # s doesn't come from a var with a std name so can just use var_name
+        #print("DEBUG: ADD_WINDS:", u,v)
+        #s = wind_speed_from_uv_cubes(u,v)
+
+        sdata = wind_speed(u.data,v.data)
+        s = iris.cube.Cube(
+            sdata, 
+            var_name="s", 
+            units="m s-1",
+            dim_coords_and_dims=[
+                (p.coord('time'),0),
+                (p.coord('model_level_number'),1),
+                (p.coord('latitude'),2),
+                (p.coord('longitude'),3)
+                ]
+            )
         
         # Get wind direction using arctan of y/x
         wind_dir = wind_dir_from_uv(u.data,v.data)
@@ -1392,6 +1404,8 @@ def wind_speed_from_uv_cubes(u,v):
     """
     returns wind direction as a cube
     """
+    print("WARNING: This fails with newer analysis environments > 3-21.4")
+    print("WARNING: just use wind_speed(u.data,v.data)")
     return iris.analysis.maths.apply_ufunc(np.hypot,u,v)
 
 def wind_speed_to_linewidth(speed, lwmin=0.5, lwmax=5, speedmax=None):
