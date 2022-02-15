@@ -36,7 +36,8 @@ if "g/data" not in sys.prefix:
     pio.orca.status
 
 # local modules
-from utilities import plotting, utils, fio, constants
+from utilities import plotting, fio, utils, constants
+#from utilities import fio_iris as fio
 
 ###
 ## GLOBALS
@@ -64,29 +65,37 @@ _topog_defaults_=dict(
     showscale=False, # remove colour bar,
     )
 
-_wind_surf_defaults_=dict(
+_wind_weak_surf_defaults_=dict(
     isomin=15, # 5 m/s wind speed min
-    isomax=25,
-    surface_count=3, # 21 contours between 5 and 50 ~ 2.5m/s
-    opacity=0.33,
+    isomax=20,
+    surface_count=2, # N contours between min and max
+    opacity=0.15,
+    colorscale='Blues',
+    showscale=False,
+    )
+_wind_strong_surf_defaults_=dict(
+    isomin=22, # 5 m/s wind speed min
+    isomax=30,
+    surface_count=3, # N contours between min and max
+    opacity=0.5,
     colorscale='viridis',
     showscale=False,
     )
 
 _upmotion_surf_defaults_=dict(
-    isomin=1, # m/s
+    isomin=3, # m/s
     isomax=9,
-    surface_count=10, 
-    opacity=0.5,
+    surface_count=3,  # 3, 6, 9 m/s
+    opacity=0.2,
     colorscale='ylorrd',
     showscale=False,
     )
 _downmotion_surf_defaults_=dict(
     isomin=-9, # m/s opposite of upmotion
-    isomax=-1,
+    isomax=-3,
     reversescale=True,
-    surface_count=10, 
-    opacity=0.5,
+    surface_count=3, 
+    opacity=0.2,
     colorscale='gnbu',
     showscale=False,
     )
@@ -118,6 +127,41 @@ _theta_surf_defaults_=dict(
         showscale=False,
         )
 
+# What will rotation look like in the negative space
+_rotation_strong_neg_surf_defaults_=dict(
+        isomin=-1e-3, # units s-2
+        isomax=-1e-4, 
+        surface_count=2, #
+        opacity=0.7,
+        colorscale='Blues',
+        showscale=False,
+        )
+_rotation_weak_neg_surf_defaults_=dict(
+        isomin=-1e-4, # units s-2
+        isomax=-5e-5, 
+        surface_count=2, #
+        opacity=0.15,
+        colorscale='Greens',
+        showscale=False,
+        )
+_rotation_weak_pos_surf_defaults_=dict(
+        isomin=5e-5, # units s-2
+        isomax=1e-4, 
+        surface_count=2, #
+        opacity=0.15,
+        colorscale='YlOrRd',
+        showscale=False,
+        )
+_rotation_strong_pos_surf_defaults_=dict(
+        isomin=1e-4, # units s-2
+        isomax=1e-3, 
+        surface_count=2, #
+        opacity=0.7,
+        colorscale='hot_r',
+        showscale=False,
+        )
+
+
 _sn_ = 'threedee'
 _verbose_ = True
 
@@ -135,6 +179,29 @@ shcolor=[
 ###
 ## METHODS
 ###
+
+def get_camera_eye(hour, i_h, list_h, start=245, z=0.35):
+    """
+    hour: integer current hour (normally 0 to 23)
+    i_h: integer for what time step are we up to within the hour (normally 0 to 6)
+    list_h: list of all available timesteps for this hour (normally 3 or 6)
+    start=290 : initial angle for camera eye: 270 is from the south, 180 should be from east..
+    z=0.35 : initial altitude for camera eye: .35 is like a 3rd of the axis (I think that's how it works)
+    """
+    
+    angle = np.deg2rad(start-120*(hour+i_h/len(list_h))/(24.0))
+    ce = {
+        'x':-2 * np.cos(angle), 
+        'y':2 * np.sin(angle),
+        'z':0.35,
+        }
+    # ce = {
+    #     'x':-2 * np.cos(np.deg2rad(290-120*(hour+i_h/len(list_h))/(24.0))), 
+    #     'y':2 * np.sin(np.deg2rad(290-120*(hour+i_h/len(list_h))/(24.0))),
+    #     'z':0.35,
+    #     }
+    return ce
+
 
 def verbose(*args):
     if _verbose_:
@@ -193,7 +260,10 @@ def create_figure(gofigures,
         print("INFO: Saving Image: ",filename)
         fig.write_image(filename)
 
-def isosurface_wrapper(lat,lon,levh,data, topind=-1, default_surf_args = None, **surf_args):
+# TODO: Remove default surf args, just send them in as surf_args
+def isosurface_wrapper(lat,lon,levh,data, 
+                       topind=-1, method = go.Isosurface,
+                       default_surf_args = None, **surf_args):
     
     if default_surf_args is not None:
         for k,v in default_surf_args.items():
@@ -201,17 +271,21 @@ def isosurface_wrapper(lat,lon,levh,data, topind=-1, default_surf_args = None, *
                 surf_args[k]=v
     
     x,y,z = latlonlev_to_xyz(lat,lon,levh)
-    data_xyz=cube_to_xyz(data,ztopind=topind)
+    if "value" not in surf_args:
+        surf_args["value"] = cube_to_xyz(data,ztopind=topind)
     
+    val=surf_args['value']
+    print("DEBUG: value to be isosurfaced: type, shape, min,max",type(val),np.shape(val),np.nanmin(val),np.nanmax(val))
     verbose("adding surface")
-    surf = go.Isosurface(
+    surf = method(
         x=x[:,:,:topind].flatten(),
         y=y[:,:,:topind].flatten(),
         z=z[:,:,:topind].flatten(),
-        value=data_xyz.flatten(),
+        #value=data_xyz.flatten(),
         **surf_args
         )
     return surf
+
 
 def title_in_layout(title):
     layoutargs = dict(title={"text":title, #lt.strftime(mr+' %d %H:%M (lt)'),
@@ -248,7 +322,10 @@ def topog_surface(lat, lon, levh, topog, **surf_args):
     return surf
     
 def theta_surface(lat,lon,levh, data, topind=5, **surf_args):
-    return isosurface_wrapper(lat,lon,levh,data,topind,_theta_surf_defaults_,**surf_args)
+    #print("DEBUG:",type(lat),type(lon),type(levh),type(data),type(topind),type(_theta_surf_defaults_),type(surf_args))
+    return isosurface_wrapper(lat,lon,levh,data,topind,
+        default_surf_args = _theta_surf_defaults_,
+        **surf_args)
 
 def up_down_drafts(lat,lon,levh,data,topind,up_args=None,down_args=None):
     """
@@ -259,25 +336,11 @@ def up_down_drafts(lat,lon,levh,data,topind,up_args=None,down_args=None):
     if down_args is None:
         down_args = {}
 
-    up_surf = isosurface_wrapper(lat,lon,levh,data,topind,
-                                 _upmotion_surf_defaults_,**up_args)
+    up_surf = isosurface_wrapper(lat,lon,levh,data,topind, 
+        default_surf_args=_upmotion_surf_defaults_, **up_args)
     down_surf = isosurface_wrapper(lat,lon,levh, data,topind,
-                                   _downmotion_surf_defaults_,
-                                   **down_args)
+        default_surf_args=_downmotion_surf_defaults_, **down_args)
     return up_surf,down_surf
-
-def wind_jet(lat,lon,levh, data, 
-             topind=-1,
-             #theta_height=1000, theta_min=311, theta_max=320,
-             #vert_motion_height = 2500,
-             **iso_surf_args
-             ):
-    """
-    ARGS:
-        lat,lon,lev: 1D arrays 
-        data: 3D array
-    """
-    return isosurface_wrapper(lat,lon,levh, data,topind, _wind_surf_defaults_, **iso_surf_args)
             
 def wind_system(mr='KI_run2_exploratory', hour=2, 
                 top_height=5000, 
@@ -304,15 +367,19 @@ def wind_system(mr='KI_run2_exploratory', hour=2,
                                hour=hour, 
                                extent=extent, 
                                )
-    utils.extra_DataArrays(DS,add_winds=True,add_theta=True)
-    
+    # TODO: use extra_data_read instead of calculating on the fly. (subset issues)
+    #utils.extra_DataArrays(DS,add_winds=True,add_theta=True)
+    extras = fio.extra_data_read(mr,hour,extent=extent)
+
     # Get the rest of the desired data
     topog = DS['surface_altitude']
     d_topog = topog.load().data # lat,lon
     
     w = DS['vertical_wnd']
-    ws = DS['s']
-    th = DS['potential_temperature']
+    #ws = DS['s']
+    #th = DS['potential_temperature']
+    ws = extras['s']
+    th = extras['potential_temperature']
     
     # datetimes in hour output
     DAtimes=w.time.data
@@ -321,11 +388,6 @@ def wind_system(mr='KI_run2_exploratory', hour=2,
     # title from local time at fire ignition
     time_lt = utils.local_time_from_time_lats_lons(DAtimes,lats,lons)
     offset_lt = utils.local_time_offset_from_lats_lons(lats,lons)
-    
-    #DS_ff = fio.read_model_run_fire(mr,
-    #                    extent=extent,
-    #                    )
-    #ff = DS_ff['firefront'].loc[dict(time=DAtimes)]
     
     if "level_height" in w:
         levh  = w.level_height.load().data
@@ -344,13 +406,10 @@ def wind_system(mr='KI_run2_exploratory', hour=2,
     # topography surface
     topog_layer = topog_surface(lat,lon,levh,d_topog)
     
-    
     for hi, DAtime in enumerate(DAtimes):
         # angle for view is 270 degrees - 120 * hour/24
         # or 270 - 120 * (hour + hi/n_hi)/(24)
-        camera_eye = {'x':-2 * np.cos(np.deg2rad(290-120*(hour+hi/len(DAtimes))/(24.0))), 
-                      'y':2 * np.sin(np.deg2rad(290-120*(hour+hi/len(DAtimes))/(24.0))),
-                      'z':0.35}
+        camera_eye = get_camera_eye(hour,hi,DAtimes,start=180)
         
         # surfaces to be plotted in 3d
         surface_list = [topog_layer]
@@ -359,9 +418,11 @@ def wind_system(mr='KI_run2_exploratory', hour=2,
         theta_surf = theta_surface(lat,lon,levh, th[hi])
         surface_list.append(theta_surf)
         
-        ## atmospheric heat (theta)
-        ws_surf = wind_jet(lat,lon,levh,ws[hi], topind=topind,**iso_surf_args)
-        surface_list.append(ws_surf)
+        ## wind speed (horizontal) layers
+        ws_surf1 = isosurface_wrapper(lat,lon,levh, ws[hi], topind, _wind_weak_surf_defaults_, **iso_surf_args)
+        ws_surf2 = isosurface_wrapper(lat,lon,levh, ws[hi], topind, _wind_strong_surf_defaults_, **iso_surf_args)
+        surface_list.append(ws_surf1)
+        surface_list.append(ws_surf2)
         
         ## title for layout args
         title="%s (UTC+%.1f)"%(time_lt[hi].strftime("%dT%H:%M"),offset_lt)
@@ -394,7 +455,9 @@ def vertmotion_system(mr, hour=2,
                                hour=hour, 
                                extent=extent, 
                                )
-    utils.extra_DataArrays(DS,add_theta=True)
+    # TODO: use extra_data_read instead of calculating on the fly. (subset issues)
+    extras = fio.extra_data_read(mr, hour=hour, extent=extent)
+    #utils.extra_DataArrays(DS,add_theta=True)
     
     # Get the rest of the desired data
     topog = DS['surface_altitude']
@@ -402,7 +465,8 @@ def vertmotion_system(mr, hour=2,
     # set one pixel to -150 to fix color scale
     #d_topog[1,1] = -150
     
-    th = DS['potential_temperature']
+    #th = DS['potential_temperature']
+    th = extras['potential_temperature']
     w = DS['vertical_wnd']
     
     # datetimes in hour output
@@ -436,9 +500,7 @@ def vertmotion_system(mr, hour=2,
     for hi, DAtime in enumerate(DAtimes):
         # angle for view is 270 degrees - 120 * hour/24
         # or 270 - 120 * (hour + hi/n_hi)/(24)
-        camera_eye = {'x':-2 * np.cos(np.deg2rad(290-120*(hour+hi/len(DAtimes))/(24.0))), 
-                      'y':2 * np.sin(np.deg2rad(290-120*(hour+hi/len(DAtimes))/(24.0))),
-                      'z':0.35}
+        camera_eye = get_camera_eye(hour,hi,DAtimes,245)
         
         # surfaces to be plotted in 3d
         surface_list = [topog_layer]
@@ -487,7 +549,8 @@ def vorticity_system(mr, hour=2,
                                extent=extent, 
                                )
     #print(DS)
-    utils.extra_DataArrays(DS,add_winds=True,add_theta=True)
+    extras = fio.extra_data_read(mr,hour=hour,extent=extent,)
+    #utils.extra_DataArrays(DS,add_winds=True,add_theta=True)
     
     # Get the rest of the desired data
     topog = DS['surface_altitude']
@@ -496,13 +559,15 @@ def vorticity_system(mr, hour=2,
     #d_topog[1,1] = -150
     
     w=DS['vertical_wnd']
-    th = DS['potential_temperature']
+    #th = DS['potential_temperature']
+    th = extras['potential_temperature']
     
     # datetimes in hour output
     DAtimes=w.time.data
     lats=w.latitude.data
     lons=w.longitude.data
-    u,v = DS['u'],DS['v']
+    #u,v = DS['u'],DS['v']
+    u,v = extras['u'],extras['v']
     
     #print(type(u),type(u.data),type(lats))
     #print(u.shape,v.shape,len(lats),len(lons))
@@ -531,9 +596,7 @@ def vorticity_system(mr, hour=2,
     for hi, DAtime in enumerate(DAtimes):
         # angle for view is 270 degrees - 120 * hour/24
         # or 270 - 120 * (hour + hi/n_hi)/(24)
-        camera_eye = {'x':-2 * np.cos(np.deg2rad(290-120*(hour+hi/len(DAtimes))/(24.0))), 
-                      'y':2 * np.sin(np.deg2rad(290-120*(hour+hi/len(DAtimes))/(24.0))),
-                      'z':0.35}
+        camera_eye = get_camera_eye(hour,hi,DAtimes)
         
         vort_3d = np.zeros(th[hi].shape)
         OW = np.zeros(th[hi].shape)
@@ -571,13 +634,203 @@ def vorticity_system(mr, hour=2,
             figname = fio.standard_fig_name(mr,_sn_,DAtime,subdir="vorticity")
         create_figure(surface_list, filename=figname, camera_eye=camera_eye, **layoutargs)
 
-def cloud_system(mr='KI_run1_exploratory', hour=1, 
-                theta_height=1000, theta_min=311, theta_max=320,
-                vert_motion_height = 2500,
-                top_height=8000, send_to_browser=False,
+# def cloud_system(mr='KI_run1_exploratory', hour=1, 
+#                 theta_height=1000, theta_min=311, theta_max=320,
+#                 vert_motion_height = 2500,
+#                 top_height=8000, send_to_browser=False,
+#                 extent=None,
+#                 HSkip=5,
+#                 ):
+#     """
+#     Read an hour of model output, plot it in 3d using plotly
+#     saves output as .png
+#     ARGUMENTS:
+#         hour: which output hour (first is 0, last is 23 or -1)
+#         theta_height: how high are we looking regarding potential temp?
+#         theta_min, theta_max: min and max potential temperature to draw isosurface
+#         vert_motion_height: altitude of vertical motion surface,
+#         height_top: how high (m) included in plot
+#         send_to_browser: instead of trying to save figures, send one to the browser (interactive)
+#     """
+    
+#     #hours=fio.hours_available(mr)
+#     #dtime=hours[hour]
+    
+#     DS = fio.read_model_run_hour(mr,
+#                                hour=hour,
+#                                extent=extent,
+#                                )
+    
+#     #utils.extra_DataArrays(DS,add_theta=True,add_winds=True,add_z=True)
+#     extras = fio.extra_data_read(mr,hour=hour,extent=extent)
+
+#     qc = DS['cld_ice'][...,::HSkip,::HSkip]+DS['cld_water'][...,::HSkip,::HSkip]
+#     #th = DS['potential_temperature']
+#     th = extras['potential_temperature'][...,::HSkip,::HSkip]
+    
+#     # datetimes in hour output
+#     DAtimes=th.time.data
+#     lats=th.latitude.data
+#     lons=th.longitude.data
+#     # title from local time at fire ignition
+#     time_lt = utils.local_time_from_time_lats_lons(DAtimes,lats,lons)
+#     offset_lt = utils.local_time_offset_from_lats_lons(lats,lons)
+    
+#     #DS_ff = fio.read_model_run_fire(mr, extent=extent, )
+#     #ff = (DS_ff['firefront'].loc[dict(time=DAtimes)])[...,::HSkip,::HSkip]
+#     #sh = DS_ff['SHEAT_2'].loc[dict(time=DAtimes)]
+    
+#     # Get the rest of the desired data
+#     topog = DS['surface_altitude']
+#     d_topog = topog.load().data[...,::HSkip,::HSkip]
+#     # set one pixel to -150 to fix color scale
+#     d_topog[1,1] = -150
+    
+#     #u = extras['u'][...,::HSkip,::HSkip]
+#     #v = extras['v'][...,::HSkip,::HSkip]
+#     w = DS['vertical_wnd'][...,::HSkip,::HSkip]
+#     if "level_height" in w:
+#         levh  = w.level_height.load().data
+#     else:
+#         levh  = w.level_height_0.load().data
+    
+#     topind = np.sum(levh<top_height)
+#     topind_th = np.sum(levh<theta_height)
+    
+#     # these are level, lat, lon cubes
+#     lat,lon = qc.latitude.data, qc.longitude.data
+    
+#     if extent is None:
+#         extent=[lon[0],lon[-1],lat[0],lat[-1]]
+#     # dimensional mesh
+    
+#     # X,Y,Z = np.meshgrid(lon,lat,levh) 
+#     # ## X Y Z are now [lat, lon, lev] for some reason
+#     # [X,Y,Z] = [ np.moveaxis(arr,0,1) for arr in [X,Y,Z]]
+#     # ## Now they are lon, lat, lev
+#     # ## Cut down to desired level
+#     # [X, Y, Z] = [ arr[:,:,:topind] for arr in [X,Y,Z]]
+    
+#     # topography surface
+#     topog_layer = topog_surface(lat,lon,levh,d_topog)
+    
+#     namedlocs=[]
+#     namedlocs_lats = []
+#     namedlocs_lons = []
+#     for (namedloc, (loclat, loclon)) in plotting._latlons_.items():
+#         #print(namedloc, loclat, loclon)
+#         if loclon < extent[1] and loclon > extent[0] and loclat < extent[3] and loclat > extent[2]:
+#             if 'fire' not in namedloc and 'pyrocb' not in namedloc:
+#                 namedlocs.append(namedloc)
+#                 namedlocs_lats.append(loclat)
+#                 namedlocs_lons.append(loclon)
+    
+    
+#     for hi, DAtime in enumerate(DAtimes):
+#         #verbose("Creating surfaces")
+#         camera_eye = get_camera_eye(hour,hi,DAtimes)
+        
+#         # get cloud, theta, vert motion, firefront in terms of lon,lat,lev
+#         #d_qc = cube_to_xyz(qc[hi],ztopind=topind)
+#         #d_th = cube_to_xyz(th[hi],ztopind=topind_th)
+#         #d_w = cube_to_xyz(w[hi],ztopind=topind)
+        
+#         # surfaces to be plotted in 3d
+#         surface_list = [topog_layer]
+        
+#         ## Points for waroona, yarloop
+#         # locations_scatter = go.Scatter3d(
+#         #     x=namedlocs_lons,
+#         #     y=namedlocs_lats,
+#         #     z=[np.nanmin(levh)]*len(namedlocs),
+#         #     mode='markers',
+#         #     marker=dict(
+#         #         size=4,
+#         #         color='black',           # array/list of desired values
+#         #         #colorscale='Viridis',   # choose a colorscale
+#         #         opacity=0.8
+#         #         ),
+#         #     )
+#         # surface_list.append(locations_scatter)
+        
+#         ## atmospheric heat (theta)
+#         verbose("adding heat surface")
+#         print("DEBUG: heat shape, topind",th.shape, topind_th)
+#         print("DEBUG: heat[hi,:topind_th] 5ns",np.nanpercentile(th[hi,:topind_th],[0,25,50,75,100]))
+#         #print("DEbuG: levh:",levh) # about 0-5km in badja_am1_exploratory
+#         fire_front=theta_surface(lat,lon,levh,th[hi],)
+#         surface_list.append(fire_front)
+#         # theta_surf = isosurface_wrapper(lat,lon,levh, th[hi].load(), topind=topind_th,
+#         #                                 #default_surf_args=_vorticity_neg_surf_defaults_)
+#         #                                 isomin=theta_min,
+#         #                                 isomax=theta_max,
+#         #                                 surface_count=4,
+#         #                                 opacity=0.5,
+#         #                                 colorscale='Hot',
+#         #                                 showscale=False,)
+#         # # theta_surf = go.Isosurface(
+#         # #     z=Z[:,:,:topind_th].flatten(),
+#         # #     x=X[:,:,:topind_th].flatten(),
+#         # #     y=Y[:,:,:topind_th].flatten(),
+#         # #     value=d_th.flatten(),
+#         # #     isomin=theta_min,
+#         # #     isomax=theta_max,
+#         # #     surface_count=4,
+#         # #     opacity=0.7,
+#         # #     colorscale='Hot',
+#         # #     showscale=False
+#         # #     )
+#         # surface_list.append(theta_surf)
+            
+#         ## volume plot showing vertical motion 
+#         vm_ind = np.sum(levh<vert_motion_height)
+#         print("DEBUG: w shape, topind",w.shape, vm_ind)
+#         print("DEBUG: w 5ns",np.nanpercentile(w[hi,:vm_ind],[0,25,50,75,100]))
+#         up_surf,down_surf = up_down_drafts(lat,lon,levh,w[hi],topind=vm_ind)
+#         surface_list.append(up_surf)
+#         surface_list.append(down_surf)
+#         ## Cloud isosurface
+#         qcmin = 0.1
+#         qcmax = 1
+#         print("DEBUG: qc shape, topind", qc.shape, topind)
+#         print("DEBUG: qc 5ns",np.nanpercentile(qc[hi,:topind],[0,25,50,75,100]))
+#         # qc_volume = isosurface_wrapper(lat,lon,levh,qc[hi].load(),topind, method=go.Volume,
+#         #     isomin=qcmin,
+#         #     isomax=qcmax,
+#         #     opacity=0.09, # max opacity
+#         #     surface_count=10,
+#         #     showscale=False, 
+#         # )
+#         # # qc_volume = go.Volume(
+#         # #     x=X.flatten(), 
+#         # #     y=Y.flatten(), 
+#         # #     z=Z.flatten(),
+#         # #     value=d_qc.flatten(),
+#         # #     isomin=qcmin,
+#         # #     isomax=qcmax,
+#         # #     opacity=0.1, # max opacity
+#         # #     surface_count=20,
+#         # #     showscale=False, 
+#         # # )
+#         # surface_list.append(qc_volume)
+        
+#         ## title, lables
+#         title="%s %s (UTC+%.1f)"%(mr, time_lt[hi].strftime("%dT%H:%M"),offset_lt)
+#         layoutargs = title_in_layout(title)
+
+#         figname = None
+#         if not send_to_browser:
+#             #figname = cubetime.strftime('figures/threedee/test_%Y%m%d%H%M.png')
+#             figname = fio.standard_fig_name(mr,_sn_,DAtime,subdir="clouds")
+#         create_figure(surface_list, filename=figname, camera_eye=camera_eye, **layoutargs)
+
+def cloud_system(mr, hour=1, 
+                #theta_height=1000, theta_min=311, theta_max=320,
+                #vert_motion_height = 2500,
+                top_height=10000, send_to_browser=False,
                 extent=None,
-                HSkip=5,
-                ltoffset=8):
+                #HSkip=5,
+                ):
     """
     Read an hour of model output, plot it in 3d using plotly
     saves output as .png
@@ -589,255 +842,188 @@ def cloud_system(mr='KI_run1_exploratory', hour=1,
         height_top: how high (m) included in plot
         send_to_browser: instead of trying to save figures, send one to the browser (interactive)
     """
+    DS,extras,DAtimes,LT,levh,lat,lon,topind = setup_3d(mr,hour,top_height,extent)
     
-    #hours=fio.hours_available(mr)
-    #dtime=hours[hour]
-    
-    DS = fio.read_model_run_hour(mr, 
-                               hour=hour, 
-                               extent=extent, 
-                               #add_theta=True, 
-                               #add_topog=True, 
-                               #add_winds=True,
-                               #HSkip=HSkip,
-                               )
-    utils.extra_DataArrays(DS,add_theta=True,add_winds=True,add_z=True)
-    
-    qc = DS['cld_ice']+DS['cld_water']
-    th = DS['potential_temperature']
-    
-    # datetimes in hour output
-    DAtimes=th.time.data
-    lats=th.latitude.data
-    lons=th.longitude.data
-    # title from local time at fire ignition
-    time_lt = utils.local_time_from_time_lats_lons(DAtimes,lats,lons)
-    offset_lt = utils.local_time_offset_from_lats_lons(lats,lons)
-    
-    DS_ff = fio.read_model_run_fire(mr,
-                        #dtimes=DAtimes,
-                        extent=extent,
-                        #HSkip=HSkip,
-                        )
-    ff = DS_ff['firefront'].loc[dict(time=DAtimes)]
-    #sh = DS_ff['SHEAT_2'].loc[dict(time=DAtimes)]
-    
-    # Get the rest of the desired data
-    topog = DS['surface_altitude']
-    d_topog = topog.load().data
+    d_topog = DS['surface_altitude'].load().data # lat,lon
     # set one pixel to -150 to fix color scale
-    d_topog[1,1] = -150
+    #d_topog[1,1] = -150
     
-    u, v, w = DS['u'], DS['v'], DS['vertical_wnd']
-    if "level_height" in w:
-        levh  = w.level_height.load().data
-    else:
-        levh  = w.level_height_0.load().data
-    
-    topind = np.sum(levh<top_height)
-    topind_th = np.sum(levh<theta_height)
-    
-    # these are level, lat, lon cubes
-    lat,lon = qc.latitude.data, qc.longitude.data
-    
-    if extent is None:
-        extent=[lon[0],lon[-1],lat[0],lat[-1]]
-    # dimensional mesh
-    X,Y,Z = np.meshgrid(lon,lat,levh) 
-    ## X Y Z are now [lat, lon, lev] for some reason
-    [X,Y,Z] = [ np.moveaxis(arr,0,1) for arr in [X,Y,Z]]
-    ## Now they are lon, lat, lev
-    ## Cut down to desired level
-    [X, Y, Z] = [ arr[:,:,:topind] for arr in [X,Y,Z]]
-    
+    th = extras['potential_temperature']
+    w=DS['vertical_wnd']
+
     # topography surface
     topog_layer = topog_surface(lat,lon,levh,d_topog)
-    
-    namedlocs=[]
-    namedlocs_lats = []
-    namedlocs_lons = []
-    for (namedloc, (loclat, loclon)) in plotting._latlons_.items():
-        #print(namedloc, loclat, loclon)
-        if loclon < extent[1] and loclon > extent[0] and loclat < extent[3] and loclat > extent[2]:
-            if 'fire' not in namedloc and 'pyrocb' not in namedloc:
-                namedlocs.append(namedloc)
-                namedlocs_lats.append(loclat)
-                namedlocs_lons.append(loclon)
-    
-    # angle for view is 270 degrees - 90* hour/24
-    # or 270 - 90 * (60*hour + 60*hi/n_hi)/(24*60)
-    
+
     for hi, DAtime in enumerate(DAtimes):
-        #verbose("Creating surfaces")
-        camera_eye = {'x':-2 * np.cos(np.deg2rad(290-120*((60*(hour+hi/len(DAtimes))))/(24.0*60))), 
-                      'y':2 * np.sin(np.deg2rad(290-120*((60*(hour+hi/len(DAtimes))))/(24.0*60))),
-                      'z':0.35}
-        #print("DEBUG:", camera_eye)
-        
-        # get cloud, theta, vert motion, firefront in terms of lon,lat,lev
-        d_qc = cube_to_xyz(qc[hi],ztopind=topind)
-        d_th = cube_to_xyz(th[hi],ztopind=topind_th)
-        d_w = cube_to_xyz(w[hi],ztopind=topind)
-        
-        #d_ff = ff[hi].data.data # firefront already in lon,lat shape
+        # angle for view is 270 degrees - 120 * hour/24
+        # or 270 - 120 * (hour + hi/n_hi)/(24)
+        camera_eye = get_camera_eye(hour,hi,DAtimes)
         
         # surfaces to be plotted in 3d
         surface_list = [topog_layer]
         
-        ## Points for waroona, yarloop
-        locations_scatter = go.Scatter3d(
-            x=namedlocs_lons,
-            y=namedlocs_lats,
-            z=[0]*len(namedlocs),
-            mode='markers',
-            marker=dict(
-                size=4,
-                color='black',           # array/list of desired values
-                #colorscale='Viridis',   # choose a colorscale
-                opacity=0.8
-                ),
-            )
-        surface_list.append(locations_scatter)
+        # heat
+        theta_surf = theta_surface(lat,lon,levh, th[hi])
+        surface_list.append(theta_surf)
         
-        ## atmospheric heat (theta)
-        if np.sum(d_th > theta_min) > 0:
-            verbose("adding heat surface")
-            theta_surf = go.Isosurface(
-                z=Z[:,:,:topind_th].flatten(),
-                x=X[:,:,:topind_th].flatten(),
-                y=Y[:,:,:topind_th].flatten(),
-                value=d_th.flatten(),
-                isomin=theta_min,
-                isomax=theta_max,
-                surface_count=4,
-                opacity=0.7,
-                colorscale='Hot',
-                showscale=False
-                )
-            surface_list.append(theta_surf)
-            
+        # Lets add clouds:
+        # ...
         
-        ## volume plot showing vertical motion 
-        wmax = 7
-        wmin = 3
-        vm_ind = np.sum(levh<vert_motion_height)
-        up_volume = go.Volume(
-            x=X[:,:,:vm_ind].flatten(), 
-            y=Y[:,:,:vm_ind].flatten(), 
-            z=Z[:,:,:vm_ind].flatten(),
-            value=d_w[:,:,:vm_ind].flatten(),
-            isomin=wmin,
-            isomax=wmax,
-            opacity=0.1, # max opacity
-            surface_count=15,
-            colorscale='Reds', # This was PiYG_r on local laptop
-            #reversescale=True,  # should be equivalent to _r
-            showscale=False, 
-        )
-        surface_list.append(up_volume)
-        
-        down_volume = go.Volume(
-            x=X[:,:,:vm_ind].flatten(), 
-            y=Y[:,:,:vm_ind].flatten(), 
-            z=Z[:,:,:vm_ind].flatten(),
-            value=d_w[:,:,:vm_ind].flatten(),
-            isomin=-wmax,
-            isomax=-wmin,
-            opacity=0.1, # max opacity
-            surface_count=15,
-            colorscale='Blues', # This was PiYG_r on local laptop
-            reversescale=True,  # should be equivalent to _r
-            showscale=False, 
-        )
-        surface_list.append(down_volume)
-        
-        ## Cloud isosurface
-        qcmin = 0.1
-        qcmax = 1
-        qc_volume = go.Volume(
-            x=X.flatten(), 
-            y=Y.flatten(), 
-            z=Z.flatten(),
-            value=d_qc.flatten(),
-            isomin=qcmin,
-            isomax=qcmax,
-            opacity=0.1, # max opacity
-            surface_count=20,
-            showscale=False, 
-        )
-        surface_list.append(qc_volume)
+        # temporarily vert motion too
+        up,down = up_down_drafts(lat,lon,levh, w[hi],topind=topind)
+        surface_list.append(up)
+        surface_list.append(down)
         
         ## title, lables
-        title="%s %s (UTC+%.1f)"%(mr, time_lt[hi].strftime("%dT%H:%M"),offset_lt)
+        title="%s (LT)"%(LT[hi].strftime("%dT%H:%M"))
         layoutargs = title_in_layout(title)
 
         figname = None
         if not send_to_browser:
-            #figname = cubetime.strftime('figures/threedee/test_%Y%m%d%H%M.png')
-            figname = fio.standard_fig_name(mr,_sn_,DAtime)
+            figname = fio.standard_fig_name(mr,_sn_,DAtime,subdir="clouds")
+        create_figure(surface_list, filename=figname, camera_eye=camera_eye, **layoutargs)
+
+
+
+def setup_3d(mr,hour,top_height,extent):
+    DS = fio.read_model_run_hour(mr, 
+                               hour=hour, 
+                               extent=extent, 
+                               )
+    # need to read from extra_data folder, based on fully resolved model output
+    extras = fio.extra_data_read(mr,hour=hour, force_recreate=False, extent=extent)
+    #if extent is not None:
+    #    extras = fio.extract_extent(extras,extent)
+    #utils.extra_DataArrays(DS,add_theta=True)
+    
+    # Get the dims
+    v1 = DS['cld_ice']
+    
+    # datetimes in hour output
+    DAtimes=v1.time.data
+    # these are level, lat, lon cubes
+    lat,lon = v1.latitude.data, v1.longitude.data
+    # title from local time at fire ignition
+    time_lt = utils.local_time_from_time_lats_lons(DAtimes,lat,lon)
+    #offset_lt = utils.local_time_offset_from_lats_lons(lat,lon)
+    
+    if "level_height" in v1:
+        levh  = v1.level_height.load().data
+    else:
+        levh  = v1.level_height_0.load().data
+    
+    topind = np.sum(levh<top_height)
+    
+    #if extent is None:
+    #    extent=[lon[0],lon[-1],lat[0],lat[-1]]
+    
+    return DS,extras,DAtimes, time_lt,levh,lat,lon,topind
+
+def rotation_system(mr, hour=4, 
+                top_height=5000, 
+                send_to_browser=False,
+                extent=None,
+                pos_args={},
+                neg_args={},
+                ):
+    """
+    Read an hour of model output, plot it in 3d using plotly
+    saves output as .png
+    ARGUMENTS:
+        mr: model run name (matched to data folder)
+        hour: which output hour (first is 0, last is 23 or -1)
+        top_height: in metres
+        send_to_browser: instead of trying to save figures, send one to the browser (interactive)
+        extent: [W,E,S,N]
+        pos_args: isosurface arguments for positive rotation (shear/deformation)
+        neg_args:  ' ' ' for negative rotation
+    """
+    
+    DS,extras,DAtimes, LT,levh,lat,lon,topind=setup_3d(mr,hour,top_height,extent)
+    
+    d_topog = DS['surface_altitude'].load().data # lat,lon
+    # set one pixel to -150 to fix color scale
+    #d_topog[1,1] = -150
+    
+    th = extras['potential_temperature']
+    rot = extras['rotation']
+    # topography surface
+    topog_layer = topog_surface(lat,lon,levh,d_topog)
+    
+    for hi, DAtime in enumerate(DAtimes):
+        # angle for view is 270 degrees - 120 * hour/24
+        # or 270 - 120 * (hour + hi/n_hi)/(24)
+        camera_eye = get_camera_eye(hour,hi,DAtimes)
+        
+        # surfaces to be plotted in 3d
+        surface_list = [topog_layer]
+        
+        # heat
+        theta_surf = theta_surface(lat,lon,levh, th[hi])
+        surface_list.append(theta_surf)
+        
+        # Rotation
+        #print("DEBUG: rotation 5ns",np.nanpercentile(rot[hi],[0,25,50,75,100]))
+        rot_strong_neg_surf = isosurface_wrapper(lat,lon,levh,rot[hi],topind,
+                                 default_surf_args=_rotation_strong_neg_surf_defaults_,**neg_args)
+        rot_strong_pos_surf = isosurface_wrapper(lat,lon,levh,rot[hi],topind,
+                                 default_surf_args=_rotation_strong_pos_surf_defaults_,**pos_args)
+        surface_list.append(rot_strong_pos_surf)
+        surface_list.append(rot_strong_neg_surf)
+
+        rot_weak_neg_surf = isosurface_wrapper(lat,lon,levh,rot[hi],topind,
+                                 default_surf_args=_rotation_weak_neg_surf_defaults_,**neg_args)
+        rot_weak_pos_surf = isosurface_wrapper(lat,lon,levh,rot[hi],topind,
+                                 default_surf_args=_rotation_weak_pos_surf_defaults_,**pos_args)
+        surface_list.append(rot_weak_pos_surf)
+        surface_list.append(rot_weak_neg_surf)
+
+        ## title, lables
+        title="%s (LT)"%(LT[hi].strftime("%dT%H:%M"))
+        layoutargs = title_in_layout(title)
+
+        figname = None
+        if not send_to_browser:
+            figname = fio.standard_fig_name(mr,_sn_,DAtime,subdir="rotation")
         create_figure(surface_list, filename=figname, camera_eye=camera_eye, **layoutargs)
 
 if __name__=='__main__':
-    KI_extent=None
-    badja_extent=None
-    
-    mr="badja_run3_exploratory"
+    KI_extents=constants.extents["KI"]
+    KI_extent=KI_extents['zoom1']
+    badja_extents=constants.extents["badja"]
+    #badja_extent=badja_extents['zoom1']
+    badja_extent=badja_extents['bigger']
+
+    #mr="badja_run3_exploratory"
+    mr = "badja_am1_exploratory"
     extent=badja_extent
+    #mr = "KI_run2_exploratory"
+    #extent = KI_extent
     
-    DS = fio.read_model_run_hour(mr, 
-                               hour=1, 
-                               extent=extent, 
-                               #add_theta=True, 
-                               #add_topog=True, 
-                               #add_winds=True,
-                               #HSkip=HSkip,
-                               )
-    #print(DS)
-    p=DS['pressure']
-    #print(p.level_height_0.load().data)
-    # datetimes in hour output
-    DAtimes=p.time.data
-    npdtimes = [np.datetime64(dtime) for dtime in DAtimes]
-    lats=p.latitude.data
-    lons=p.longitude.data
-    # title from local time at fire ignition
-    time_lt = utils.local_time_from_time_lats_lons(DAtimes,lats,lons)
-    
-    #    DS_ff = fio.read_model_run_fire(mr,
-    #                        #dtimes=DAtimes,
-    #                        extent=extent,
-    #                        #HSkip=HSkip,
-    #                        )
-    #    ff = DS_ff['firefront'].loc[dict(time=DAtimes)]
-    #    sh = DS_ff['SHEAT_2'].loc[dict(time=DAtimes)]
-    #print(ff)
-    #print(ff.firefront)
-    
-    # wind jet
+    # 3d plots
     if True:
-        for hour in range(4,9):#[2,3,4,5,6,7,8,9,10,11,12]: 
+        for hour in range(3,5):#[2,3,4,5,6,7,8,9,10,11,12]: 
             for funk in [
-                vorticity_system,
+                #vorticity_system,
                 #vertmotion_system,
                 #wind_system,
+                rotation_system,
                 ]:
                     funk(
                         mr=mr, 
                         hour=hour, 
+                        extent=extent,
                         send_to_browser=False,
+                        top_height=6500,
                     )
     
     # Cloud images
     if False:
-        for hour in [1]:
+        for hour in range(4,5):
             cloud_system(mr=mr,
                          hour = hour,
                          extent = extent,
-                         HSkip = 2,
-                         top_height = 13500,
-                         #theta_height=1250,
-                         #theta_min=sirivan_theta_min,
-                         #theta_max=sirivan_theta_max,
-                         send_to_browser=True,)
+                         top_height = 10000,
+                         send_to_browser=False,)
     
             

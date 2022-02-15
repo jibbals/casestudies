@@ -26,6 +26,8 @@ COMPAT='override'
 ## not sure what minimal does but it works on the work laptop
 if xr.__version__<"0.12.4":
     COMPAT='minimal'
+## Futurewarning to order by coordinate: combine='by_coords' in open_mfdataset
+COMBINE='by_coords'
 
 # This script is only run from parent folder, so this relative path should work
 #from utilities import utils, constants
@@ -238,7 +240,7 @@ def read_model_run_hour(mr, extent=None, hour=0):
     print("INFO: will read files:")
     print("    :",hourfiles)
     
-    DS = xr.open_mfdataset(hourfiles,compat=COMPAT)
+    DS = xr.open_mfdataset(hourfiles,compat=COMPAT, combine=COMBINE)
     
     if extent is not None:
         DS = extract_extent(DS,extent)
@@ -330,7 +332,8 @@ def extra_data_make(mr,
 def extra_data_read(mr, 
                     hour=0,
                     force_recreate=False,
-                    topind=90
+                    topind=90,
+                    extent=None,
                     ):
     """
     Read or Create/Save set of data extra to the model output
@@ -353,7 +356,12 @@ def extra_data_read(mr,
         print("INFO: No extra_data file at ",fname," so will create it now...")
         extra_data_make(mr,hour=hour,topind=topind)
     
-    return xr.open_dataset(fname)
+    extras = xr.open_dataset(fname)
+    #print("DEBUG:", extras0)
+    if extent is not None:
+        extras = extract_extent(extras, extent)
+    #print("DEBUG:", extras)
+    return extras
     
 
 def read_model_run_fire(mr, 
@@ -364,7 +372,7 @@ def read_model_run_fire(mr,
     """
     fdir=DATADIR+mr+"/fire/"
     firepaths=glob(fdir+"*00Z.nc")
-    DS = xr.open_mfdataset(firepaths,compat=COMPAT)
+    DS = xr.open_mfdataset(firepaths,compat=COMPAT,combine=COMBINE)
     
     if extent is not None:
         DS = extract_extent(DS,extent)
