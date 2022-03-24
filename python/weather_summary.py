@@ -618,13 +618,13 @@ if __name__=='__main__':
     # keep track of used zooms
     KI_zoom_name = "zoom1"
     KI_zoom = constants.extents['KI'][KI_zoom_name]
-    badja_zoom_name="zoom1"
-    badja_zoom=constants.extents['badja'][badja_zoom_name]
+    badja_zoom_name="zoom2"
+    badja_zoom=constants.extents['badja_am'][badja_zoom_name]
 
     # settings for plots
-    mr='KI_run1_exploratory'
-    zoom=KI_zoom #badja_zoom
-    subdir=KI_zoom_name #badja_zoom_name
+    mr='badja_am1'
+    zoom=badja_zoom #badja_zoom
+    subdir=badja_zoom_name #badja_zoom_name
 
     
     # first do zoomed

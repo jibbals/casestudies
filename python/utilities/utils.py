@@ -281,10 +281,10 @@ def extra_cubes(allcubes,
             var_name="s", 
             units="m s-1",
             dim_coords_and_dims=[
-                (p.coord('time'),0),
-                (p.coord('model_level_number'),1),
-                (p.coord('latitude'),2),
-                (p.coord('longitude'),3)
+                (u.coord('time'),0),
+                (u.coord('model_level_number'),1),
+                (u1.coord('latitude'),2),
+                (v1.coord('longitude'),3)
                 ]
             )
         

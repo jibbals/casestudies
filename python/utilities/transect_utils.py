@@ -34,6 +34,9 @@ from utilities import constants# ,plotting, utils
 mr_transects={
     "badja_am1":{ 
         "Cobargo_Plume_NWSE":[-36.26,149.675, -36.4,150.0],
+        "Yowrie_Cobargo_Coast":[-36.3,149.7,-36.4,150.05],
+        "Yowrie_Wandella_WE":[-36.3,149.675,-36.3,149.9],
+        "southern_plume":[-36.35,149.65,-36.45,149.95],
         },
     "KI_run2":{
         "LLjet_example":[-35.725,136.7, -36.08,136.7],

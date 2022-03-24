@@ -37,36 +37,49 @@ def isochrone_comparison(mrs, extent=None, subdir=None, minute_increment=240):
     
     if extent is not None:
         for mr in mrs:
+            latsi=DS_fires[mr].lat.data
+            lonsi=DS_fires[mr].lon.data
+            print("DEBUG: %s before spatial subset:"%mr)
+            print(DS_fires[mr].dims)
+            print(np.min(lonsi),np.max(latsi),np.min(latsi),np.max(latsi))
+            #print(DS_fires[mr].coords)
             DS_fires[mr] = fio.extract_extent(DS_fires[mr],extent)
+            print("DEBUG: %s after spatial subset:"%mr)
+            print(DS_fires[mr].dims)
+            latsi=DS_fires[mr].lat.data
+            lonsi=DS_fires[mr].lon.data
+            print(np.min(lonsi),np.max(lonsi),np.min(latsi),np.max(latsi))
+            
         DA_topog = fio.extract_extent(DA_topog,extent)
-        if subdir is None:
-            subdir=str(extent)
     
     DA_FFs = {mr:DS_fires[mr]['firefront'] for mr in mrs}
-    lats=DS_fires[mrs[0]].lat.data
-    lons=DS_fires[mrs[0]].lon.data
     if extent is None:
         extent=[lons[0],lons[-1],lats[0],lats[-1]]
     
     times=DS_fires[mrs[0]].time.data
+    lats0 = DS_fires[mrs[0]].lat.data
+    lons0 = DS_fires[mrs[0]].lon.data
     # title from local time at fire ignition
-    time_lt = utils.local_time_from_time_lats_lons(times,lats,lons)
+    time_lt = utils.local_time_from_time_lats_lons(times,lats0,lons0)
     
     ## Plot starts here, we put isochrones onto topography
-    plotting.map_topography(DA_topog.values,lats,lons,cbar=True)
+    plotting.map_topography(DA_topog.values,lats0,lons0,cbar=True)
     
     # loop over timesteps after fire starts
     # This suppresses a warning when reading large arrays
     with dask.config.set(**{'array.slicing.split_large_chunks': False}):
         hasfire=np.min(DA_FFs[mrs[0]].values,axis=(1,2)) < 0
 
-        for ti,time_utc in enumerate(times[hasfire][::minute_increment]): # every 4 hours once fire starts
+        for ti,time_utc in enumerate(times[hasfire][::minute_increment]): # every N minutes once fire starts
         
             for mr, color in zip(mrs,colors):
             
                 DA_FF = DA_FFs[mr]
+                lats=DA_FF.lat.data
+                lons=DA_FF.lon.data
                 # another chunk warning
                 FF = DA_FF.sel(time=time_utc).data.T
+                #print("DEBUG: FF, lats, lons",FF.shape, lats.shape, lons.shape)
                 plotting.map_fire(FF,lats,lons, 
                               linewidths=1,
                               colors=[color],
@@ -76,9 +89,9 @@ def isochrone_comparison(mrs, extent=None, subdir=None, minute_increment=240):
         # Finally do last timestep
         for mr, color in zip(mrs,colors):
             DA_FF = DA_FFs[mr]
-            
+            lats=DA_FF.lat.data
+            lons=DA_FF.lon.data
             ## slice time
-            #another chunk warning
             FF = DA_FF.sel(time=times[-1]).data.T
             plotting.map_fire(FF,lats,lons, 
                               linewidths=2,
@@ -89,7 +102,7 @@ def isochrone_comparison(mrs, extent=None, subdir=None, minute_increment=240):
     lines = [matplotlib.lines.Line2D([0], [0], color=c, linewidth=2, linestyle='-') for c in colors]
     mrs_names=[mrs_name.split("_")[-1] for mrs_name in mrs]
     plt.legend(lines, mrs_names, 
-            bbox_to_anchor=(-.02, 1.06), # put legend top left (above figure)
+            bbox_to_anchor=(-.02, 0.9), # put legend top left (above figure)
             loc='lower left', # for bbox connection
             handlelength=1, # default is 2, line length in legend is too long
             ncol=2, # two columns
@@ -103,10 +116,9 @@ def isochrone_comparison(mrs, extent=None, subdir=None, minute_increment=240):
     plt.gca().set_aspect("equal")
 
     # save figure
-    locstr = mrs[0].split("_")[0]
-    if subdir is not None:
-        locstr = locstr+subdir
-    fio.save_fig_to_path("../figures/isochrone_comparison/"+locstr+".png", plt)
+    if subdir is None:
+        subdir = str(mrs)
+    fio.save_fig_to_path("../figures/isochrone_comparison/"+subdir+".png", plt)
 
 def isochrones(mr, extent=None, subdir=None, labels=False):
     """
@@ -380,9 +392,11 @@ if __name__ == '__main__':
     # Check am1 vs am2
     if True:
         extent = constants.extents['badja_am']['zoom2']
-        isochrone_comparison(['badja_am1','badja_am2'],
+        isochrone_comparison(['badja_am1','badja_am3','badja_am4','badja_am5'],
                 extent=extent,
-                minute_increment=30)
+                minute_increment=60,
+                subdir="badja_high_res_runs",
+                )
     # check harveys runs in more detail    
     if False:
         for mr in harvey_test_runs:

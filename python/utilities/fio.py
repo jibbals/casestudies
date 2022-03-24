@@ -100,9 +100,8 @@ def extract_extent(DS,WESN):
                 latitude = slice(lat0,lat1),
                 longitude = slice(lon0,lon1),
                 )
-
+        print("DEBUG:",type(DS), "dataset cut using DS.sel")
         return DS_cut
-
     
     # make mask for lats/lons (or latitude/longitude)
     if hasattr(DS,"longitude"):
@@ -122,12 +121,9 @@ def extract_extent(DS,WESN):
         mask_lat = mask_lat & (DS.latitude_0 >= lat0) & (DS.latitude_0 <= lat1)
     
     #Finally, it is just a matter of using the where() method and specifying drop=True as an argument.
-    print("DEBUG: DS before spatial subset:")
-    print(DS)
+    print("DEBUG:",type(DS), "dataset cut using DS.where")
     cropped_ds = DS.where(mask_lon & mask_lat, drop=True)
-
-    print("DEBUG: DS after spatial subset:")
-    print(cropped_ds)
+    
     return cropped_ds
 
 def fire_path(mr, prefix):

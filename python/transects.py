@@ -79,7 +79,9 @@ def basic_transects(mr,start,end,ztop=5000,
     wider_lons = wider_topog.coord('longitude').points
     plotting.map_contourf(wider_topog.data,wider_lats,wider_lons,title=name)
     plotting.map_add_locations_extent(wider_extent)
-    fio.save_fig(mr, _SN_, name, plt, subdir=name)
+    # add transect [x0,x1],[y0,y1]
+    plt.plot([start[1],end[1]], [start[0],end[0]],'r--',linewidth=3)
+    fio.save_fig(mr, _sn_, name, plt, subdir=name)
 
     # Read model run
     um_times = fio.hours_available(mr)
@@ -211,6 +213,7 @@ def basic_transects(mr,start,end,ztop=5000,
                     npoints=npoints, 
                     ztop=ztop, 
                     lines=T_lines,
+                    alpha=0.5,
                     )
                 
                 ## Add quiver
@@ -410,15 +413,19 @@ if __name__ == '__main__':
     #                name=None,
     #                n_arrows=20,
     #                T_lines=np.arange(280,350,2),):
-    if True:
-        KI_transect()
-
     if False:
-        mr = "badja_am1"
-        for name,[lat0,lon0,lat1,lon1] in transect_utils.mr_transects[mr].items():
-            start,end = [[lat0,lon0], [lat1,lon1]]
-            print("DEBUG:", name, start, end)
-            basic_transects(mr, start, end, ztop=5000,
-                    hours=np.arange(2,10),
+        KI_transect()
+    
+    if True:
+        # all badja_am1 transects
+        mr="badja_am1"
+        transects=transect_utils.mr_transects[mr]
+        for name,transect in transects.items():
+            lat0,lon0,lat1,lon1 = transect
+            start,end = [[lat0,lon0],[lat1,lon1]]
+            basic_transects(mr,start,end,
+                    ztop=3000,
+                    hours=np.arange(5,12),
                     name=name,
+                    n_arrows=17,
                     )
