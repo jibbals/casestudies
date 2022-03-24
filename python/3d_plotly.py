@@ -217,6 +217,7 @@ def cube_to_xyz(cube,
     data = cube[:ztopind,:,:].data
     # data is now a level, lat, lon array... change to lon, lat, lev
     xyz = np.moveaxis(np.moveaxis(data,0,2),0,1)
+    
     return xyz
 
 def latlonlev_to_xyz(lat,lon,levh):
@@ -224,6 +225,8 @@ def latlonlev_to_xyz(lat,lon,levh):
     X,Y,Z = np.meshgrid(lon,lat,levh) 
     ## X Y Z are now [lat, lon, lev] for some reason
     [X,Y,Z] = [ np.moveaxis(arr,0,1) for arr in [X,Y,Z]]
+    assert np.all(np.array(X.shape) == np.array([len(lon),len(lat),len(levh)])), "ERROR converting to xyz shape: lat,lon,lev:%d,%d,%d != X.shape:%s"%(len(lon),len(lat),len(levh),str(X.shape))
+    assert np.all(levh == Z[5,5,:]), "ERROR: levh not matched at sample point in Z[lon,lat,lev] meshed array"
     ## Now they are lon, lat, lev
     return X,Y,Z
 
@@ -263,19 +266,35 @@ def create_figure(gofigures,
 # TODO: Remove default surf args, just send them in as surf_args
 def isosurface_wrapper(lat,lon,levh,data, 
                        topind=-1, method = go.Isosurface,
-                       default_surf_args = None, **surf_args):
+                       default_surf_args = None, 
+                       check_sensible = None,
+                       **surf_args):
     
     if default_surf_args is not None:
         for k,v in default_surf_args.items():
             if k not in surf_args:
                 surf_args[k]=v
-    
+
     x,y,z = latlonlev_to_xyz(lat,lon,levh)
+    # x[lon,lat,lev] is meshed longitudes, y,z respectively
+
     if "value" not in surf_args:
-        surf_args["value"] = cube_to_xyz(data,ztopind=topind)
-    
-    val=surf_args['value']
-    print("DEBUG: value to be isosurfaced: type, shape, min,max",type(val),np.shape(val),np.nanmin(val),np.nanmax(val))
+        surf_args["value"] = cube_to_xyz(data,ztopind=topind).flatten()
+    val=cube_to_xyz(data,ztopind=topind)
+
+    # debug figure
+    if check_sensible is not None:
+        plt.figure(figsize=[10,10])
+        for zzi,zz in enumerate(np.arange(0,topind,topind//4)):
+            plt.subplot(2,2,zzi+1)
+            # plot X, Y, values
+            #
+            #print(x.shape,y.shape, z.shape, val.shape)
+            plt.pcolormesh(x[:,0,zz],y[0,:,zz],val[:-1,:-1,zz].T)
+            plt.title("alt. %.2e m"%levh[zz])
+            plt.colorbar()
+        fio.save_fig_to_path(check_sensible,plt=plt)
+
     verbose("adding surface")
     surf = method(
         x=x[:,:,:topind].flatten(),
@@ -286,6 +305,25 @@ def isosurface_wrapper(lat,lon,levh,data,
         )
     return surf
 
+def lat_lon_points_iso(lats,lons,names,level,mode='markers',**scatter_args):
+
+    # some defaults
+    if 'marker' not in scatter_args:
+        scatter_args['marker']={
+            'size':4,
+            'color':'black',
+            'opacity':0.7,
+        }
+    
+    locations_scatter = go.Scatter3d(
+        x=lons,
+        y=lats,
+        z=[level]*len(names),
+        mode=mode,
+        **scatter_args,
+        )
+    
+    return locations_scatter
 
 def title_in_layout(title):
     layoutargs = dict(title={"text":title, #lt.strftime(mr+' %d %H:%M (lt)'),
@@ -311,6 +349,8 @@ def topog_surface(lat, lon, levh, topog, **surf_args):
     
     x,y,z = latlonlev_to_xyz(lat,lon,levh)
     data_xy = topog.T
+    assert data_xy.shape == (len(lon),len(lat)), "data_xy not in lon,lat shape"
+    assert np.all(np.array(x.shape) == np.array([len(lon),len(lat),len(levh)])), "xyz conversion error in shape"
     verbose("adding topog")
     surf = go.Surface(
         x=x[:,:,0],
@@ -419,8 +459,8 @@ def wind_system(mr='KI_run2_exploratory', hour=2,
         surface_list.append(theta_surf)
         
         ## wind speed (horizontal) layers
-        ws_surf1 = isosurface_wrapper(lat,lon,levh, ws[hi], topind, _wind_weak_surf_defaults_, **iso_surf_args)
-        ws_surf2 = isosurface_wrapper(lat,lon,levh, ws[hi], topind, _wind_strong_surf_defaults_, **iso_surf_args)
+        ws_surf1 = isosurface_wrapper(lat,lon,levh, ws[hi], topind, default_surf_args=_wind_weak_surf_defaults_, **iso_surf_args)
+        ws_surf2 = isosurface_wrapper(lat,lon,levh, ws[hi], topind, default_surf_args=_wind_strong_surf_defaults_, **iso_surf_args)
         surface_list.append(ws_surf1)
         surface_list.append(ws_surf2)
         
@@ -438,8 +478,7 @@ def vertmotion_system(mr, hour=2,
                 top_height=5000, 
                 send_to_browser=False,
                 extent=None,
-                up_args=None,
-                down_args=None,
+                name_lat_lon_points=[],
                 ):
     """
     Read an hour of model output, plot it in 3d using plotly
@@ -449,6 +488,7 @@ def vertmotion_system(mr, hour=2,
         ws_min,ws_max: windspeed min and max vals
         height_top: how high (m) included in plot
         send_to_browser: instead of trying to save figures, send one to the browser (interactive)
+        name_lat_lon_points: list of extra points to show on topography, default empty
     """
     
     DS = fio.read_model_run_hour(mr, 
@@ -500,11 +540,19 @@ def vertmotion_system(mr, hour=2,
     for hi, DAtime in enumerate(DAtimes):
         # angle for view is 270 degrees - 120 * hour/24
         # or 270 - 120 * (hour + hi/n_hi)/(24)
-        camera_eye = get_camera_eye(hour,hi,DAtimes,245)
+        camera_eye = get_camera_eye(hour,hi,DAtimes,190)
         
         # surfaces to be plotted in 3d
         surface_list = [topog_layer]
         
+        # add points?
+        if len(name_lat_lon_points) > 0:
+            names=name_lat_lon_points[::3]
+            point_lats=name_lat_lon_points[1::3]
+            point_lons=name_lat_lon_points[2::3]
+            point_layer = lat_lon_points_iso(point_lats,point_lons,names,level=levh[0])
+            surface_list.append(point_layer)
+
         # heat
         theta_surf = theta_surface(lat,lon,levh, th[hi])
         surface_list.append(theta_surf)
@@ -594,6 +642,7 @@ def vorticity_system(mr, hour=2,
     
     
     for hi, DAtime in enumerate(DAtimes):
+        
         # angle for view is 270 degrees - 120 * hour/24
         # or 270 - 120 * (hour + hi/n_hi)/(24)
         camera_eye = get_camera_eye(hour,hi,DAtimes)
@@ -604,12 +653,8 @@ def vorticity_system(mr, hour=2,
         OWZ = np.zeros(th[hi].shape)
         for levi in range(topind):
             vort_3d[levi],OW[levi],OWN[levi],OWZ[levi] = utils.vorticity(u[hi,levi].data,v[hi,levi].data,lats,lons)
-            
-        print("DEBUG: zeta",np.nanmin(vort_3d),np.nanmax(vort_3d),np.nanmean(vort_3d))
-        print("DEBUG: OW",np.nanmin(OW),np.nanmax(OW),np.nanmean(OW))
-        print("DEBUG: OWN",np.nanmin(OWN),np.nanmax(OWN),np.nanmean(OWN))
-        print("DEBUG: OWZ",np.nanmin(OWZ),np.nanmax(OWZ),np.nanmean(OWZ))
-        
+        # vort_3d is T,lat,lon
+
         # surfaces to be plotted in 3d
         surface_list = [topog_layer]
         
@@ -617,7 +662,7 @@ def vorticity_system(mr, hour=2,
         theta_surf = theta_surface(lat,lon,levh, th[hi])
         surface_list.append(theta_surf)
         
-        ## atmospheric heat (theta)
+        # ## atmospheric heat (theta)
         vort_surf1=isosurface_wrapper(lat,lon,levh, OWZ, topind=topind,
                                       default_surf_args=_vorticity_pos_surf_defaults_)
         vort_surf2=isosurface_wrapper(lat,lon,levh, OWZ, topind=topind,
@@ -956,7 +1001,9 @@ def rotation_system(mr, hour=4,
         camera_eye = get_camera_eye(hour,hi,DAtimes)
         
         # surfaces to be plotted in 3d
-        surface_list = [topog_layer]
+        surface_list=[]
+        surface_list.append(topog_layer)
+
         
         # heat
         theta_surf = theta_surface(lat,lon,levh, th[hi])
@@ -991,30 +1038,58 @@ if __name__=='__main__':
     KI_extents=constants.extents["KI"]
     KI_extent=KI_extents['zoom1']
     badja_extents=constants.extents["badja"]
-    #badja_extent=badja_extents['zoom1']
-    badja_extent=badja_extents['bigger']
+    badja_extent=badja_extents['zoom1']
+    #badja_extent=badja_extents['bigger']
 
     #mr="badja_run3_exploratory"
     mr = "badja_am1_exploratory"
-    extent=badja_extent
-    #mr = "KI_run2_exploratory"
-    #extent = KI_extent
-    
-    # 3d plots
+    #extent = badja_extent
+    extent = [149.45,150.02,-36.5,-36]
+
+    # 3d plumes for Barry Paper
     if True:
-        for hour in range(3,5):#[2,3,4,5,6,7,8,9,10,11,12]: 
+        mr = "badja_am1_exploratory"
+        #extent = [149.45,150.02,-36.5,-36] # larger extent
+        extent = [149.675,149.95,-36.45,-36.225] # about 20kmx20km
+        FGV = ['FGV',-36.33, 149.85] # name,lat,lon
+        for hour in range(2,8):
+            vertmotion_system(
+                mr=mr, 
+                hour=hour, 
+                extent=extent,
+                send_to_browser=False,
+                top_height=14000,
+                name_lat_lon_points=FGV,
+                )
+            wind_system(
+                mr=mr, 
+                hour=hour, 
+                extent=extent,
+                send_to_browser=False,
+                top_height=10000,
+            )
+            rotation_system(
+                mr=mr, 
+                hour=hour, 
+                extent=extent,
+                send_to_browser=False,
+                top_height=10000,
+            )
+    # 3d plots
+    if False:
+        for hour in range(1,12): 
             for funk in [
                 #vorticity_system,
-                #vertmotion_system,
+                vertmotion_system,
                 #wind_system,
-                rotation_system,
+                #rotation_system,
                 ]:
                     funk(
                         mr=mr, 
                         hour=hour, 
                         extent=extent,
                         send_to_browser=False,
-                        top_height=6500,
+                        top_height=7100,
                     )
     
     # Cloud images
