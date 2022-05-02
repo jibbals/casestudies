@@ -390,7 +390,7 @@ if __name__ == '__main__':
     harvey_test_runs=["AF_coupled","AF_uncoupled","AF_coupled-spark","AF_uncoupled-spark"]
 
     # Check am1 vs am2
-    if True:
+    if False:
         extent = constants.extents['badja_am']['zoom2']
         isochrone_comparison(['badja_am1','badja_am3','badja_am4','badja_am5'],
                 extent=extent,
@@ -403,10 +403,15 @@ if __name__ == '__main__':
             fire_spread(mr=mr, extent=sirivanz_extent, subdir="sirivanz",
                     timesteps=12, firespeed=False)
 
-    if False: 
-        fire_spread(mr='badja_UC1',
-                #extent=badja_zoom,
-                #subdir=badja_zoom_name,
+    if True: 
+        mr='wooroloo_run1'
+        extent=constants.extents['wooroloo']['zoom1']
+        subdir='zoom1'
+
+        isochrones(mr=mr, extent=extent, subdir=subdir)
+        fire_spread(mr=mr,
+                extent=extent,
+                subdir=subdir,
                 timesteps=10,
                 firespeed=False)
 

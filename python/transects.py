@@ -113,7 +113,7 @@ def basic_transects(mr,start,end,ztop=5000,
         u,v,w = cubelist.extract(['u','v','upward_air_velocity'])
         zcube, = cubelist.extract(['z_th'])
         dtimes = utils.dates_from_iris(theta)
-        print("DEBUG:", cubelist)
+        #print("DEBUG:", cubelist)
         # Calculate rotation
         rotation = utils.rotation(
             u.data,
@@ -122,7 +122,7 @@ def basic_transects(mr,start,end,ztop=5000,
             zcube.data, # altitude in m
             lats,lons,
             )
-        print("DEBUG: rotation shape,nanmin,nanmean,nanmax",rotation.shape,np.nanmin(rotation),np.nanmean(rotation),np.nanmax(rotation),)
+        #print("DEBUG: rotation shape,nanmin,nanmean,nanmax",rotation.shape,np.nanmin(rotation),np.nanmean(rotation),np.nanmax(rotation),)
 
         # read fire front, sens heat, 10m winds
         ff,sh = fio_iris.read_fire(model_run=mr,
@@ -416,7 +416,7 @@ if __name__ == '__main__':
     if False:
         KI_transect()
     
-    if True:
+    if False:
         # all badja_am1 transects
         mr="badja_am1"
         transects=transect_utils.mr_transects[mr]
@@ -426,6 +426,26 @@ if __name__ == '__main__':
             basic_transects(mr,start,end,
                     ztop=3000,
                     hours=np.arange(5,12),
+                    name=name,
+                    n_arrows=17,
+                    )
+    if True:
+        # special badja transects for FGV stuff
+        mr="badja_am1"
+        transects = {
+            "along_front_2.1":[-36.5,149.80, -36.275,149.82],
+            "along_front_2.2":[-36.5,149.82, -36.275,149.84],
+            "along_front_2.3":[-36.5,149.84, -36.275,149.86],
+            # "FGV_path_1":[-36.28,149.7,-36.355,149.95],
+            # "FGV_path_2":[-36.30,149.7,-36.375,149.95],
+            # "FGV_path_3":[-36.32,149.7,-36.395,149.95],
+        }
+        for name,transect in transects.items():
+            lat0,lon0,lat1,lon1 = transect
+            start,end = [[lat0,lon0],[lat1,lon1]]
+            basic_transects(mr,start,end,
+                    ztop=4000,
+                    hours=np.arange(6,10),
                     name=name,
                     n_arrows=17,
                     )

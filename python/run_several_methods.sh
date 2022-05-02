@@ -67,7 +67,8 @@ fi
 ##
 
 module use /g/data3/hh5/public/modules
-module load conda/analysis3-21.04
+#module load conda/analysis3-21.04
+module load conda/analysis3
 
 python <<EOF
 
@@ -83,6 +84,8 @@ badja_zoom_names=list(constants.extents['badja'].keys())
 badja_zooms= list(constants.extents['badja'].values())
 badja_am_zoom_names=list(constants.extents['badja_am'].keys())
 badja_am_zooms= list(constants.extents['badja_am'].values())
+wooroloo_zoom_names = list(constants.extents['wooroloo'].keys())
+wooroloo_zooms = list(constants.extents['wooroloo'].values())
 
 ## settings for plots
 mr="${mr}"
@@ -98,6 +101,9 @@ elif 'badja' in mr:
 elif 'KI_' in mr:
     zooms = KI_zooms
     subdirs = KI_zoom_names
+elif 'wooroloo' in mr:
+    zooms=wooroloo_zooms
+    subdirs = wooroloo_zoom_names
 
 zoom = zooms[${extent_ind}]
 subdir = subdirs[${extent_ind}]
